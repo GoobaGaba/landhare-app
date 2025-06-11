@@ -6,21 +6,23 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown } from 'lucide-react'; // Added SearchIcon
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
-import { getListings } from '@/lib/mock-data'; // To fetch recent listings
+import { getListings } from '@/lib/mock-data';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
   const { currentUser, loading } = useAuth();
+  const router = useRouter();
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Fetch a few recent listings for the carousel/scroll view
     const allListings = getListings();
-    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 4)); // Get up to 4 available listings
+    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 6)); // Get up to 6 available listings for better carousel feel
   }, []);
 
   const getFirstName = () => {
@@ -31,6 +33,15 @@ export default function HomePage() {
       return currentUser.email.split('@')[0];
     }
     return 'Valued User';
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      router.push('/search');
+    }
   };
 
   return (
@@ -47,28 +58,31 @@ export default function HomePage() {
             Unlock Your Land. Find Your Space.
           </h1>
           
-          {/* Conditional Hero Actions */}
           {!loading && currentUser ? (
-            // Logged-in User View: Search Bar and Recent Listings
-            <div className="mt-8 max-w-2xl mx-auto">
-              <div className="relative">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <div className="mt-10 max-w-2xl mx-auto">
+              <form onSubmit={handleSearchSubmit} className="relative">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                 <Input
                   type="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search for land (e.g., 'Willow Creek, CO', 'tiny home plot')"
                   className="w-full h-14 pl-12 pr-4 rounded-lg text-lg shadow-md focus-visible:ring-primary"
+                  aria-label="Search for land"
                 />
-              </div>
-              <Button size="lg" className="mt-4 w-full sm:w-auto">
-                <SearchIcon className="mr-2 h-5 w-5" /> Search Land
-              </Button>
+                 <Button type="submit" size="lg" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-10 px-6">
+                  Search
+                </Button>
+              </form>
 
               {recentListings.length > 0 && (
-                <div className="mt-16 text-left">
-                  <h2 className="text-2xl font-semibold mb-6 text-primary">Recently Added Land</h2>
-                  <div className="flex overflow-x-auto space-x-4 pb-4 -mx-1 sm:-mx-4 px-1 sm:px-4">
+                <div className="mt-20 text-left"> {/* Increased top margin */}
+                  <h2 className="text-2xl font-semibold mb-8 text-primary"> {/* Title changed and bottom margin increased */}
+                    Recently added
+                  </h2>
+                  <div className="flex overflow-x-auto space-x-6 pb-6 -mx-1 sm:-mx-4 px-1 sm:px-4 custom-scrollbar"> {/* Increased space-x and pb */}
                     {recentListings.map(listing => (
-                      <div key={listing.id} className="min-w-[280px] sm:min-w-[300px] md:min-w-[320px] flex-shrink-0">
+                      <div key={listing.id} className="w-80 flex-shrink-0"> {/* Consistent card width */}
                         <ListingCard listing={listing} viewMode="grid" />
                       </div>
                     ))}
@@ -77,13 +91,7 @@ export default function HomePage() {
               )}
             </div>
           ) : (
-            // Guest User View: Original Buttons
-            <>
-             <p className="text-lg md:text-xl text-foreground/80 max-w-3xl mx-auto mb-10">
-                LandShare Connect makes affordable housing accessible and helps landowners earn.
-                Rent or list land for tiny homes, RVs, and more.
-             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
               <Button size="lg" asChild>
                 <Link href="/search">
                   <SearchIcon className="mr-2 h-5 w-5" /> Find Land
@@ -95,7 +103,6 @@ export default function HomePage() {
                 </Link>
               </Button>
             </div>
-            </>
           )}
         </div>
       </section>

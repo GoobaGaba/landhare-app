@@ -117,3 +117,27 @@ body {
     @apply font-headline;
   }
 }
+
+/* Custom scrollbar for webkit browsers */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 8px; /* Height of horizontal scrollbar */
+  width: 8px; /* Width of vertical scrollbar */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-muted/50 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-primary/70 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary;
+}
+
+/* For Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin; /* "auto" or "thin" */
+  scrollbar-color: hsl(var(--primary) / 0.7) hsl(var(--muted) / 0.5); /* thumb and track color */
+}
