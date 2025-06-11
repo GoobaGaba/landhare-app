@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock } from 'lucide-react';
+import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock, FilterX } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { LeaseTerm } from '@/lib/types';
 
@@ -18,14 +18,32 @@ const amenitiesList = [
   { id: 'septic', label: 'Septic System', icon: Trash2 },
   { id: 'road_access', label: 'Road Access' },
   { id: 'fenced', label: 'Fenced' },
+  { id: 'Pet Friendly', label: 'Pet Friendly' }, // Ensure this matches mockData
 ];
 
-export function FilterPanel() {
-  const [priceRange, setPriceRange] = useState<[number, number]>([50, 1000]);
-  const [sizeRange, setSizeRange] = useState<[number, number]>([500, 10000]);
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [selectedLeaseTerm, setSelectedLeaseTerm] = useState<LeaseTerm | 'any'>('any');
+interface FilterPanelProps {
+  priceRange: [number, number];
+  setPriceRange: Dispatch<SetStateAction<[number, number]>>;
+  sizeRange: [number, number];
+  setSizeRange: Dispatch<SetStateAction<[number, number]>>;
+  selectedAmenities: string[];
+  setSelectedAmenities: Dispatch<SetStateAction<string[]>>;
+  selectedLeaseTerm: LeaseTerm | 'any';
+  setSelectedLeaseTerm: Dispatch<SetStateAction<LeaseTerm | 'any'>>;
+  resetFilters: () => void;
+}
 
+export function FilterPanel({
+  priceRange,
+  setPriceRange,
+  sizeRange,
+  setSizeRange,
+  selectedAmenities,
+  setSelectedAmenities,
+  selectedLeaseTerm,
+  setSelectedLeaseTerm,
+  resetFilters,
+}: FilterPanelProps) {
   const handleAmenityChange = (amenityId: string) => {
     setSelectedAmenities(prev =>
       prev.includes(amenityId)
@@ -34,21 +52,16 @@ export function FilterPanel() {
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle filter submission logic
-    console.log({ priceRange, sizeRange, selectedAmenities, selectedLeaseTerm });
-    // In a real app, you would typically refetch listings with these filters
-    // or update a global state/context that the listing display component listens to.
-  };
-
   return (
-    <Card className="sticky top-20 shadow-md">
-      <CardHeader>
+    <Card className="sticky top-24 shadow-md">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
         <CardTitle>Filter Listings</CardTitle>
+        <Button variant="ghost" size="sm" onClick={resetFilters} title="Reset all filters">
+          <FilterX className="h-4 w-4 mr-2" /> Clear
+        </Button>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form className="space-y-6">
           <div>
             <Label htmlFor="price-range" className="flex items-center mb-2">
               <DollarSign className="h-4 w-4 mr-2 text-primary" /> Price Range ($/month)
@@ -58,7 +71,7 @@ export function FilterPanel() {
               min={0}
               max={2000}
               step={50}
-              value={[priceRange[0], priceRange[1]]}
+              value={priceRange}
               onValueChange={(value) => setPriceRange(value as [number, number])}
               className="mb-2"
             />
@@ -75,9 +88,9 @@ export function FilterPanel() {
             <Slider
               id="size-range"
               min={100}
-              max={50000}
+              max={500000} // Increased max for desert oasis
               step={100}
-              value={[sizeRange[0], sizeRange[1]]}
+              value={sizeRange}
               onValueChange={(value) => setSizeRange(value as [number, number])}
               className="mb-2"
             />
@@ -93,7 +106,7 @@ export function FilterPanel() {
             </Label>
             <RadioGroup 
                 value={selectedLeaseTerm} 
-                onValueChange={(value: LeaseTerm | 'any') => setSelectedLeaseTerm(value)}
+                onValueChange={(value) => setSelectedLeaseTerm(value as LeaseTerm | 'any')}
                 className="space-y-1"
             >
               <div className="flex items-center space-x-2">
@@ -134,7 +147,8 @@ export function FilterPanel() {
             </div>
           </div>
           
-          <Button type="submit" className="w-full">Apply Filters</Button>
+          {/* The "Apply Filters" button is removed as filters apply on change */}
+          {/* <Button type="submit" className="w-full">Apply Filters</Button> */}
         </form>
       </CardContent>
     </Card>
