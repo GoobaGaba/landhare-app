@@ -1,3 +1,6 @@
+
+export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';
+
 export interface Listing {
   id: string;
   title: string;
@@ -11,6 +14,8 @@ export interface Listing {
   isAvailable: boolean;
   rating?: number; // Average rating
   numberOfRatings?: number;
+  leaseTerm?: LeaseTerm; // New field for lease term
+  minLeaseDurationMonths?: number; // Optional: minimum lease duration in months
 }
 
 export interface User {
@@ -42,7 +47,7 @@ export interface Message {
 }
 
 export interface Conversation {
-  id: string;
+  id:string;
   participantIds: string[]; // IDs of users in the conversation
   lastMessage?: Message; // For preview
   listingId?: string; // Optional: if conversation is about a specific listing

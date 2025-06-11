@@ -1,3 +1,4 @@
+
 import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
@@ -14,13 +15,15 @@ const mockListings: Listing[] = [
     description: "Beautiful 2-acre plot perfect for a tiny home. Quiet and serene with great views.",
     location: "Willow Creek, CO",
     sizeSqft: 87120, // 2 acres
-    amenities: ["water", "road_access"],
+    amenities: ["water", "road_access", "Pet Friendly"],
     pricePerMonth: 350,
     images: ["https://placehold.co/600x400.png?text=Sunny+Meadow"],
     landownerId: "user1",
     isAvailable: true,
     rating: 4.5,
     numberOfRatings: 12,
+    leaseTerm: "long-term",
+    minLeaseDurationMonths: 6,
   },
   {
     id: "2",
@@ -35,6 +38,8 @@ const mockListings: Listing[] = [
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
+    leaseTerm: "short-term",
+    minLeaseDurationMonths: 1,
   },
   {
     id: "3",
@@ -46,7 +51,8 @@ const mockListings: Listing[] = [
     pricePerMonth: 500,
     images: ["https://placehold.co/600x400.png?text=Lakeside+Spot"],
     landownerId: "user1",
-    isAvailable: false, // Example of unavailable
+    isAvailable: false, 
+    leaseTerm: "flexible",
   },
   {
     id: "4",
@@ -61,10 +67,30 @@ const mockListings: Listing[] = [
     isAvailable: true,
     rating: 3.9,
     numberOfRatings: 5,
+    leaseTerm: "long-term",
+    minLeaseDurationMonths: 12,
+  },
+   {
+    id: "5",
+    title: "Quick Getaway Nook",
+    description: "Small, convenient plot for weekend RV parking or a very short term tiny home spot.",
+    location: "Highway Rest, NV",
+    sizeSqft: 2000, 
+    amenities: ["road_access"],
+    pricePerMonth: 100,
+    images: ["https://placehold.co/600x400.png?text=Quick+Nook"],
+    landownerId: "user4",
+    isAvailable: true,
+    rating: 4.0,
+    numberOfRatings: 3,
+    leaseTerm: "short-term",
   },
 ];
 
 export default function SearchPage() {
+  // Filtering logic would be more complex in a real app,
+  // typically handled by API calls based on filter state.
+  // For this mock, we'll just show available listings.
   const availableListings = mockListings.filter(l => l.isAvailable);
 
   return (

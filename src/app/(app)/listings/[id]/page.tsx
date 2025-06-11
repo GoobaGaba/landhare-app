@@ -1,15 +1,23 @@
+
+'use client';
+
 import Image from 'next/image';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { Listing, Review as ReviewType, User } from '@/lib/types'; // Assuming User type exists
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award } from 'lucide-react';
-import Link from 'next/link';
+import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import type { Listing, Review as ReviewType, User, LeaseTerm } from '@/lib/types';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
+import { addDays, format, differenceInCalendarMonths, startOfMonth, endOfMonth, isBefore } from 'date-fns';
 
 // Mock data - replace with API call
 const getListingDetails = async (id: string): Promise<Listing | null> => {
-  // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
   const mockListings: Listing[] = [
      {
@@ -25,8 +33,9 @@ const getListingDetails = async (id: string): Promise<Listing | null> => {
       isAvailable: true,
       rating: 4.5,
       numberOfRatings: 12,
+      leaseTerm: "long-term",
+      minLeaseDurationMonths: 6,
     },
-    // Add more mock listings if needed to test different scenarios
   ];
   return mockListings.find(l => l.id === id) || null;
 };
@@ -48,15 +57,87 @@ const getListingReviews = async (listingId: string): Promise<ReviewType[]> => {
 };
 
 
-export default async function ListingDetailPage({ params }: { params: { id: string } }) {
-  const listing = await getListingDetails(params.id);
-  
+export default function ListingDetailPage({ params }: { params: { id: string } }) {
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [landowner, setLandowner] = useState<User | null>(null);
+  const [reviews, setReviews] = useState<ReviewType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [showBookingDialog, setShowBookingDialog] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      const listingData = await getListingDetails(params.id);
+      setListing(listingData);
+      if (listingData) {
+        const landownerData = await getLandownerDetails(listingData.landownerId);
+        setLandowner(landownerData);
+        const reviewsData = await getListingReviews(listingData.id);
+        setReviews(reviewsData);
+      }
+      setIsLoading(false);
+    }
+    fetchData();
+  }, [params.id]);
+
+  if (isLoading) {
+    return <div className="text-center py-10">Loading listing details...</div>;
+  }
+
   if (!listing) {
     return <div className="text-center py-10">Listing not found.</div>;
   }
 
-  const landowner = await getLandownerDetails(listing.landownerId);
-  const reviews = await getListingReviews(listing.id);
+  const handleBookingRequest = () => {
+    if (!dateRange || !dateRange.from || !dateRange.to) {
+      toast({
+        title: "Select Dates",
+        description: "Please select a check-in and check-out date.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (listing.minLeaseDurationMonths) {
+        const monthsSelected = differenceInCalendarMonths(dateRange.to, dateRange.from) + 1;
+        if (monthsSelected < listing.minLeaseDurationMonths) {
+            toast({
+                title: "Minimum Lease Duration",
+                description: `This listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. You selected ${monthsSelected} month(s).`,
+                variant: "destructive",
+            });
+            return;
+        }
+    }
+    setShowBookingDialog(true);
+  };
+
+  const handleConfirmBooking = () => {
+    setShowBookingDialog(false);
+    // In a real app, this would trigger a server action to create a booking
+    console.log("Booking request submitted for:", listing.title, dateRange);
+    toast({
+      title: "Booking Request Submitted!",
+      description: `Your request for "${listing.title}" from ${dateRange?.from ? format(dateRange.from, "PPP") : ''} to ${dateRange?.to ? format(dateRange.to, "PPP") : ''} has been sent.`,
+    });
+    setDateRange(undefined); // Reset dates
+  };
+  
+  const today = new Date();
+  today.setHours(0,0,0,0); // Normalize today to start of day
+
+  const calculateTotalPrice = () => {
+    if (!dateRange || !dateRange.from || !dateRange.to || !listing) return 0;
+    // Ensure 'to' date is after 'from' date for calculation
+    const fromDate = startOfMonth(dateRange.from);
+    const toDate = endOfMonth(dateRange.to);
+    
+    let months = differenceInCalendarMonths(toDate, fromDate) + 1;
+    if (months <= 0) months = 1; // Minimum 1 month if range is within the same month
+
+    return listing.pricePerMonth * months;
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -99,6 +180,9 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
                 <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" /> Price: ${listing.pricePerMonth}/month</div>
                 <div className="flex items-center col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
+                {listing.leaseTerm && (
+                  <div className="flex items-center col-span-2"><Info className="h-5 w-5 mr-2 text-primary" /> Lease Term: <span className="capitalize ml-1">{listing.leaseTerm}</span> {listing.minLeaseDurationMonths ? `(${listing.minLeaseDurationMonths}+ months)` : ''}</div>
+                )}
               </div>
               <Separator className="my-6" />
               <h3 className="text-xl font-semibold mb-3">Amenities</h3>
@@ -111,6 +195,38 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
               </ul>
             </CardContent>
           </Card>
+          
+          {/* Date Selection */}
+           {listing.isAvailable && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Select Your Dates</CardTitle>
+                <CardDescription>Choose your check-in and check-out dates. Prices are per full calendar month.</CardDescription>
+                {listing.minLeaseDurationMonths && (
+                    <p className="text-xs text-accent flex items-center mt-1">
+                        <AlertTriangle className="h-4 w-4 mr-1" /> This listing requires a minimum {listing.minLeaseDurationMonths}-month lease.
+                    </p>
+                )}
+              </CardHeader>
+              <CardContent className="flex flex-col items-center">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={1}
+                  fromDate={today} // Disable past dates
+                  disabled={(date) => isBefore(date, today)}
+                  className="rounded-md border"
+                />
+                {dateRange?.from && dateRange?.to && (
+                  <p className="mt-4 text-sm">
+                    Selected: <strong>{format(dateRange.from, "PPP")}</strong> to <strong>{format(dateRange.to, "PPP")}</strong>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+           )}
+
 
           {/* Reviews Section */}
           <Card>
@@ -126,7 +242,6 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                 <Card key={review.id} className="bg-muted/30">
                   <CardHeader className="flex flex-row justify-between items-start pb-2">
                     <div>
-                      {/* Placeholder for reviewer name - would fetch user details */}
                       <CardTitle className="text-sm">Reviewer {review.userId.slice(-4)}</CardTitle>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
@@ -134,7 +249,7 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                         ))}
                       </div>
                     </div>
-                    <CardDescription className="text-xs">{review.createdAt.toLocaleDateString()}</CardDescription>
+                    <CardDescription className="text-xs">{new Date(review.createdAt).toLocaleDateString()}</CardDescription>
                   </CardHeader>
                   <CardContent className="text-sm pt-0">
                     {review.comment}
@@ -167,7 +282,12 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                <p className="text-2xl font-bold text-primary">${listing.pricePerMonth} <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button size="lg" className="w-full" disabled={!listing.isAvailable}>
+              <Button 
+                size="lg" 
+                className="w-full" 
+                onClick={handleBookingRequest}
+                disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to}
+              >
                 {listing.isAvailable ? "Request to Book" : "Currently Unavailable"}
               </Button>
               <Button variant="outline" className="w-full">
@@ -188,6 +308,35 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
           </Card>
         </div>
       </div>
+
+      <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Your Booking Request</DialogTitle>
+            <DialogDescription>
+              Please review the details of your booking request for "{listing.title}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p><strong>Check-in:</strong> {dateRange?.from ? format(dateRange.from, "PPP") : 'N/A'}</p>
+            <p><strong>Check-out:</strong> {dateRange?.to ? format(dateRange.to, "PPP") : 'N/A'}</p>
+            <p><strong>Duration:</strong> {dateRange?.from && dateRange.to ? `${differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1} month(s)` : 'N/A'}</p>
+            <p className="text-lg font-semibold"><strong>Estimated Price:</strong> ${calculateTotalPrice().toFixed(2)}</p>
+            {listing.minLeaseDurationMonths && dateRange?.from && dateRange.to && (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths && (
+                <p className="text-sm text-destructive flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months.
+                </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
+            <Button onClick={handleConfirmBooking} disabled={
+                listing.minLeaseDurationMonths && dateRange?.from && dateRange.to ? 
+                (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths : false
+            }>Submit Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

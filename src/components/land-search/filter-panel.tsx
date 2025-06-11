@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Maximize, UtilityPole, Droplets, Trash2 } from 'lucide-react';
+import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import type { LeaseTerm } from '@/lib/types';
 
 const amenitiesList = [
   { id: 'water', label: 'Water Hookup', icon: Droplets },
@@ -21,6 +24,7 @@ export function FilterPanel() {
   const [priceRange, setPriceRange] = useState<[number, number]>([50, 1000]);
   const [sizeRange, setSizeRange] = useState<[number, number]>([500, 10000]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [selectedLeaseTerm, setSelectedLeaseTerm] = useState<LeaseTerm | 'any'>('any');
 
   const handleAmenityChange = (amenityId: string) => {
     setSelectedAmenities(prev =>
@@ -33,7 +37,9 @@ export function FilterPanel() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle filter submission logic
-    console.log({ priceRange, sizeRange, selectedAmenities });
+    console.log({ priceRange, sizeRange, selectedAmenities, selectedLeaseTerm });
+    // In a real app, you would typically refetch listings with these filters
+    // or update a global state/context that the listing display component listens to.
   };
 
   return (
@@ -79,6 +85,34 @@ export function FilterPanel() {
               <span>{sizeRange[0].toLocaleString()}</span>
               <span>{sizeRange[1].toLocaleString()}</span>
             </div>
+          </div>
+          
+          <div>
+            <Label className="flex items-center mb-2">
+                <CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term
+            </Label>
+            <RadioGroup 
+                value={selectedLeaseTerm} 
+                onValueChange={(value: LeaseTerm | 'any') => setSelectedLeaseTerm(value)}
+                className="space-y-1"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="any" id="term-any" />
+                <Label htmlFor="term-any" className="font-normal">Any</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="short-term" id="term-short" />
+                <Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 months)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="long-term" id="term-long" />
+                <Label htmlFor="term-long" className="font-normal">Long Term (6+ months)</Label>
+              </div>
+               <div className="flex items-center space-x-2">
+                <RadioGroupItem value="flexible" id="term-flexible" />
+                <Label htmlFor="term-flexible" className="font-normal">Flexible</Label>
+              </div>
+            </RadioGroup>
           </div>
 
           <div>
