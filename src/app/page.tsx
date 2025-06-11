@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2 } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
-import { getListings } from '@/lib/mock-data'; // This now fetches from Firestore
+import { getListings } from '@/lib/mock-data'; 
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -84,16 +84,21 @@ export default function HomePage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search land (e.g., location, keywords)"
-                  className="w-full h-12 pl-12 pr-24 rounded-l-lg text-sm focus-visible:ring-primary border-r-0" 
+                  className="w-full h-12 pl-12 pr-16 rounded-lg text-sm focus-visible:ring-primary" 
                   aria-label="Search for land"
                 />
-                 <Button type="submit" className="h-12 px-6 text-sm rounded-r-lg rounded-l-none">
-                  Search
-                </Button>
+                 <Button
+                    type="submit"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full"
+                    aria-label="Search"
+                  >
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
               </form>
 
-              <div className="mt-16 text-left"> 
-                <h2 className="text-2xl font-semibold mb-6 text-primary text-center"> 
+              <div className="mt-16 text-center"> 
+                <h2 className="text-2xl font-semibold mb-6 text-primary"> 
                   Recently added
                 </h2>
                 {isLoadingListings ? (
@@ -254,3 +259,4 @@ export default function HomePage() {
     </div>
   );
 }
+
