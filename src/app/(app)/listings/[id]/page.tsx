@@ -12,11 +12,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User } from '@/lib/types';
+// Updated to use Firestore-backed functions
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle } from 'lucide-react';
-import { DateRange } from 'react-day-picker';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2 } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInCalendarMonths, startOfMonth, endOfMonth, isBefore } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
+import { firebaseInitializationError } from '@/lib/firebase';
+
 
 export default function ListingDetailPage({ params }: { params: { id: string } }) {
   const { currentUser, loading: authLoading } = useAuth();
@@ -26,37 +29,89 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [isBookingRequested, setIsBookingRequested] = useState(false); // Tracks if current user booked this session
+  const [isBookingRequested, setIsBookingRequested] = useState(false); 
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 300)); 
-      
-      const listingData = getListingById(params.id);
-      setListing(listingData);
-
-      if (listingData) {
-        const landownerData = getUserById(listingData.landownerId);
-        setLandowner(landownerData);
-        const reviewsData = getReviewsForListing(listingData.id);
-        setReviews(reviewsData);
+      if (firebaseInitializationError) {
+        toast({ title: "Database Error", description: "Cannot load listing: " + firebaseInitializationError, variant: "destructive" });
+        setIsLoading(false);
+        return;
       }
-      setIsLoading(false);
+      setIsLoading(true);
+      try {
+        const listingData = await getListingById(params.id);
+        setListing(listingData || null);
+
+        if (listingData) {
+          const landownerData = await getUserById(listingData.landownerId);
+          setLandowner(landownerData || null);
+          const reviewsData = await getReviewsForListing(listingData.id);
+          setReviews(reviewsData);
+        }
+      } catch (error: any) {
+        console.error("Error fetching listing data:", error);
+        toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+      }
     }
     fetchData();
-  }, [params.id]);
+  }, [params.id, toast]);
 
   if (isLoading || authLoading) {
-    return <div className="text-center py-10">Loading listing details...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading listing details...</p>
+      </div>
+    );
+  }
+  
+  if (firebaseInitializationError && !listing) {
+     return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            Service Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Listing details are temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
+          </p>
+           <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
+        </CardContent>
+      </Card>
+    );
   }
 
+
   if (!listing) {
-    return <div className="text-center py-10">Listing not found.</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Listing Not Found</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>The listing you are looking for does not exist or could not be loaded.</p>
+            <Button asChild className="mt-4">
+              <Link href="/search">Back to Search</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const handleBookingRequestOpen = () => {
+     if (firebaseInitializationError) {
+      toast({ title: "Database Error", description: "Cannot request booking: " + firebaseInitializationError, variant: "destructive" });
+      return;
+    }
     if (!currentUser) {
       toast({
         title: "Login Required",
@@ -74,7 +129,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       return;
     }
     if (listing.minLeaseDurationMonths) {
-        const monthsSelected = differenceInCalendarMonths(dateRange.to, dateRange.from) + 1;
+        const monthsSelected = differenceInCalendarMonths(dateRange.to, dateRange.from) + 1; // Simplified month calc
         if (monthsSelected < listing.minLeaseDurationMonths) {
             toast({
                 title: "Minimum Lease Duration",
@@ -87,14 +142,14 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     setShowBookingDialog(true);
   };
 
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     if (!currentUser || !dateRange?.from || !dateRange?.to || !listing) return;
 
     try {
-      addBookingRequest({
+      await addBookingRequest({
         listingId: listing.id,
         renterId: currentUser.uid, 
-        landownerId: listing.landownerId,
+        landownerId: listing.landownerId, // This will be set correctly in addBookingRequest using listingId
         dateRange: { from: dateRange.from, to: dateRange.to },
       });
       
@@ -104,10 +159,10 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         title: "Booking Request Submitted!",
         description: `Your request for "${listing.title}" from ${format(dateRange.from, "PPP")} to ${format(dateRange.to, "PPP")} has been sent.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Booking Failed",
-        description: (error instanceof Error) ? error.message : "Could not submit booking request.",
+        description: error.message || "Could not submit booking request.",
         variant: "destructive",
       });
     }
@@ -128,13 +183,16 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   };
 
   const isCurrentUserLandowner = currentUser?.uid === listing.landownerId;
+  const mainImage = listing.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/800x600.png?text=Listing";
+  const otherImages = listing.images ? listing.images.slice(1) : [];
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div className="relative w-full h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
           <Image
-            src={listing.images[0]}
+            src={mainImage}
             alt={listing.title}
             data-ai-hint="landscape field"
             fill
@@ -143,7 +201,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             priority
           />
         </div>
-        {listing.images.slice(1).map((img, index) => (
+        {otherImages.map((img, index) => (
           <div key={index} className="relative w-full h-48 rounded-lg overflow-hidden shadow-md">
             <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint="nature detail" fill sizes="400px" className="object-cover" />
           </div>
@@ -208,7 +266,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   onSelect={setDateRange}
                   numberOfMonths={1}
                   fromDate={today} 
-                  disabled={(date) => isBefore(date, today) || !currentUser}
+                  disabled={(date) => isBefore(date, today) || !currentUser || firebaseInitializationError !== null}
                   className="rounded-md border"
                 />
                 {dateRange?.from && dateRange?.to && (
@@ -233,21 +291,21 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 <Card key={review.id} className="bg-muted/30">
                   <CardHeader className="flex flex-row justify-between items-start pb-2">
                     <div>
-                      <CardTitle className="text-sm">Reviewer {getUserById(review.userId)?.name || `User...${review.userId.slice(-4)}`}</CardTitle>
+                      <CardTitle className="text-sm">Reviewer {landowner?.name || `User...${review.userId.slice(-4)}`}</CardTitle> {/* Needs better name fetching */}
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
                         ))}
                       </div>
                     </div>
-                    <CardDescription className="text-xs">{new Date(review.createdAt).toLocaleDateString()}</CardDescription>
+                    <CardDescription className="text-xs">{format(review.createdAt instanceof Date ? review.createdAt : (review.createdAt as any).toDate(), "PPP")}</CardDescription>
                   </CardHeader>
                   <CardContent className="text-sm pt-0">
                     {review.comment}
                   </CardContent>
                 </Card>
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
-               <Button variant="outline" className="mt-4" disabled={!currentUser || isCurrentUserLandowner}>Write a Review</Button>
+               <Button variant="outline" className="mt-4" disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}>Write a Review</Button> {/* Add actual review functionality later */}
             </CardContent>
           </Card>
         </div>
@@ -263,10 +321,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   </Avatar>
                   <CardTitle>{landowner.name}</CardTitle>
                   <CardDescription className="flex items-center justify-center">
-                    <Award className="h-4 w-4 mr-1 text-accent"/> Verified Landowner
+                    <Award className="h-4 w-4 mr-1 text-accent"/> Verified Landowner {/* Mocked status */}
                   </CardDescription>
                 </>
               )}
+               {!landowner && <UserCircle className="w-20 h-20 mb-2 text-muted-foreground" />}
             </CardHeader>
             <CardContent className="text-center">
                <p className="text-2xl font-bold text-primary">${listing.pricePerMonth} <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
@@ -277,12 +336,12 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   size="lg" 
                   className="w-full" 
                   onClick={handleBookingRequestOpen}
-                  disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested || !currentUser}
+                  disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested || !currentUser || firebaseInitializationError !== null}
                 >
                   {isBookingRequested ? "Booking Requested" : (listing.isAvailable ? "Request to Book" : "Currently Unavailable")}
                 </Button>
               )}
-              <Button variant="outline" className="w-full" disabled={!currentUser || isCurrentUserLandowner}>
+              <Button variant="outline" className="w-full" disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}> {/* Add contact functionality later */}
                 <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
               </Button>
               {isCurrentUserLandowner && (
@@ -328,7 +387,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
-                !currentUser ||
+                !currentUser || firebaseInitializationError !== null ||
                 (listing.minLeaseDurationMonths && dateRange?.from && dateRange.to ? 
                 (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths : false)
             }>Submit Request</Button>

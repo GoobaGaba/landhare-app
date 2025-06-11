@@ -17,12 +17,13 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const signupSchema = z.object({
+  displayName: z.string().min(2, { message: 'Name must be at least 2 characters.' }).optional(),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   confirmPassword: z.string().min(6, { message: 'Please confirm your password.' }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match.",
-  path: ['confirmPassword'], // path of error
+  path: ['confirmPassword'], 
 });
 
 type SignupFormValues = z.infer<typeof signupSchema>;
@@ -42,7 +43,12 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signUpWithEmailPassword({ email: data.email, password: data.password });
+      // Pass displayName to signUpWithEmailPassword
+      await signUpWithEmailPassword({ 
+        email: data.email, 
+        password: data.password, 
+        displayName: data.displayName || data.email.split('@')[0] // Default if not provided
+      });
       toast({
         title: 'Signup Successful',
         description: "Your account has been created! Redirecting to dashboard...",
@@ -91,6 +97,11 @@ export default function SignupPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Full Name (Optional)</Label>
+            <Input id="displayName" type="text" placeholder="John Doe" {...register('displayName')} />
+            {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" placeholder="you@example.com" {...register('email')} />

@@ -1,30 +1,33 @@
 
 'use client';
 
-import type { User, AuthError } from 'firebase/auth';
+import type { User as FirebaseUserType, AuthError } from 'firebase/auth';
 import { 
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateProfile
 } from 'firebase/auth';
-import { auth as firebaseAuthInstance, firebaseInitializationError } from '@/lib/firebase'; 
+import { auth as firebaseAuthInstance, db as firestoreInstance, firebaseInitializationError } from '@/lib/firebase'; 
 import type { ReactNode} from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { createUserProfile } from '@/lib/mock-data'; // Now using Firestore version
 
 interface AuthCredentials {
   email: string;
-  password?: string; // Optional for password reset
+  password?: string; 
+  displayName?: string; // Added for signup
 }
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: FirebaseUserType | null; // Using FirebaseUserType directly
   loading: boolean;
   authError: string | null; 
-  signUpWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<User | null>;
-  signInWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<User | null>;
+  signUpWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<FirebaseUserType | null>;
+  signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<FirebaseUserType | null>;
   logoutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
 }
@@ -39,35 +42,29 @@ export function useAuth() {
   return context;
 }
 
-// A very simplified mock user for UI testing when Firebase is not initialized
 const MOCK_USER_FOR_UI_TESTING = {
-  uid: 'mock-user-123',
-  email: 'tester@example.com',
-  displayName: 'Mock User',
+  uid: 'mock-user-uid-12345', // Ensure this matches a landownerId in mock-data for testing listings/bookings
+  email: 'mocktester@example.com',
+  displayName: 'Mock UI Tester',
   photoURL: null,
   emailVerified: true,
   isAnonymous: false,
-  // --- Start of properties that are methods on a real User object ---
-  // We provide dummy implementations or leave them as undefined if not strictly needed
-  // by the parts of the UI we are testing. For full User type compatibility,
-  // these would need to be proper functions.
   getIdToken: async () => 'mock-token',
   getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
   reload: async () => {},
   delete: async () => {},
-  toJSON: () => ({ uid: 'mock-user-123', email: 'tester@example.com', displayName: 'Mock User' }),
-  // --- End of method-like properties ---
+  toJSON: () => ({ uid: 'mock-user-uid-12345', email: 'mocktester@example.com', displayName: 'Mock UI Tester' }),
   metadata: { creationTime: new Date().toISOString(), lastSignInTime: new Date().toISOString() },
-  providerData: [{ providerId: 'password', uid: 'tester@example.com', displayName: 'Mock User', email: 'tester@example.com', photoURL: null, phoneNumber: null }],
+  providerData: [{ providerId: 'password', uid: 'mocktester@example.com', displayName: 'Mock UI Tester', email: 'mocktester@example.com', photoURL: null, phoneNumber: null }],
   refreshToken: 'mock-refresh-token',
   tenantId: null,
-} as unknown as User; // Cast to User, acknowledging it's a simplified mock
+} as unknown as FirebaseUserType; 
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<FirebaseUserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null); // Local auth operation errors
+  const [authError, setAuthError] = useState<string | null>(null); 
   const { toast } = useToast();
 
   useEffect(() => {
@@ -78,12 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setCurrentUser(MOCK_USER_FOR_UI_TESTING);
       setLoading(false);
-      setAuthError(firebaseInitializationError); // Reflect the persistent Firebase init error
-      return; // Skip Firebase onAuthStateChanged listener
+      setAuthError(firebaseInitializationError);
+      return; 
     }
 
-    // If no Firebase initialization error, proceed with real Firebase auth
-    setAuthError(null); // Clear any overarching init error from local state
+    setAuthError(null); 
 
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, (user) => {
       setCurrentUser(user);
@@ -95,20 +91,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return unsubscribe; // Unsubscribe on component unmount
-  }, []); // Run once on mount, firebaseInitializationError is constant after initial load
+    return unsubscribe; 
+  }, []); 
 
   const guardAuthOperation = async <T,>(
     operation: () => Promise<T>,
     operationName: string
   ): Promise<T> => {
-    if (!firebaseAuthInstance || firebaseInitializationError) {
+    if (!firebaseAuthInstance || firebaseInitializationError || !firestoreInstance) { // Check firestoreInstance too
       const errorMessage = firebaseInitializationError || `Firebase not initialized. Cannot perform ${operationName}.`;
       console.error(`Auth Operation Guard: ${errorMessage}`);
       setAuthError(errorMessage); 
       throw new Error(errorMessage); 
     }
-    setAuthError(null); // Clear local component error before attempting operation
+    setAuthError(null); 
     try {
       return await operation();
     } catch (err) {
@@ -119,14 +115,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUpWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<User | null> => {
+  const signUpWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<FirebaseUserType | null> => {
     return guardAuthOperation(async () => {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
+      if (userCredential.user) {
+        // Update Firebase Auth profile
+        await updateProfile(userCredential.user, {
+          displayName: credentials.displayName || credentials.email.split('@')[0],
+        });
+        // Create user profile in Firestore
+        if (firestoreInstance) { // Ensure firestore is initialized
+           await createUserProfile(userCredential.user.uid, userCredential.user.email!, credentials.displayName);
+        } else {
+            console.warn("Firestore not initialized, skipping profile creation in DB for new user.");
+        }
+      }
       return userCredential.user;
     }, 'sign up');
   };
 
-  const signInWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<User | null> => {
+  const signInWithEmailPassword = async (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>): Promise<FirebaseUserType | null> => {
      return guardAuthOperation(async () => {
       const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
       return userCredential.user;
@@ -135,15 +143,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutUser = async (): Promise<void> => {
     if (firebaseInitializationError) {
-      // If Firebase isn't working, just clear the mock user for UI testing
       setCurrentUser(null);
       toast({ title: 'Mock Logout', description: 'Simulated logout (Firebase not available).' });
       return Promise.resolve();
     }
-    // Otherwise, proceed with actual Firebase logout
     return guardAuthOperation(async () => {
       await firebaseSignOut(firebaseAuthInstance!);
-      // onAuthStateChanged will set currentUser to null
     }, 'logout');
   };
   

@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // IMPORTANT: Environment Variable Management for Firebase
 // ... (The existing long comment about .env.local setup should remain here as it's still vital) ...
@@ -8,7 +9,7 @@ import { getAuth, type Auth } from 'firebase/auth';
 // your Next.js application needs access to Firebase project configuration
 // variables. These variables MUST be:
 //
-// 1. STORED IN `.env.local` file:
+// 1. STORED IN `.env.local` FILE:
 //    - Create a file named EXACTLY `.env.local` in the ROOT of your project
 //      (same folder as `package.json`).
 //    - Add your Firebase config values there. Example:
@@ -48,6 +49,7 @@ const firebaseConfig: FirebaseOptions = {
 
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
+let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
 const isApiKeyEffectivelyMissing = !apiKey || apiKey === "your_actual_api_key_from_firebase" || apiKey.startsWith("AIzaSy_YOUR_ACTUAL_API_KEY") || apiKey.includes("PLACEHOLDER");
@@ -58,7 +60,7 @@ if (isApiKeyEffectivelyMissing) {
   ** WARNING: FIREBASE CLIENT-SIDE CONFIG ISSUE DETECTED                                           **
   **-----------------------------------------------------------------------------------------------**
   ** The 'NEXT_PUBLIC_FIREBASE_API_KEY' is MISSING, UNDEFINED, or still a PLACEHOLDER.             **
-  ** Firebase features (like Authentication) will be DISABLED until this is corrected.             **
+  ** Firebase features (like Authentication and Firestore) will be DISABLED until this is corrected. **
   **                                                                                               **
   ** TO FIX THIS (these steps are crucial and MUST be done by YOU in YOUR local environment):      **
   ** 1. VERIFY '.env.local' FILE:                                                                  **
@@ -77,13 +79,12 @@ if (isApiKeyEffectivelyMissing) {
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
-    console.warn(warningMessage); // Changed from console.error to console.warn
+    console.warn(warningMessage);
   } else {
     console.warn("FIREBASE SERVER-SIDE WARNING: NEXT_PUBLIC_FIREBASE_API_KEY is missing or a placeholder. This will disable client-side Firebase features. Please check your .env.local file and restart the server.");
   }
   firebaseInitializationError = "Firebase API Key is missing or a placeholder. Firebase features are disabled.";
 } else {
-  // Attempt to initialize Firebase only if the API key seems to be present and not a placeholder
   try {
     if (!getApps().length) {
       appInstance = initializeApp(firebaseConfig);
@@ -91,12 +92,14 @@ if (isApiKeyEffectivelyMissing) {
       appInstance = getApp();
     }
     authInstance = getAuth(appInstance);
+    firestoreInstance = getFirestore(appInstance);
   } catch (error: any) {
     console.error("Firebase Initialization Failed (even with presumed API key):", error);
     firebaseInitializationError = `Firebase Initialization Failed: ${error.message || "Unknown error."}. Firebase features are disabled.`;
     appInstance = null;
     authInstance = null;
+    firestoreInstance = null;
   }
 }
 
-export { appInstance as app, authInstance as auth, firebaseInitializationError };
+export { appInstance as app, authInstance as auth, firestoreInstance as db, firebaseInitializationError };

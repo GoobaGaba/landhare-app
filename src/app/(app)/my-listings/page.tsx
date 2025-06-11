@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ListChecks, PlusCircle, Edit3, Trash2, Search, AlertTriangle, Loader2, UserCircle } from "lucide-react";
 import type { Listing } from "@/lib/types";
+// Updated to use Firestore-backed functions
 import { getListings, deleteListing as dbDeleteListing } from "@/lib/mock-data"; 
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/contexts/auth-context';
-
+import { firebaseInitializationError } from '@/lib/firebase';
 
 export default function MyListingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -31,52 +32,72 @@ export default function MyListingsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
 
-  const loadMyListings = useCallback(() => {
-    if (!currentUser) {
+  const loadMyListings = useCallback(async () => {
+    if (firebaseInitializationError || !currentUser) {
       setIsLoading(false);
       setMyListings([]);
+       if (firebaseInitializationError) {
+        toast({ title: "Database Error", description: "Cannot load listings: " + firebaseInitializationError, variant: "destructive" });
+      }
       return;
     }
     setIsLoading(true);
-    const allListings = getListings();
-    const filteredListings = allListings.filter(listing => listing.landownerId === currentUser.uid);
-    setMyListings(filteredListings);
-    setIsLoading(false);
-  }, [currentUser]);
+    try {
+      const allListings = await getListings();
+      const filteredListings = allListings.filter(listing => listing.landownerId === currentUser.uid);
+      setMyListings(filteredListings);
+    } catch (error: any) {
+      console.error("Failed to load listings:", error);
+      toast({
+        title: "Loading Failed",
+        description: error.message || "Could not load your listings.",
+        variant: "destructive",
+      });
+      setMyListings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser, toast]);
 
   useEffect(() => {
     if(!authLoading){
-        const timer = setTimeout(() => {
-          loadMyListings();
-        }, 300); 
-        return () => clearTimeout(timer);
+        loadMyListings();
     }
   }, [authLoading, currentUser, loadMyListings]);
 
   const openDeleteDialog = (listing: Listing) => {
+    if (firebaseInitializationError) {
+       toast({ title: "Database Error", description: "Cannot delete listing: " + firebaseInitializationError, variant: "destructive" });
+       return;
+    }
     setListingToDelete(listing);
     setShowDeleteDialog(true);
   };
 
-  const confirmDeleteListing = () => {
+  const confirmDeleteListing = async () => {
     if (!listingToDelete) return;
 
-    const success = dbDeleteListing(listingToDelete.id);
-    if (success) {
-      toast({
-        title: "Listing Deleted",
-        description: `"${listingToDelete.title}" has been successfully deleted.`,
-      });
-      loadMyListings(); 
-    } else {
-      toast({
+    try {
+      const success = await dbDeleteListing(listingToDelete.id);
+      if (success) {
+        toast({
+          title: "Listing Deleted",
+          description: `"${listingToDelete.title}" has been successfully deleted.`,
+        });
+        await loadMyListings(); 
+      } else {
+        throw new Error("Deletion operation failed.");
+      }
+    } catch (error: any) {
+       toast({
         title: "Deletion Failed",
-        description: `Could not delete "${listingToDelete.title}".`,
+        description: error.message || `Could not delete "${listingToDelete.title}".`,
         variant: "destructive",
       });
+    } finally {
+      setShowDeleteDialog(false);
+      setListingToDelete(null);
     }
-    setShowDeleteDialog(false);
-    setListingToDelete(null);
   };
 
   if (authLoading || isLoading) {
@@ -109,6 +130,26 @@ export default function MyListingsPage() {
       </div>
     );
   }
+  
+  if (firebaseInitializationError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            Service Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Your listings are temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
+          </p>
+           <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   if (!currentUser) {
      return (
@@ -135,7 +176,7 @@ export default function MyListingsPage() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold">My Listings</h1>
-        <Button asChild>
+        <Button asChild disabled={firebaseInitializationError !== null}>
           <Link href="/listings/new">
             <PlusCircle className="mr-2 h-4 w-4" /> Create New Listing
           </Link>
@@ -154,7 +195,7 @@ export default function MyListingsPage() {
             <p className="text-muted-foreground">
               You haven't created any listings yet. Get started by listing your land!
             </p>
-            <Button asChild className="mt-4">
+            <Button asChild className="mt-4" disabled={firebaseInitializationError !== null}>
                 <Link href="/listings/new">Create Your First Listing</Link>
             </Button>
           </CardContent>
@@ -165,12 +206,12 @@ export default function MyListingsPage() {
             <div key={listing.id} className="flex flex-col">
               <ListingCard listing={listing} viewMode="grid" />
               <div className="mt-2 flex gap-2 p-2 bg-card rounded-b-lg border border-t-0 shadow-sm">
-                <Button variant="outline" size="sm" className="flex-1" asChild>
-                  <Link href={`/listings/edit/${listing.id}`}> 
+                <Button variant="outline" size="sm" className="flex-1" asChild disabled={firebaseInitializationError !== null}>
+                  <Link href={`/listings/edit/${listing.id}`}> {/* Edit page not yet created */}
                     <Edit3 className="mr-2 h-4 w-4" /> Edit
                   </Link>
                 </Button>
-                <Button variant="destructive" size="sm" className="flex-1" onClick={() => openDeleteDialog(listing)}>
+                <Button variant="destructive" size="sm" className="flex-1" onClick={() => openDeleteDialog(listing)} disabled={firebaseInitializationError !== null}>
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </Button>
               </div>

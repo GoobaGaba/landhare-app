@@ -1,4 +1,6 @@
 
+import type { Timestamp } from 'firebase/firestore';
+
 export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';
 
 export interface Listing {
@@ -16,6 +18,7 @@ export interface Listing {
   numberOfRatings?: number;
   leaseTerm?: LeaseTerm; 
   minLeaseDurationMonths?: number; 
+  createdAt?: Date | Timestamp; // For Firestore, often Timestamp
 }
 
 export interface User {
@@ -23,7 +26,7 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  // userType: 'landowner' | 'renter' | 'admin'; // Removed userType
+  createdAt?: Date | Timestamp;
 }
 
 export interface Review {
@@ -32,7 +35,7 @@ export interface Review {
   userId: string;
   rating: number; 
   comment: string;
-  createdAt: Date;
+  createdAt: Date | Timestamp; // Firestore Timestamp
 }
 
 export interface Booking {
@@ -41,7 +44,11 @@ export interface Booking {
   renterId: string; 
   landownerId: string; 
   status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled';
-  dateRange: { from: Date; to: Date };
+  dateRange: { 
+    from: Date | Timestamp; // Firestore Timestamp
+    to: Date | Timestamp;   // Firestore Timestamp
+  };
+  createdAt?: Date | Timestamp;
   // Optional denormalized fields for display convenience
   listingTitle?: string;
   landownerName?: string;
@@ -55,7 +62,7 @@ export interface Message {
   senderId: string;
   receiverId: string;
   content: string;
-  timestamp: Date;
+  timestamp: Date | Timestamp; // Firestore Timestamp
   isRead: boolean;
 }
 
@@ -64,6 +71,7 @@ export interface Conversation {
   participantIds: string[]; 
   lastMessage?: Message; 
   listingId?: string; 
+  updatedAt?: Date | Timestamp;
 }
 
 // For AI price suggestion

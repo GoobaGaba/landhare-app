@@ -6,108 +6,62 @@ import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
 import type { Listing, LeaseTerm } from "@/lib/types";
+import { getListings as fetchAllListings } from '@/lib/mock-data'; // Using Firestore backed getListings
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
-import { SearchIcon, LayoutGrid, List } from "lucide-react";
+import { SearchIcon, LayoutGrid, List, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from '@/hooks/use-toast';
+import { firebaseInitializationError } from '@/lib/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Mock data for listings - replace with API call in a real app
-const mockListings: Listing[] = [
-  {
-    id: "1",
-    title: "Sunny Meadow Plot",
-    description: "Beautiful 2-acre plot perfect for a tiny home. Quiet and serene with great views.",
-    location: "Willow Creek, CO",
-    sizeSqft: 87120, // 2 acres
-    amenities: ["Water Hookup", "Road Access", "Pet Friendly"], // Matched amenity names
-    pricePerMonth: 350,
-    images: ["https://placehold.co/600x400.png?text=Sunny+Meadow"],
-    landownerId: "user1",
-    isAvailable: true,
-    rating: 4.5,
-    numberOfRatings: 12,
-    leaseTerm: "long-term",
-    minLeaseDurationMonths: 6,
-  },
-  {
-    id: "2",
-    title: "Forest Retreat Lot",
-    description: "Secluded 5000 sq ft lot surrounded by trees. Power available at street.",
-    location: "Pine Ridge, FL",
-    sizeSqft: 5000,
-    amenities: ["Power Access"], // Matched amenity names
-    pricePerMonth: 200,
-    images: ["https://placehold.co/600x400.png?text=Forest+Retreat"],
-    landownerId: "user2",
-    isAvailable: true,
-    rating: 4.2,
-    numberOfRatings: 8,
-    leaseTerm: "short-term",
-    minLeaseDurationMonths: 1,
-  },
-  {
-    id: "3",
-    title: "Lakeside Camping Spot",
-    description: "Spacious area near the lake, ideal for RVs or short-term stays. Septic hookup available.",
-    location: "Blue Lake, CA",
-    sizeSqft: 10000,
-    amenities: ["Septic System", "Water Hookup"], // Matched amenity names
-    pricePerMonth: 500,
-    images: ["https://placehold.co/600x400.png?text=Lakeside+Spot"],
-    landownerId: "user1",
-    isAvailable: false, 
-    leaseTerm: "flexible",
-  },
-  {
-    id: "4",
-    title: "Desert Oasis Parcel",
-    description: "Large 10-acre parcel with stunning desert views. Off-grid living potential.",
-    location: "Red Rock, AZ",
-    sizeSqft: 435600, // 10 acres
-    amenities: [],
-    pricePerMonth: 150,
-    images: ["https://placehold.co/600x400.png?text=Desert+Oasis"],
-    landownerId: "user3",
-    isAvailable: true,
-    rating: 3.9,
-    numberOfRatings: 5,
-    leaseTerm: "long-term",
-    minLeaseDurationMonths: 12,
-  },
-   {
-    id: "5",
-    title: "Quick Getaway Nook",
-    description: "Small, convenient plot for weekend RV parking or a very short term tiny home spot.",
-    location: "Highway Rest, NV",
-    sizeSqft: 2000, 
-    amenities: ["Road Access"], // Matched amenity names
-    pricePerMonth: 100,
-    images: ["https://placehold.co/600x400.png?text=Quick+Nook"],
-    landownerId: "user4",
-    isAvailable: true,
-    rating: 4.0,
-    numberOfRatings: 3,
-    leaseTerm: "short-term",
-  },
-];
-
-const ITEMS_PER_PAGE = 6; // Example items per page
-
+const ITEMS_PER_PAGE = 6; 
 const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
 
 export default function SearchPage() {
+  const [allListings, setAllListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>(initialPriceRange);
   const [sizeRange, setSizeRange] = useState<[number, number]>(initialSizeRange);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedLeaseTerm, setSelectedLeaseTerm] = useState<LeaseTerm | 'any'>('any');
-  const [filteredListings, setFilteredListings] = useState<Listing[]>(mockListings.filter(l => l.isAvailable));
+  const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>('rating_desc');
+
+  useEffect(() => {
+    const loadInitialListings = async () => {
+      if (firebaseInitializationError) {
+        toast({ title: "Database Error", description: "Cannot load listings: " + firebaseInitializationError, variant: "destructive" });
+        setIsLoading(false);
+        setAllListings([]);
+        setFilteredListings([]);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const listings = await fetchAllListings();
+        const availableListings = listings.filter(l => l.isAvailable);
+        setAllListings(availableListings);
+        setFilteredListings(availableListings); // Initially set filtered to all available
+      } catch (error: any) {
+        console.error("Error fetching listings:", error);
+        toast({ title: "Loading Error", description: error.message || "Could not load listings.", variant: "destructive" });
+        setAllListings([]);
+        setFilteredListings([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInitialListings();
+  }, [toast]);
 
 
   const resetFilters = () => {
@@ -120,9 +74,10 @@ export default function SearchPage() {
   };
 
   useEffect(() => {
-    let listings = mockListings.filter(l => l.isAvailable);
+    if (isLoading) return; // Don't filter if initial data isn't loaded
 
-    // Search term filter
+    let listings = [...allListings]; // Use the fetched and stored allListings
+
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       listings = listings.filter(
@@ -133,29 +88,24 @@ export default function SearchPage() {
       );
     }
 
-    // Price filter
     listings = listings.filter(
       l => l.pricePerMonth >= priceRange[0] && l.pricePerMonth <= priceRange[1]
     );
 
-    // Size filter
     listings = listings.filter(
       l => l.sizeSqft >= sizeRange[0] && l.sizeSqft <= sizeRange[1]
     );
 
-    // Amenities filter
     if (selectedAmenities.length > 0) {
       listings = listings.filter(l =>
         selectedAmenities.every(amenity => l.amenities.map(a => a.toLowerCase()).includes(amenity.toLowerCase()))
       );
     }
     
-    // Lease term filter
     if (selectedLeaseTerm !== 'any') {
         listings = listings.filter(l => l.leaseTerm === selectedLeaseTerm);
     }
 
-    // Sorting
     listings = [...listings].sort((a, b) => {
       switch (sortBy) {
         case 'price_asc':
@@ -173,10 +123,9 @@ export default function SearchPage() {
       }
     });
 
-
     setFilteredListings(listings);
-    setCurrentPage(1); // Reset to first page on filter change
-  }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy]);
+    setCurrentPage(1); 
+  }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allListings, isLoading]);
 
   const paginatedListings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -190,6 +139,36 @@ export default function SearchPage() {
       setCurrentPage(page);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-3 text-lg text-muted-foreground">Loading available land...</p>
+      </div>
+    );
+  }
+  
+  if (firebaseInitializationError && !isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+              Service Unavailable
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Land search is temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
 
   return (
@@ -205,10 +184,11 @@ export default function SearchPage() {
           selectedLeaseTerm={selectedLeaseTerm}
           setSelectedLeaseTerm={setSelectedLeaseTerm}
           resetFilters={resetFilters}
+          disabled={firebaseInitializationError !== null}
         />
       </div>
       <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6">
-        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"> {/* Show map placeholder on top for smaller screens */}
+        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"> 
           <MapView />
         </div>
         
@@ -221,10 +201,11 @@ export default function SearchPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
+              disabled={firebaseInitializationError !== null}
             />
           </div>
           <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={setSortBy} disabled={firebaseInitializationError !== null}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
@@ -236,10 +217,10 @@ export default function SearchPage() {
                 <SelectItem value="size_desc">Size (Large to Small)</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View">
+            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" disabled={firebaseInitializationError !== null}>
               <LayoutGrid className="h-4 w-4"/>
             </Button>
-            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View">
+            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View" disabled={firebaseInitializationError !== null}>
               <List className="h-4 w-4"/>
             </Button>
           </div>
@@ -247,7 +228,7 @@ export default function SearchPage() {
         
         <h2 className="text-2xl font-semibold">Available Land ({filteredListings.length} results)</h2>
 
-        {filteredListings.length === 0 ? (
+        {filteredListings.length === 0 && !firebaseInitializationError ? (
           <Alert>
             <SearchIcon className="h-4 w-4" />
             <AlertTitle>No Listings Found</AlertTitle>
@@ -280,7 +261,6 @@ export default function SearchPage() {
                   </PaginationLink>
                 </PaginationItem>
               ))}
-              {/* We can add ellipsis logic later if many pages */}
               <PaginationItem>
                 <PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}/>
               </PaginationItem>
@@ -288,7 +268,7 @@ export default function SearchPage() {
           </Pagination>
         )}
       </div>
-      <div className="hidden xl:block xl:w-1/3 sticky top-24 self-start"> {/* Show map on the side for larger screens */}
+      <div className="hidden xl:block xl:w-1/3 sticky top-24 self-start">
         <MapView />
       </div>
     </div>

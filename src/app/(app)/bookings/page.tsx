@@ -1,17 +1,18 @@
 
 'use client';
 
-import { useState, useEffect, useCallback }
-from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking } from '@/lib/types';
-import { getBookings as fetchAllBookings, updateBookingStatus as dbUpdateBookingStatus, getUserById } from '@/lib/mock-data';
+// Updated to use Firestore-backed functions
+import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getUserById, getListingById } from '@/lib/mock-data'; // Renamed getBookings to getBookingsForUser
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
+import { firebaseInitializationError } from '@/lib/firebase';
 
 export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -20,34 +21,32 @@ export default function BookingsPage() {
   const { toast } = useToast();
 
   const loadBookings = useCallback(async () => {
-    if (!currentUser) {
+    if (firebaseInitializationError || !currentUser) {
       setIsLoading(false);
       setUserBookings([]);
+      if (firebaseInitializationError) {
+        toast({ title: "Database Error", description: "Cannot load bookings: " + firebaseInitializationError, variant: "destructive" });
+      }
       return;
     }
     setIsLoading(true);
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const allBookings = fetchAllBookings(); 
-    
-    // A user sees bookings if they are the renter OR the landowner
-    const filteredBookings = allBookings.filter(b => b.renterId === currentUser.uid || b.landownerId === currentUser.uid);
-    
-    // Enhance bookings with names if not already present
-    const enhancedBookings = filteredBookings.map(booking => {
-        const renter = getUserById(booking.renterId);
-        const landowner = getUserById(booking.landownerId);
-        return {
-            ...booking,
-            renterName: renter?.name || booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`,
-            landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`,
-        };
-    });
-
-    setUserBookings(enhancedBookings);
-    setIsLoading(false);
-  }, [currentUser]);
+    try {
+      const bookingsFromDb = await getBookingsForUser(currentUser.uid);
+      // The new getBookingsForUser already populates names and titles.
+      setUserBookings(bookingsFromDb);
+    } catch (error: any) {
+      console.error("Failed to load bookings:", error);
+      toast({
+        title: "Loading Failed",
+        description: error.message || "Could not load your bookings.",
+        variant: "destructive",
+      });
+      setUserBookings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser, toast]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -57,26 +56,31 @@ export default function BookingsPage() {
 
 
   const handleUpdateBookingStatus = async (bookingId: string, newStatus: Booking['status']) => {
-    if (!currentUser) {
-        toast({ title: "Authentication Error", description: "You must be logged in to update bookings.", variant: "destructive"});
+    if (firebaseInitializationError || !currentUser) {
+        toast({ title: "Authentication/Database Error", description: "Cannot update booking: " + (firebaseInitializationError || "User not logged in."), variant: "destructive"});
         return;
     }
+    // Optimistic UI update (can be removed if direct re-fetch is preferred)
     const originalBookings = [...userBookings];
     setUserBookings(prevBookings => 
       prevBookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
     );
 
-    const updatedBooking = dbUpdateBookingStatus(bookingId, newStatus);
-    if (updatedBooking) {
-      toast({
-        title: "Booking Updated",
-        description: `Booking status changed to ${newStatus}.`,
-      });
-      await loadBookings(); 
-    } else {
+    try {
+      const updatedBooking = await dbUpdateBookingStatus(bookingId, newStatus);
+      if (updatedBooking) {
+        toast({
+          title: "Booking Updated",
+          description: `Booking status changed to ${newStatus}.`,
+        });
+        await loadBookings(); // Re-fetch to ensure UI consistency
+      } else {
+        throw new Error("Update operation returned undefined.");
+      }
+    } catch (error: any) {
       toast({
         title: "Update Failed",
-        description: "Could not update booking status.",
+        description: error.message || "Could not update booking status.",
         variant: "destructive",
       });
       setUserBookings(originalBookings); 
@@ -91,7 +95,10 @@ export default function BookingsPage() {
   };
   
   const formatDateRange = (dateRange: { from: Date; to: Date }): string => {
-    return `${format(dateRange.from, "PPP")} - ${format(dateRange.to, "PPP")}`;
+    // Ensure dates are JS Date objects
+    const fromDate = dateRange.from instanceof Date ? dateRange.from : (dateRange.from as any).toDate();
+    const toDate = dateRange.to instanceof Date ? dateRange.to : (dateRange.to as any).toDate();
+    return `${format(fromDate, "PPP")} - ${format(toDate, "PPP")}`;
   };
 
   if (authLoading || isLoading) {
@@ -102,6 +109,26 @@ export default function BookingsPage() {
       </div>
     );
   }
+  
+  if (firebaseInitializationError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            Service Unavailable
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            The booking service is temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
+          </p>
+           <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   if (!currentUser) {
      return (
@@ -171,12 +198,12 @@ export default function BookingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange)}</p>
+                <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
                 {booking.landownerId === currentUser.uid && (
-                  <p className="text-sm"><strong>Renter:</strong> {booking.renterName || 'N/A'}</p>
+                  <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p>
                 )}
                 {booking.renterId === currentUser.uid && (
-                  <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || 'N/A'}</p>
+                  <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p>
                 )}
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
@@ -222,8 +249,9 @@ export default function BookingsPage() {
         </CardHeader>
         <CardContent>
             <p className="text-sm text-muted-foreground">
-              Respond to booking requests promptly to provide a good experience. Approved bookings will show as 'Confirmed'.
-              You can cancel 'Pending Confirmation' requests if your plans change. If you are a landowner, be sure to check for new requests often.
+               Respond to booking requests promptly. Approved bookings show as 'Confirmed'.
+               You can cancel 'Pending Confirmation' requests if your plans change.
+               Landowners should check for new requests often.
             </p>
         </CardContent>
       </Card>
