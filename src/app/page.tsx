@@ -5,11 +5,23 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search, Sparkles, BarChart3, Percent, FileText, Crown } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown } from 'lucide-react'; // Added SearchIcon
 import { useAuth } from '@/contexts/auth-context';
+import type { Listing } from '@/lib/types';
+import { getListings } from '@/lib/mock-data'; // To fetch recent listings
+import { ListingCard } from '@/components/land-search/listing-card';
+import { useEffect, useState } from 'react';
 
 export default function HomePage() {
   const { currentUser, loading } = useAuth();
+  const [recentListings, setRecentListings] = useState<Listing[]>([]);
+
+  useEffect(() => {
+    // Fetch a few recent listings for the carousel/scroll view
+    const allListings = getListings();
+    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 4)); // Get up to 4 available listings
+  }, []);
 
   const getFirstName = () => {
     if (currentUser?.displayName) {
@@ -21,48 +33,14 @@ export default function HomePage() {
     return 'Valued User';
   };
 
-  const pricingPlans = [
-    {
-      title: "Free Account",
-      price: "$0",
-      period: "Forever",
-      features: [
-        { text: "Unlimited browsing & account creation", icon: Search },
-        { text: "$0.99 per contract fee", icon: FileText },
-        { text: "3% closing fee on landowner payouts", icon: Percent },
-        { text: "Standard listing visibility", icon: Home },
-      ],
-      cta: "Get Started",
-      href: "/signup",
-      variant: "outline",
-    },
-    {
-      title: "Premium Subscription",
-      price: "$5",
-      period: "/month",
-      features: [
-        { text: "Unlimited listings with photos", icon: Home },
-        { text: "No per-contract fees", icon: FileText },
-        { text: "Boosted exposure in search", icon: Sparkles },
-        { text: "Access to market data & insights", icon: BarChart3 },
-        { text: "Lower 0.99% closing fee", icon: Percent },
-      ],
-      cta: "Go Premium",
-      href: "/pricing", // Link to pricing page or direct to upgrade flow
-      variant: "default",
-      highlight: true,
-    },
-  ];
-
-
   return (
     <div className="flex flex-col items-center">
       {/* Hero Section */}
       <section className="w-full py-20 md:py-32 bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="container mx-auto text-center px-4">
           {!loading && currentUser && (
-            <p className="mb-4 text-lg text-primary-foreground/90">
-              Welcome, {getFirstName()}!
+            <p className="mb-4 text-lg text-muted-foreground">
+              Welcome back, {getFirstName()}!
             </p>
           )}
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">
@@ -72,18 +50,51 @@ export default function HomePage() {
             LandShare Connect makes affordable housing accessible and helps landowners earn.
             Rent or list land for tiny homes, RVs, and more.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button size="lg" asChild>
-              <Link href="/search">
-                <Search className="mr-2 h-5 w-5" /> Find Land
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
-              <Link href="/listings/new">
-                <Home className="mr-2 h-5 w-5" /> List Your Land
-              </Link>
-            </Button>
-          </div>
+          
+          {/* Conditional Hero Actions */}
+          {!loading && currentUser ? (
+            // Logged-in User View: Search Bar and Recent Listings
+            <div className="mt-8 max-w-2xl mx-auto">
+              <div className="relative">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search for land (e.g., 'Willow Creek, CO', 'tiny home plot')"
+                  className="w-full h-14 pl-12 pr-4 rounded-lg text-lg shadow-md focus-visible:ring-primary"
+                />
+              </div>
+              <Button size="lg" className="mt-4 w-full sm:w-auto">
+                <SearchIcon className="mr-2 h-5 w-5" /> Search Land
+              </Button>
+
+              {recentListings.length > 0 && (
+                <div className="mt-16 text-left">
+                  <h2 className="text-2xl font-semibold mb-6 text-primary">Recently Added Land</h2>
+                  <div className="flex overflow-x-auto space-x-4 pb-4 -mx-1 sm:-mx-4 px-1 sm:px-4">
+                    {recentListings.map(listing => (
+                      <div key={listing.id} className="min-w-[280px] sm:min-w-[300px] md:min-w-[320px] flex-shrink-0">
+                        <ListingCard listing={listing} viewMode="grid" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Guest User View: Original Buttons
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Button size="lg" asChild>
+                <Link href="/search">
+                  <SearchIcon className="mr-2 h-5 w-5" /> Find Land
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
+                <Link href="/listings/new">
+                  <Home className="mr-2 h-5 w-5" /> List Your Land
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -167,7 +178,7 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Key Features</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: Search, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
+              { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
               { icon: Home, title: 'Flexible Terms', description: 'Daily, monthly, or lease-to-own options with transparent pricing.' },
               { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'In-app payments, ratings, and 24/7 support.' },
               { icon: Users, title: 'Direct Communication', description: 'Connect directly with landowners or renters through our secure messaging.' },
@@ -190,52 +201,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing Plans Section */}
-      <section className="w-full py-16 md:py-24 bg-muted/20">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Choose the plan that's right for you. Start for free or unlock premium benefits.
-          </p>
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {pricingPlans.map((plan) => (
-              <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden' : 'border-border'}`}>
-                {plan.highlight && (
-                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1">
-                    <Crown className="h-3 w-3" /> Most Popular
-                  </div>
-                )}
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-2xl text-primary">{plan.title}</CardTitle>
-                  <div className="flex items-baseline">
-                    <span className="text-4xl font-bold">{plan.price}</span>
-                    <span className="text-muted-foreground ml-1">{plan.period}</span>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 flex-grow">
-                  <ul className="space-y-2 text-sm">
-                    {plan.features.map((feature) => (
-                      <li key={feature.text} className="flex items-start">
-                        <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${plan.highlight ? 'text-primary' : 'text-accent'}`} />
-                        <span>{feature.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-                <CardDescription className="p-6 pt-2 text-xs text-muted-foreground">
-                  {plan.title === "Free Account" && "Ideal for getting started and occasional use."}
-                  {plan.title === "Premium Subscription" && "Perfect for active landowners and serious renters."}
-                </CardDescription>
-                <div className="p-6 pt-0 mt-auto">
-                  <Button size="lg" variant={plan.highlight ? "default" : "outline"} className="w-full" asChild>
-                    <Link href={plan.href}>{plan.cta}</Link>
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* PRICING SECTION REMOVED FROM HOMEPAGE */}
 
       {/* Call to Action Section */}
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">

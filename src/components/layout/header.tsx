@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks } from 'lucide-react'; 
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown } from 'lucide-react'; 
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ interface NavLink {
   label: string;
   icon: ComponentType<{ className?: string }>;
   action?: () => void;
+  className?: string; // Added for custom styling
 }
 
 export default function AppHeader() {
@@ -45,8 +46,9 @@ export default function AppHeader() {
   const userNavLinks: NavLink[] = [
     { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/my-listings', label: 'My Listings', icon: ListChecks }, // Example, adjust as needed
+    { href: '/my-listings', label: 'My Listings', icon: ListChecks },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
+    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon focus:bg-neon/10 focus:text-neon hover:bg-neon/10 hover:text-neon" }, // Styled "Premium" link
     { href: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
   
@@ -75,6 +77,7 @@ export default function AppHeader() {
               type="search" 
               placeholder="Search land (e.g., Willow Creek, CO)" 
               className="pl-10 w-full h-10 bg-card focus-visible:ring-primary" 
+              onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${e.currentTarget.value}`); }}
             />
           </div>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
@@ -107,7 +110,7 @@ export default function AppHeader() {
                       <DropdownMenuSeparator />
                       {userNavLinks.map((link) => (
                         <DropdownMenuItem key={link.href} asChild>
-                          <Link href={link.href} className={cn("flex items-center gap-2", pathname === link.href && "bg-muted")}>
+                          <Link href={link.href} className={cn("flex items-center gap-2", pathname === link.href && "bg-muted", link.className)}>
                             <link.icon className="h-4 w-4" />
                             <span>{link.label}</span>
                           </Link>
@@ -161,7 +164,12 @@ export default function AppHeader() {
                 <div className="p-4">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="search" placeholder="Search land..." className="pl-8 w-full bg-background h-10" />
+                    <Input 
+                      type="search" 
+                      placeholder="Search land..." 
+                      className="pl-8 w-full bg-background h-10" 
+                      onKeyDown={(e) => { if (e.key === 'Enter') { router.push(`/search?q=${e.currentTarget.value}`); (e.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click(); }}}
+                    />
                   </div>
                 </div>
 
@@ -177,7 +185,7 @@ export default function AppHeader() {
                       <Button 
                         variant={pathname === link.href ? 'secondary' : 'ghost'} 
                         asChild 
-                        className="w-full justify-start text-base py-3"
+                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon hover:text-neon hover:bg-neon/10')}
                       >
                         <Link href={link.href}><link.icon className="mr-2 h-4 w-4" />{link.label}</Link>
                       </Button>
