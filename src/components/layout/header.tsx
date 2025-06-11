@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ThemeToggleButton, MobileThemeToggleButton } from './theme-toggle-button';
 import { Separator } from '../ui/separator';
+import React from 'react'; // Added React for React.cloneElement
 
 const navLinks = [
   { href: '/search', label: 'Find Land', icon: Search },
@@ -22,8 +23,8 @@ export default function AppHeader() {
 
   const NavLinkItems = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
-      {navLinks.map((link) => (
-        <SheetClose key={link.href} asChild>
+      {navLinks.map((link) => {
+        const commonButton = (
           <Button
             variant={pathname === link.href ? 'secondary' : 'ghost'}
             asChild
@@ -34,8 +35,20 @@ export default function AppHeader() {
               {link.label}
             </Link>
           </Button>
-        </SheetClose>
-      ))}
+        );
+
+        if (isMobile) {
+          return (
+            <SheetClose key={link.href} asChild>
+              {commonButton}
+            </SheetClose>
+          );
+        } else {
+          // For desktop, render the button directly.
+          // Add key to the commonButton element as it's the direct child of map.
+          return React.cloneElement(commonButton, { key: link.href });
+        }
+      })}
     </>
   );
 
@@ -72,7 +85,7 @@ export default function AppHeader() {
                     <span className="font-headline text-xl font-bold text-primary">LandShare Connect</span>
                     </Link>
                     <div className="flex flex-col gap-1">
-                      <NavLinkItems isMobile />
+                      <NavLinkItems isMobile={true} />
                     </div>
                     <Separator className="my-2" />
                      <div className="flex flex-col gap-2">
