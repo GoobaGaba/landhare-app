@@ -6,16 +6,17 @@ import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
 import type { Listing, LeaseTerm } from "@/lib/types";
-import { getListings as fetchAllListings } from '@/lib/mock-data'; // Using Firestore backed getListings
+import { getListings as fetchAllListings } from '@/lib/mock-data'; 
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
-import { SearchIcon, LayoutGrid, List, Loader2, AlertTriangle } from "lucide-react";
+import { SearchIcon, LayoutGrid, List, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
 
 const ITEMS_PER_PAGE = 6; 
 const initialPriceRange: [number, number] = [0, 2000];
@@ -25,6 +26,7 @@ export default function SearchPage() {
   const [allListings, setAllListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { subscriptionStatus } = useAuth(); // Get subscription status
 
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>(initialPriceRange);
@@ -50,7 +52,7 @@ export default function SearchPage() {
         const listings = await fetchAllListings();
         const availableListings = listings.filter(l => l.isAvailable);
         setAllListings(availableListings);
-        setFilteredListings(availableListings); // Initially set filtered to all available
+        setFilteredListings(availableListings); 
       } catch (error: any) {
         console.error("Error fetching listings:", error);
         toast({ title: "Loading Error", description: error.message || "Could not load listings.", variant: "destructive" });
@@ -74,9 +76,9 @@ export default function SearchPage() {
   };
 
   useEffect(() => {
-    if (isLoading) return; // Don't filter if initial data isn't loaded
+    if (isLoading) return; 
 
-    let listings = [...allListings]; // Use the fetched and stored allListings
+    let listings = [...allListings]; 
 
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -105,6 +107,14 @@ export default function SearchPage() {
     if (selectedLeaseTerm !== 'any') {
         listings = listings.filter(l => l.leaseTerm === selectedLeaseTerm);
     }
+
+    // Placeholder for "Boosted Exposure" for premium listings
+    // If listings had a 'isBoosted' flag (set if landowner is premium):
+    // listings.sort((a, b) => {
+    //   if (a.isBoosted && !b.isBoosted) return -1;
+    //   if (!a.isBoosted && b.isBoosted) return 1;
+    //   // then apply other sorting
+    // });
 
     listings = [...listings].sort((a, b) => {
       switch (sortBy) {
@@ -140,7 +150,7 @@ export default function SearchPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || subscriptionStatus === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -215,6 +225,8 @@ export default function SearchPage() {
                 <SelectItem value="price_desc">Price (High to Low)</SelectItem>
                 <SelectItem value="size_asc">Size (Small to Large)</SelectItem>
                 <SelectItem value="size_desc">Size (Large to Small)</SelectItem>
+                {/* Add a sort option for "Boosted" if implemented */}
+                {/* <SelectItem value="boosted_first">Featured First</SelectItem> */}
               </SelectContent>
             </Select>
             <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" disabled={firebaseInitializationError !== null}>
@@ -227,6 +239,17 @@ export default function SearchPage() {
         </div>
         
         <h2 className="text-2xl font-semibold">Available Land ({filteredListings.length} results)</h2>
+        
+        {subscriptionStatus === 'premium' && (
+          <Alert variant="default" className="border-primary/50 bg-primary/5 text-primary">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <AlertTitle className="font-semibold">Premium Search</AlertTitle>
+            <AlertDescription>
+              As a Premium member, you might see boosted listings or have access to advanced search filters in the future!
+            </AlertDescription>
+          </Alert>
+        )}
+
 
         {filteredListings.length === 0 && !firebaseInitializationError ? (
           <Alert>

@@ -1,18 +1,23 @@
 
+'use client'; // Required for useAuth hook
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Percent, FileText, Crown, Sparkles, Home, Search as SearchIcon } from 'lucide-react';
+import { CheckCircle, BarChart3, Percent, FileText, Crown, Sparkles, Home, Search as SearchIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context'; // Import useAuth
+import { useToast } from '@/hooks/use-toast';
 
 const pricingPlans = [
   {
+    id: "free",
     title: "Free Account",
     price: "$0",
     period: "Get Started",
     description: "Perfect for browsing, occasional rentals, or listing a single property to test the waters.",
     features: [
       { text: "Unlimited browsing & account creation", icon: SearchIcon },
-      { text: "List up to 1 property", icon: Home },
+      { text: "List up to 1 property (mock rule)", icon: Home }, // Mocking the limit rule for display
       { text: "$0.99 per contract initiation fee", icon: FileText },
       { text: "3% closing fee on landowner payouts", icon: Percent },
       { text: "Standard listing visibility", icon: Home },
@@ -22,6 +27,7 @@ const pricingPlans = [
     href: "/signup",
   },
   {
+    id: "premium",
     title: "Premium Subscription",
     price: "$5",
     period: "/month",
@@ -35,7 +41,7 @@ const pricingPlans = [
       { text: "Priority support", icon: Crown },
     ],
     cta: "Upgrade to Premium",
-    href: "/profile?tab=billing", // Direct to billing tab on profile for upgrade (mock)
+    hrefSelfIfPremium: "/profile?tab=billing", // Link to billing if already premium
     highlight: true,
   },
 ];
@@ -49,14 +55,37 @@ const feeDetails = [
         title: "Closing Fees (Landowner Payouts)",
         description: "We apply a small percentage-based fee on the total value of a lease agreement, deducted from the landowner's payout. This helps us operate and improve the platform.",
         details: [
-            "Non-subscribers: 3% of the total lease value.",
-            "Subscribers: A reduced fee of 0.99% of the total lease value."
+            "Free Accounts: 3% of the total lease value.",
+            "Premium Subscribers: A reduced fee of 0.99% of the total lease value."
         ],
-        example: "For an average land lease valued at $3,000/year: Non-subscribers would see a $90 fee, while Premium subscribers would see a significantly lower $29.70 fee."
+        example: "For an average land lease valued at $3,000/year: Free account holders would see a $90 fee, while Premium subscribers would see a significantly lower $29.70 fee."
     }
 ]
 
 export default function PricingPage() {
+  const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+
+  const handlePremiumCTAClick = () => {
+    // In a real app, this would redirect to Stripe Checkout
+    // For now, it's a placeholder.
+    if (!currentUser) {
+        toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
+        // Potentially redirect to login: router.push('/login?redirect=/pricing');
+        return;
+    }
+    toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here."});
+  };
+
+
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
       <header className="text-center mb-12 md:mb-16">
@@ -69,38 +98,68 @@ export default function PricingPage() {
       </header>
 
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
-        {pricingPlans.map((plan) => (
-          <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
-            {plan.highlight && (
-              <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
-                <Crown className="h-3 w-3" /> Most Popular
-              </div>
-            )}
-            <CardHeader className="pb-4">
-              <CardTitle className="text-2xl font-semibold text-primary">{plan.title}</CardTitle>
-              <div className="flex items-baseline mt-2">
-                <span className="text-4xl font-bold">{plan.price}</span>
-                {plan.period !== "Get Started" && <span className="text-muted-foreground ml-1">{plan.period}</span>}
-              </div>
-              <CardDescription className="mt-1 text-sm h-12">{plan.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 flex-grow">
-              <ul className="space-y-2 text-sm">
-                {plan.features.map((feature) => (
-                  <li key={feature.text} className="flex items-start">
-                    <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${plan.highlight ? 'text-primary' : 'text-accent'}`} />
-                    <span>{feature.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-            <CardFooter className="mt-auto">
-              <Button size="lg" variant={plan.highlight ? "default" : "outline"} className="w-full" asChild>
-                <Link href={plan.href}>{plan.cta}</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        {pricingPlans.map((plan) => {
+          const isCurrentUserPremium = subscriptionStatus === 'premium';
+          const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
+          const ctaLink = plan.id === 'premium' 
+            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : undefined) // Link to billing if premium, else undefined for action
+            : (currentUser ? "/dashboard" : plan.href); // For free, if logged in go to dash, else signup
+          
+          const ctaText = plan.id === 'premium' 
+            ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta) 
+            : (currentUser && plan.id === 'free' ? "Go to Dashboard" : plan.cta);
+
+          return (
+            <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
+              {plan.highlight && (
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
+                  <Crown className="h-3 w-3" /> Most Popular
+                </div>
+              )}
+              <CardHeader className="pb-4">
+                <CardTitle className="text-2xl font-semibold text-primary">{plan.title}</CardTitle>
+                <div className="flex items-baseline mt-2">
+                  <span className="text-4xl font-bold">{plan.price}</span>
+                  {plan.period !== "Get Started" && <span className="text-muted-foreground ml-1">{plan.period}</span>}
+                </div>
+                <CardDescription className="mt-1 text-sm h-12">{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 flex-grow">
+                <ul className="space-y-2 text-sm">
+                  {plan.features.map((feature) => (
+                    <li key={feature.text} className="flex items-start">
+                      <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${plan.highlight ? 'text-primary' : 'text-accent'}`} />
+                      <span>{feature.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter className="mt-auto">
+                {ctaAction ? (
+                   <Button 
+                    size="lg" 
+                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"} 
+                    className="w-full"
+                    onClick={ctaAction}
+                    disabled={plan.highlight && isCurrentUserPremium} // Disable "Upgrade" if already premium
+                  >
+                    {plan.highlight && isCurrentUserPremium ? <Crown className="mr-2 h-4 w-4" /> : null}
+                    {ctaText}
+                  </Button>
+                ) : (
+                  <Button 
+                    size="lg" 
+                    variant={plan.highlight ? "default" : "outline"} 
+                    className="w-full" 
+                    asChild
+                  >
+                    <Link href={ctaLink!}>{ctaText}</Link>
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
       <section className="max-w-3xl mx-auto">

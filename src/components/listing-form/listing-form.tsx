@@ -53,7 +53,7 @@ type ListingFormData = z.infer<typeof listingFormSchema>;
 const initialFormState: ListingFormState = { message: '', success: false };
 
 export function ListingForm() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const { toast } = useToast();
   const [formState, formAction] = useFormState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
@@ -62,15 +62,7 @@ export function ListingForm() {
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
-  // Mock subscription status - in a real app, this would come from useAuth or a similar context
-  const [isPremiumUser, setIsPremiumUser] = useState(false); 
-  useEffect(() => {
-    // Simulate fetching subscription status
-    if(currentUser) {
-        // For demo: randomly assign premium status, or check a mock field on currentUser
-        setIsPremiumUser(Math.random() > 0.7); // ~30% chance of being premium for demo
-    }
-  }, [currentUser]);
+  const isPremiumUser = subscriptionStatus === 'premium';
 
 
   const form = useForm<ListingFormData>({
@@ -152,6 +144,8 @@ export function ListingForm() {
       if (formState.success) {
         form.reset(); 
         if(currentUser) setValue('landownerId', currentUser.uid); 
+        setPriceSuggestion(null); // Clear suggestion on successful submit
+        setSuggestionError(null);
       }
     }
   }, [formState, toast, isPending, form, currentUser, setValue]);
@@ -164,9 +158,19 @@ export function ListingForm() {
     }
     if (data.landownerId !== currentUser.uid) {
         toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
-        setValue('landownerId', currentUser.uid); // Attempt to self-correct
+        setValue('landownerId', currentUser.uid); 
         return;
     }
+    
+    // Placeholder: Check if free user has reached listing limit
+    // if (subscriptionStatus === 'free') {
+    //   // const userListingsCount = await getListingsByLandownerCount(currentUser.uid);
+    //   // if (userListingsCount >= 1) { // Assuming 1 free listing limit
+    //   //   toast({ title: "Listing Limit Reached", description: "Free accounts can only create 1 listing. Upgrade to Premium for unlimited listings.", variant: "destructive" });
+    //   //   return;
+    //   // }
+    // }
+
 
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -184,7 +188,7 @@ export function ListingForm() {
     });
   };
 
-  if (authLoading) {
+  if (authLoading || subscriptionStatus === 'loading') {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -389,7 +393,7 @@ export function ListingForm() {
           <div>
             <Label htmlFor="images">Upload Images (Optional)</Label>
             <Input id="images" type="file" multiple disabled />
-            <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not fully implemented in this demo.</p>
+            <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not fully implemented in this demo. Backend for storage needed.</p>
           </div>
 
           {formState.message && !formState.success && (
@@ -402,7 +406,7 @@ export function ListingForm() {
            {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid);}} disabled={isPending}>Reset Form</Button>
+          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setSuggestionError(null);}} disabled={isPending}>Reset Form</Button>
           <Button type="submit" disabled={isPending || !currentUser}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
@@ -415,7 +419,7 @@ export function ListingForm() {
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
             <AlertTitle className="text-green-700 dark:text-green-300">Listing Created!</AlertTitle>
             <AlertDescription className="text-green-600 dark:text-green-400">
-              {formState.message} Your listing ID is {formState.listingId}.
+              {formState.message} {/* Your listing ID is {formState.listingId}. */}
               <Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700 dark:text-green-300">
                 <Link href={`/listings/${formState.listingId}`}>View Your Listing</Link>
               </Button>

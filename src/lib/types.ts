@@ -21,12 +21,16 @@ export interface Listing {
   createdAt?: Date | Timestamp; // For Firestore, often Timestamp
 }
 
+export type SubscriptionStatus = 'free' | 'premium';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatarUrl?: string;
   createdAt?: Date | Timestamp;
+  subscriptionStatus?: SubscriptionStatus; // Added for subscription tier
+  stripeCustomerId?: string; // Added for Stripe integration
 }
 
 export interface Review {

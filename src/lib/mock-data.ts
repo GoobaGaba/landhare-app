@@ -14,17 +14,21 @@ import {
   orderBy,
   writeBatch,
   or,
+  setDoc, // Added for createUserProfile
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, LeaseTerm } from './types';
+import type { User, Listing, Booking, Review, LeaseTerm, SubscriptionStatus } from './types';
 
-// Helper to convert Firestore doc data to our Listing type
+// Helper to convert Firestore doc data to our User type
 const mapDocToUser = (docSnap: any): User => {
   const data = docSnap.data();
   return {
     id: docSnap.id,
     name: data.name || 'Unknown User',
-    email: data.email || '', // Email might primarily come from Auth
+    email: data.email || '', 
     avatarUrl: data.avatarUrl || `https://placehold.co/100x100.png?text=${(data.name || 'U').charAt(0)}`,
+    subscriptionStatus: data.subscriptionStatus || 'free',
+    stripeCustomerId: data.stripeCustomerId,
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
 };
 
@@ -63,7 +67,7 @@ const mapDocToBooking = (docSnap: any): Booking => {
       from: data.dateRange.from.toDate(),
       to: data.dateRange.to.toDate(),
     },
-    // Denormalized fields will be populated by components or more complex queries if needed
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
 };
 
@@ -76,14 +80,12 @@ const mapDocToReview = (docSnap: any): Review => {
     userId: data.userId,
     rating: data.rating,
     comment: data.comment,
-    createdAt: data.createdAt.toDate(),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
 };
 
 
 // --- USERS ---
-// Generally, primary user data comes from Firebase Auth (currentUser).
-// This 'users' collection would be for additional public profile info or app-specific roles.
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (!db || firebaseInitializationError) {
     console.warn("Firestore is not available. Returning undefined for getUserById.");
@@ -95,6 +97,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
+    console.log(`No user profile found for ID: ${id}`);
     return undefined;
   } catch (error) {
     console.error("Error fetching user by ID:", error);
@@ -102,6 +105,35 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
   }
 };
 
+// Used during signup to create a user profile document in Firestore
+export const createUserProfile = async (userId: string, email: string, name?: string): Promise<User> => {
+  if (!db || firebaseInitializationError) {
+    throw new Error("Firestore is not available. Cannot create user profile.");
+  }
+  try {
+    const userDocRef = doc(db, "users", userId);
+    const profileData: Partial<User> & { email: string; createdAt: Timestamp; subscriptionStatus: SubscriptionStatus } = {
+      email: email,
+      name: name || email.split('@')[0],
+      avatarUrl: `https://placehold.co/100x100.png?text=${(name || email.split('@')[0]).charAt(0).toUpperCase()}`,
+      subscriptionStatus: 'free', // Default to free tier
+      // stripeCustomerId: undefined, // Will be set after Stripe customer creation
+      createdAt: Timestamp.now(),
+    };
+    await setDoc(userDocRef, profileData); 
+    
+    // Fetch the just created profile to return the full User object including id
+    const newUserSnap = await getDoc(userDocRef);
+    if (newUserSnap.exists()) {
+        return mapDocToUser(newUserSnap);
+    }
+    throw new Error("Failed to retrieve newly created user profile.");
+
+  } catch (error) {
+    console.error("Error creating user profile:", error);
+    throw error;
+  }
+};
 
 // --- LISTINGS ---
 export const getListings = async (): Promise<Listing[]> => {
@@ -116,7 +148,7 @@ export const getListings = async (): Promise<Listing[]> => {
     return listingSnapshot.docs.map(mapDocToListing);
   } catch (error) {
     console.error("Error fetching listings:", error);
-    throw error; // Or return empty array: return [];
+    throw error; 
   }
 };
 
@@ -151,13 +183,12 @@ export const addListing = async (
       ...data,
       landownerId: landownerId,
       isAvailable: true,
-      images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"], // Placeholder images
+      images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"], 
       rating: 0,
       numberOfRatings: 0,
       createdAt: Timestamp.now(),
     };
     const docRef = await addDoc(listingsCol, newListingData);
-    // Fetch the newly created document to return it with its ID and mapped structure
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
          return mapDocToListing(newDocSnap);
@@ -176,20 +207,25 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     return false;
   }
   try {
+    const batch = writeBatch(db);
     const listingDocRef = doc(db, "listings", listingId);
-    await deleteDoc(listingDocRef);
-    // Note: Deleting related bookings and reviews would require additional queries and batch writes or Firebase Functions.
-    // For simplicity, we are only deleting the listing document here.
-    // Example of deleting related bookings (reviews would be similar):
-    // const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
-    // const bookingsSnapshot = await getDocs(bookingsQuery);
-    // const batch = writeBatch(db);
-    // bookingsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-    // await batch.commit();
+    batch.delete(listingDocRef);
+
+    // Also delete related bookings
+    const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
+    const bookingsSnapshot = await getDocs(bookingsQuery);
+    bookingsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+    // Also delete related reviews
+    const reviewsQuery = query(collection(db, "reviews"), where("listingId", "==", listingId));
+    const reviewsSnapshot = await getDocs(reviewsQuery);
+    reviewsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+    
+    await batch.commit();
     return true;
   } catch (error) {
-    console.error("Error deleting listing:", error);
-    return false; // Or throw error
+    console.error("Error deleting listing and related data:", error);
+    return false;
   }
 };
 
@@ -210,7 +246,6 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
   }
 };
 
-// Example of adding a review (not fully implemented in UI yet)
 export const addReview = async (
   listingId: string,
   userId: string,
@@ -251,46 +286,44 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
   }
   try {
     const bookingsCol = collection(db, "bookings");
-    // Query for bookings where the user is either the renter OR the landowner
     const q = query(
       bookingsCol,
       or(
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("dateRange.from", "desc") // Example ordering
+      orderBy("dateRange.from", "desc") 
     );
     const bookingSnapshot = await getDocs(q);
     
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
 
-    // Optionally, fetch related listing titles and user names if needed here,
-    // or handle it in the components. For now, returning core booking data.
-    // This part can become complex and might lead to N+1 queries if not careful.
-    // Example of fetching related data (simplified):
     const populatedBookings = await Promise.all(bookings.map(async (booking) => {
         let listingTitle: string | undefined;
         let renterName: string | undefined;
         let landownerName: string | undefined;
 
-        const listing = await getListingById(booking.listingId);
-        listingTitle = listing?.title;
+        try {
+            const listing = await getListingById(booking.listingId);
+            listingTitle = listing?.title;
+        } catch (e) { console.error(`Failed to get listing ${booking.listingId}`, e); }
         
-        // Avoid fetching self if not needed or use auth context's currentUser for self's name
-        if (booking.renterId !== userId) {
+        try {
             const renter = await getUserById(booking.renterId);
             renterName = renter?.name;
-        }
-        if (booking.landownerId !== userId) {
+        } catch (e) { console.error(`Failed to get renter ${booking.renterId}`, e); }
+
+        try {
             const landowner = await getUserById(booking.landownerId);
             landownerName = landowner?.name;
-        }
+        } catch (e) { console.error(`Failed to get landowner ${booking.landownerId}`, e); }
+
 
         return {
             ...booking,
-            listingTitle: listingTitle || `Listing ID: ${booking.listingId}`,
-            renterName: renterName || `Renter ID: ${booking.renterId.substring(0,6)}`,
-            landownerName: landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`,
+            listingTitle: listingTitle || `Listing: ${booking.listingId.substring(0,6)}...`,
+            renterName: renterName || `Renter: ${booking.renterId.substring(0,6)}...`,
+            landownerName: landownerName || `Owner: ${booking.landownerId.substring(0,6)}...`,
         };
     }));
     return populatedBookings;
@@ -303,13 +336,12 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
 
 
 export const addBookingRequest = async (
-  data: Omit<Booking, 'id' | 'status' | 'listingTitle' | 'landownerName' | 'renterName'>
+  data: Omit<Booking, 'id' | 'status' | 'listingTitle' | 'landownerName' | 'renterName' | 'createdAt'> & {dateRange: {from: Date; to: Date}}
 ): Promise<Booking> => {
   if (!db || firebaseInitializationError) {
     throw new Error("Firestore is not available. Cannot add booking request.");
   }
   try {
-    // Fetch landownerId from the listing to ensure it's correct
     const listingSnap = await getDoc(doc(db, "listings", data.listingId));
     if (!listingSnap.exists()) {
         throw new Error("Listing not found for booking request.");
@@ -320,7 +352,7 @@ export const addBookingRequest = async (
     const newBookingData = {
       listingId: data.listingId,
       renterId: data.renterId,
-      landownerId: listingData.landownerId, // Use landownerId from the fetched listing
+      landownerId: listingData.landownerId, 
       status: 'Pending Confirmation' as Booking['status'],
       dateRange: {
         from: Timestamp.fromDate(data.dateRange.from),
@@ -332,15 +364,14 @@ export const addBookingRequest = async (
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
         const createdBooking = mapDocToBooking(newDocSnap);
-        // Populate names for immediate use if necessary (similar to getBookingsForUser)
         const listing = await getListingById(createdBooking.listingId);
         const renter = await getUserById(createdBooking.renterId);
         const landowner = await getUserById(createdBooking.landownerId);
         return {
             ...createdBooking,
-            listingTitle: listing?.title || `Listing ID: ${createdBooking.listingId}`,
-            renterName: renter?.name || `Renter ID: ${createdBooking.renterId.substring(0,6)}`,
-            landownerName: landowner?.name || `Owner ID: ${createdBooking.landownerId.substring(0,6)}`,
+            listingTitle: listing?.title || `Listing: ${createdBooking.listingId.substring(0,6)}...`,
+            renterName: renter?.name || `Renter: ${createdBooking.renterId.substring(0,6)}...`,
+            landownerName: landowner?.name || `Owner: ${createdBooking.landownerId.substring(0,6)}...`,
         };
 
     } else {
@@ -363,15 +394,14 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const updatedSnap = await getDoc(bookingDocRef);
     if (updatedSnap.exists()) {
       const updatedBooking = mapDocToBooking(updatedSnap);
-       // Populate names for immediate use if necessary
         const listing = await getListingById(updatedBooking.listingId);
         const renter = await getUserById(updatedBooking.renterId);
         const landowner = await getUserById(updatedBooking.landownerId);
         return {
             ...updatedBooking,
-            listingTitle: listing?.title || `Listing ID: ${updatedBooking.listingId}`,
-            renterName: renter?.name || `Renter ID: ${updatedBooking.renterId.substring(0,6)}`,
-            landownerName: landowner?.name || `Owner ID: ${updatedBooking.landownerId.substring(0,6)}`,
+            listingTitle: listing?.title || `Listing: ${updatedBooking.listingId.substring(0,6)}...`,
+            renterName: renter?.name || `Renter: ${updatedBooking.renterId.substring(0,6)}...`,
+            landownerName: landowner?.name || `Owner: ${updatedBooking.landownerId.substring(0,6)}...`,
         };
     }
     return undefined;
@@ -380,43 +410,3 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     throw error;
   }
 };
-
-// --- USERS (ADDITIONAL PROFILE DATA) ---
-// This function would be used to create a user profile document in Firestore
-// when a new user signs up, if you need to store more info than Auth provides.
-export const createUserProfile = async (userId: string, email: string, name?: string): Promise<User> => {
-  if (!db || firebaseInitializationError) {
-    throw new Error("Firestore is not available. Cannot create user profile.");
-  }
-  try {
-    const userDocRef = doc(db, "users", userId);
-    const profileData = {
-      email: email,
-      name: name || email.split('@')[0], // Default name from email
-      avatarUrl: `https://placehold.co/100x100.png?text=${(name || email.split('@')[0]).charAt(0).toUpperCase()}`,
-      createdAt: Timestamp.now(),
-      // Add any other default fields for a new user profile
-    };
-    await setDoc(userDocRef, profileData); // Using setDoc to ensure creation or overwrite if it somehow exists
-    return {
-      id: userId,
-      ...profileData,
-      createdAt: profileData.createdAt.toDate(), // Convert timestamp for return type
-    } as User;
-  } catch (error) {
-    console.error("Error creating user profile:", error);
-    throw error;
-  }
-};
-
-// Mock data removal for functions that are now fully Firestore-backed
-// getListings, getListingById, addListing, deleteListing, getReviewsForListing,
-// getBookings (renamed to getBookingsForUser), addBookingRequest, updateBookingStatus
-// getUserById (if used for fetching other user's public profile)
-
-// Note: The original getBookings() is replaced by getBookingsForUser(userId).
-// The components calling this will need to be updated to pass the current user's ID.
-// I will make this adjustment in the relevant components next if needed.
-// For now, functions are renamed or adapted.
-// The mock arrays themselves (mockUsers, mockListings, etc.) are no longer used by these functions.
-// They can be removed or kept for isolated testing if desired, but the exported functions now hit Firestore.

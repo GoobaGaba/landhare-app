@@ -4,11 +4,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 // Mock data for the earnings graph
@@ -30,18 +31,18 @@ const chartConfig = {
 
 
 export default function DashboardPage() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const [userName, setUserName] = useState("Guest");
   
   useEffect(() => {
     if (currentUser) {
-      setUserName(currentUser.displayName || currentUser.email || "User");
+      setUserName(currentUser.displayName || currentUser.appProfile?.name || currentUser.email || "User");
     } else {
       setUserName("Guest");
     }
   }, [currentUser]);
 
-  if (authLoading) {
+  if (authLoading || subscriptionStatus === 'loading') {
      return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -69,24 +70,25 @@ export default function DashboardPage() {
   }
   
   const currentMonthEarnings = chartData[chartData.length - 1].earnings;
+  const isPremiumUser = subscriptionStatus === 'premium';
 
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* For now, assume any logged-in user might be a landowner */}
+        {/* Earnings Overview - Potentially enhanced for premium users or based on actual earnings data */}
         <Card className="md:col-span-2 lg:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="text-primary h-6 w-6" />
                 Earnings Overview
               </CardTitle>
-              <CardDescription>Your income trend over the last {chartData.length} months.</CardDescription>
+              <CardDescription>Your income trend over the last {chartData.length} months. (Mock data)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground">This Month's Earnings (June '24)</p>
+                <p className="text-sm text-muted-foreground">This Month's Earnings (June '24 - Mock)</p>
                 <p className="text-2xl font-bold text-primary">
                   ${currentMonthEarnings.toFixed(2)}
                 </p>
@@ -142,6 +144,28 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         
+        {/* Market Insights - Placeholder for Premium users */}
+        {isPremiumUser && (
+          <Card className="md:col-span-2 lg:col-span-3 border-primary ring-1 ring-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <BarChart3 className="h-6 w-6"/> Market Insights (Premium)
+              </CardTitle>
+              <CardDescription>Exclusive data to help you optimize your listings and pricing.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <BarChart3 className="h-4 w-4" />
+                <AlertTitle>Coming Soon!</AlertTitle>
+                <AlertDescription>
+                  Detailed market trends, demand forecasts, and competitive analysis will be available here for Premium subscribers.
+                  This could include AI-powered insights on optimal pricing, amenity popularity, and seasonal demand.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
+
 
         <Card>
           <CardHeader>
@@ -150,15 +174,21 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Real data for active listings count would come from backend */}
-            <p>You have <strong>X active listings</strong>.</p> 
+            <p>You have <strong>X active listings</strong>. (Count from Firestore needed)</p> 
             <div className="flex flex-col sm:flex-row gap-2">
               <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/my-listings">View My Listings</Link>
               </Button>
               <Button asChild className="w-full sm:w-auto">
+                {/* Placeholder: This button might be disabled or prompt for upgrade if user is free and at listing limit */}
                 <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
               </Button>
             </div>
+            {!isPremiumUser && (
+                 <p className="text-xs text-muted-foreground mt-2">
+                    Free accounts can list 1 property. <Link href="/pricing" className="text-primary hover:underline">Upgrade to Premium</Link> for unlimited listings.
+                </p>
+            )}
           </CardContent>
         </Card>
 
@@ -169,7 +199,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
              {/* Real data for bookings count would come from backend */}
-            <p>You have <strong>Y upcoming bookings/rentals</strong>.</p>
+            <p>You have <strong>Y upcoming bookings/rentals</strong>. (Count from Firestore needed)</p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/bookings">View Bookings</Link>
             </Button>
@@ -183,7 +213,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Real data for unread messages would come from backend */}
-            <p>You have <strong>Z unread messages</strong>.</p>
+            <p>You have <strong>Z unread messages</strong>. (Count from Firestore needed)</p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/messages">Go to Messages</Link>
             </Button>
