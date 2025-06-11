@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
@@ -8,7 +9,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ThemeToggleButton, MobileThemeToggleButton } from './theme-toggle-button';
 import { Separator } from '../ui/separator';
-import React from 'react'; // Added React for React.cloneElement
+import React from 'react'; 
 
 const navLinks = [
   { href: '/search', label: 'Find Land', icon: Search },
@@ -24,29 +25,38 @@ export default function AppHeader() {
   const NavLinkItems = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
       {navLinks.map((link) => {
-        const commonButton = (
-          <Button
-            variant={pathname === link.href ? 'secondary' : 'ghost'}
-            asChild
-            className={cn(isMobile && 'w-full justify-start')}
-          >
-            <Link href={link.href}>
-              <link.icon className="mr-2 h-4 w-4" />
-              {link.label}
-            </Link>
-          </Button>
+        const isActive = pathname === link.href;
+        // Define the core content of the button (Link and its children)
+        const linkContent = (
+          <Link href={link.href}>
+            <link.icon className="mr-2 h-4 w-4" />
+            {link.label}
+          </Link>
         );
 
         if (isMobile) {
           return (
-            <SheetClose key={link.href} asChild>
-              {commonButton}
+            <SheetClose key={`mobile-${link.href}`} asChild>
+              <Button
+                variant={isActive ? 'secondary' : 'ghost'}
+                asChild
+                className="w-full justify-start"
+              >
+                {linkContent}
+              </Button>
             </SheetClose>
           );
         } else {
-          // For desktop, render the button directly.
-          // Add key to the commonButton element as it's the direct child of map.
-          return React.cloneElement(commonButton, { key: link.href });
+          // Desktop
+          return (
+            <Button
+              key={`desktop-${link.href}`}
+              variant={isActive ? 'secondary' : 'ghost'}
+              asChild
+            >
+              {linkContent}
+            </Button>
+          );
         }
       })}
     </>
