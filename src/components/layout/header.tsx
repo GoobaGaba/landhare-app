@@ -77,7 +77,7 @@ export default function AppHeader() {
               className="pl-10 w-full h-10 bg-card focus-visible:ring-primary" 
             />
           </div>
-          <Button asChild className="bg-neon text-neon-foreground hover:bg-neon/90 h-10 px-4">
+          <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
             <Link href="/listings/new">
                 <PlusCircle className="mr-2 h-4 w-4 md:hidden lg:inline-block" /> List Your Land
             </Link>
@@ -167,7 +167,7 @@ export default function AppHeader() {
 
                 <nav className="flex flex-col gap-1 px-4 flex-grow">
                   <SheetClose asChild>
-                    <Button asChild className="w-full justify-start text-base py-3 bg-neon text-neon-foreground hover:bg-neon/90">
+                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon text-neon hover:bg-neon/10 hover:text-neon">
                       <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>

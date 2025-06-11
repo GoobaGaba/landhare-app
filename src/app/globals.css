@@ -36,7 +36,7 @@ body {
     --input: 60 30% 87%;
     --ring: 120 33% 30%; /* Forest Green for focus rings, can also be accent */
     
-    --radius: 0.5rem;
+    --radius: 1rem; /* Increased for rounder buttons */
 
     --chart-1: 120 33% 30%;
     --chart-2: 20 60% 50%;

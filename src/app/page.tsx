@@ -43,7 +43,7 @@ export default function HomePage() {
                 <Search className="mr-2 h-5 w-5" /> Find Land
               </Link>
             </Button>
-            <Button size="lg" className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
+            <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
               <Link href="/listings/new">
                 <Home className="mr-2 h-5 w-5" /> List Your Land
               </Link>
@@ -164,7 +164,7 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
+            <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
               <Link href="/listings/new">Become a Host</Link>
             </Button>
           </div>
