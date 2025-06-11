@@ -5,9 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import AppHeader from '@/components/layout/header';
 import AppFooter from '@/components/layout/footer';
 import { ThemeProvider } from '@/components/layout/theme-provider';
+import { AuthProvider } from '@/contexts/auth-context';
 
 export const metadata: Metadata = {
-  title: 'LandShare Connect',
+  title: 'LandShare',
   description: 'Connecting landowners with those seeking affordable land.',
 };
 
@@ -24,19 +25,21 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased flex flex-col min-h-screen" suppressHydrationWarning>
+      <body className="font-body antialiased flex flex-col min-h-screen" suppressHydrationWarning={true}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <AppHeader />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <AppFooter />
-          <Toaster />
+          <AuthProvider>
+            <AppHeader />
+            <main className="flex-grow">
+              {children}
+            </main>
+            <AppFooter />
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
