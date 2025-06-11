@@ -23,7 +23,7 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  userType: 'landowner' | 'renter' | 'admin'; 
+  // userType: 'landowner' | 'renter' | 'admin'; // Removed userType
 }
 
 export interface Review {

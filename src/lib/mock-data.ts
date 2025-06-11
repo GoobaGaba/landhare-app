@@ -4,11 +4,11 @@ import { addDays, format } from 'date-fns';
 
 // --- MOCK USERS ---
 let mockUsers: User[] = [
-  { id: "user1", name: "Sarah Miller", email: "sarah@example.com", avatarUrl: "https://placehold.co/100x100.png?text=SM", userType: "landowner" },
-  { id: "user2", name: "John Renter", email: "john@example.com", avatarUrl: "https://placehold.co/100x100.png?text=JR", userType: "renter" },
-  { id: "user3", name: "Alex Landowner", email: "alex@example.com", avatarUrl: "https://placehold.co/100x100.png?text=AL", userType: "landowner" },
-  { id: "user4", name: "Maria Guest", email: "maria@example.com", avatarUrl: "https://placehold.co/100x100.png?text=MG", userType: "renter" },
-  { id: "user5", name: "Sam Camper", email: "sam@example.com", avatarUrl: "https://placehold.co/100x100.png?text=SC", userType: "renter" },
+  { id: "user1", name: "Sarah Miller", email: "sarah@example.com", avatarUrl: "https://placehold.co/100x100.png?text=SM" },
+  { id: "user2", name: "John Renter", email: "john@example.com", avatarUrl: "https://placehold.co/100x100.png?text=JR" },
+  { id: "user3", name: "Alex Landowner", email: "alex@example.com", avatarUrl: "https://placehold.co/100x100.png?text=AL" },
+  { id: "user4", name: "Maria Guest", email: "maria@example.com", avatarUrl: "https://placehold.co/100x100.png?text=MG" },
+  { id: "user5", name: "Sam Camper", email: "sam@example.com", avatarUrl: "https://placehold.co/100x100.png?text=SC" },
 ];
 
 export const getUsers = (): User[] => [...mockUsers];
@@ -77,6 +77,7 @@ let mockListings: Listing[] = [
     rating: 4.0,
     numberOfRatings: 2,
     leaseTerm: "long-term",
+    minLeaseDurationMonths: 12,
   },
 ];
 export const getListings = (): Listing[] => [...mockListings];
@@ -161,15 +162,14 @@ let mockBookings: Booking[] = [
 export const getBookings = (): Booking[] => {
   return mockBookings.map(b => {
     const listing = getListingById(b.listingId);
-    // For user names, in a real app, you'd fetch user profiles based on IDs.
-    // Here we simulate it slightly differently or just use IDs if names aren't critical for mock.
-    const renter = getUserById(b.renterId); // getUserById expects our mock User structure
-    const landowner = getUserById(b.landownerId);
+    const renterUser = mockUsers.find(u => u.id === b.renterId); // Using mockUsers for names
+    const landownerUser = mockUsers.find(u => u.id === b.landownerId);
+    
     return {
       ...b,
       listingTitle: listing?.title || 'Unknown Listing',
-      renterName: renter?.name || `Renter...${b.renterId.slice(-4)}`,
-      landownerName: landowner?.name || `Landowner...${b.landownerId.slice(-4)}`,
+      renterName: renterUser?.name || `Renter...${b.renterId.slice(-4)}`,
+      landownerName: landownerUser?.name || `Landowner...${b.landownerId.slice(-4)}`,
     };
   });
 };
@@ -183,26 +183,22 @@ export const addBookingRequest = (
   if (!listing) {
     throw new Error("Listing not found for booking request.");
   }
-  if (listing.landownerId !== data.landownerId) {
-     // This might happen if listing.landownerId in mock data is not a real Firebase UID
-     // and data.landownerId is. For mock purposes, allow it but prefer listing.landownerId.
-  }
 
   const newBooking: Booking = {
     ...data,
     id: newBookingId,
-    landownerId: listing.landownerId, // Use the landownerId from the listing
+    landownerId: listing.landownerId, 
     status: 'Pending Confirmation',
   };
   mockBookings.push(newBooking);
   
-  const renter = getUserById(data.renterId);
-  const landowner = getUserById(listing.landownerId);
+  const renterUser = mockUsers.find(u => u.id === data.renterId);
+  const landownerUser = mockUsers.find(u => u.id === listing.landownerId);
   return { 
     ...newBooking,
     listingTitle: listing.title,
-    renterName: renter?.name || `Renter...${data.renterId.slice(-4)}`,
-    landownerName: landowner?.name || `Landowner...${listing.landownerId.slice(-4)}`,
+    renterName: renterUser?.name || `Renter...${data.renterId.slice(-4)}`,
+    landownerName: landownerUser?.name || `Landowner...${listing.landownerId.slice(-4)}`,
   };
 };
 
@@ -212,13 +208,13 @@ export const updateBookingStatus = (bookingId: string, status: Booking['status']
     mockBookings[bookingIndex].status = status;
     const updatedBooking = mockBookings[bookingIndex];
     const listing = getListingById(updatedBooking.listingId);
-    const renter = getUserById(updatedBooking.renterId);
-    const landowner = getUserById(updatedBooking.landownerId);
+    const renterUser = mockUsers.find(u => u.id === updatedBooking.renterId);
+    const landownerUser = mockUsers.find(u => u.id === updatedBooking.landownerId);
     return {
       ...updatedBooking,
       listingTitle: listing?.title || 'Unknown Listing',
-      renterName: renter?.name || `Renter...${updatedBooking.renterId.slice(-4)}`,
-      landownerName: landowner?.name || `Landowner...${updatedBooking.landownerId.slice(-4)}`,
+      renterName: renterUser?.name || `Renter...${updatedBooking.renterId.slice(-4)}`,
+      landownerName: landownerUser?.name || `Landowner...${updatedBooking.landownerId.slice(-4)}`,
     };
   }
   return undefined;

@@ -9,7 +9,7 @@ import Link from "next/link";
 import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking } from '@/lib/types';
-import { getBookings as fetchAllBookings, updateBookingStatus as dbUpdateBookingStatus } from '@/lib/mock-data';
+import { getBookings as fetchAllBookings, updateBookingStatus as dbUpdateBookingStatus, getUserById } from '@/lib/mock-data';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -34,7 +34,18 @@ export default function BookingsPage() {
     // A user sees bookings if they are the renter OR the landowner
     const filteredBookings = allBookings.filter(b => b.renterId === currentUser.uid || b.landownerId === currentUser.uid);
     
-    setUserBookings(filteredBookings);
+    // Enhance bookings with names if not already present
+    const enhancedBookings = filteredBookings.map(booking => {
+        const renter = getUserById(booking.renterId);
+        const landowner = getUserById(booking.landownerId);
+        return {
+            ...booking,
+            renterName: renter?.name || booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`,
+            landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`,
+        };
+    });
+
+    setUserBookings(enhancedBookings);
     setIsLoading(false);
   }, [currentUser]);
 
@@ -211,9 +222,8 @@ export default function BookingsPage() {
         </CardHeader>
         <CardContent>
             <p className="text-sm text-muted-foreground">
-              {/* This message can be generalized or adapted based on context if userType is not available */}
               Respond to booking requests promptly to provide a good experience. Approved bookings will show as 'Confirmed'.
-              You can cancel 'Pending Confirmation' requests if your plans change.
+              You can cancel 'Pending Confirmation' requests if your plans change. If you are a landowner, be sure to check for new requests often.
             </p>
         </CardContent>
       </Card>
