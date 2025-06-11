@@ -76,7 +76,7 @@ export default function HomePage() {
           </h1>
           
           {!authLoading && currentUser ? (
-            <div className="mt-10 max-w-3xl mx-auto">
+             <div className="mt-10 max-w-xl mx-auto">
               <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full shadow-md rounded-lg">
                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                 <Input
@@ -98,7 +98,7 @@ export default function HomePage() {
               </form>
 
               <div className="mt-16 text-center"> 
-                <h2 className="text-2xl font-semibold mb-6 text-primary"> 
+                <h2 className="text-2xl font-semibold mb-6 text-primary text-center"> 
                   Recently added
                 </h2>
                 {isLoadingListings ? (
@@ -107,7 +107,7 @@ export default function HomePage() {
                     <p className="ml-2 text-muted-foreground">Loading listings...</p>
                   </div>
                 ) : recentListings.length > 0 ? (
-                  <div className="flex overflow-x-auto space-x-4 pb-6 -mx-1 sm:-mx-4 px-1 sm:px-4 custom-scrollbar">
+                  <div className="flex overflow-x-auto space-x-6 pb-8 -mx-4 px-4 custom-scrollbar">
                     {recentListings.map(listing => (
                       <div key={listing.id} className="w-64 flex-shrink-0">
                         <ListingCard listing={listing} viewMode="grid" sizeVariant="compact" />
@@ -173,13 +173,13 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Solution: LandShare Connect</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            A platform connecting people with purpose. Rent land affordably, earn from your space.
+            Bridging the gap between available land and those who need it. Unlock affordable leases and new income opportunities.
           </p>
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary">For Renters & Buyers</h3>
+              <h3 className="text-2xl font-semibold text-primary">For Land Seekers</h3>
               <p className="text-foreground/90">
-                Discover unique plots for your tiny home, RV, or manufactured home. Flexible terms, transparent pricing, and a path to a place you can call your own.
+                Find affordable land for your tiny home, RV, or project. Explore diverse listings with flexible lease options and transparent agreements, paving a path to your ideal space.
               </p>
               <Image
                 src="https://placehold.co/600x400.png"
@@ -194,7 +194,7 @@ export default function HomePage() {
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Landowners</h3>
               <p className="text-foreground/90">
-                Monetize your unused land with ease. Our dashboard helps you list, price, and manage bookings, turning idle acres into passive income.
+                Transform your unused land into a revenue stream. Our platform simplifies listing, booking management, and secure payments, helping you earn from your property.
               </p>
               <Image
                 src="https://placehold.co/600x400.png"
@@ -259,4 +259,3 @@ export default function HomePage() {
     </div>
   );
 }
-
