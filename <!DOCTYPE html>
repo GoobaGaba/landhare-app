@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monetize Your Skills</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Monetize Your Skills</h1>
+        <nav>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#postings">Postings</a></li>
+                <li><a href="#create">Create Post</a></li>
+                <li><a href="#account">Account</a></li>
+                <li><a href="#signup">Sign Up/Login</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="home">
+            <h2>Welcome to Monetize Your Skills!</h2>
+            <p>Easily create postings for your skills and earn money.</p>
+        </section>
+
+        <section id="postings">
+            <h2>Browse Postings</h2>
+            <div id="postings-list">
+                <!-- Postings will be loaded here dynamically -->
+            </div>
+        </section>
+
+        <section id="create">
+            <h2>Create New Posting</h2>
+            <form id="create-post-form">
+                <label for="title">Title:</label><br>
+                <input type="text" id="title" name="title" required><br><br>
+
+                <label for="description">Description:</label><br>
+                <textarea id="description" name="description" required></textarea><br><br>
+
+                <label for="price">Price:</label><br>
+                <input type="number" id="price" name="price" required><br><br>
+
+                <button type="submit">Create Post</button>
+            </form>
+        </section>
+
+        <section id="account">
+            <h2>Account Dashboard</h2>
+            <div id="account-info">
+                <!-- User account information will be loaded here dynamically -->
+            </div>
+        </section>
+
+        <section id="signup">
+            <h2>Sign Up / Login</h2>
+            <form id="auth-form">
+                <label for="email">Email:</label><br>
+                <input type="email" id="email" name="email" required><br><br>
+
+                <label for="password">Password:</label><br>
+                <input type="password" id="password" name="password" required><br><br>
+
+                <button type="submit">Sign Up / Login</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 Monetize Your Skills</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

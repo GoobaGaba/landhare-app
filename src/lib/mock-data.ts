@@ -82,6 +82,27 @@ let mockListings: Listing[] = [
 export const getListings = (): Listing[] => [...mockListings];
 export const getListingById = (id: string): Listing | undefined => mockListings.find(l => l.id === id);
 
+export const addListing = (
+  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'leaseTerm' | 'minLeaseDurationMonths'>
+): Listing => {
+  const newListingId = `listing-${Date.now()}`;
+  // For now, assign to a mock landowner and set default image
+  // In a real app, landownerId would come from the authenticated user
+  const newListing: Listing = {
+    ...data,
+    id: newListingId,
+    landownerId: 'user1', // Mock landowner
+    isAvailable: true,
+    images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
+    rating: undefined, // New listings start with no rating
+    numberOfRatings: 0,
+  };
+  mockListings.push(newListing);
+  console.log("Mock DB: Listing added", newListing);
+  return newListing;
+};
+
+
 // --- MOCK REVIEWS ---
 let mockReviews: Review[] = [
  { id: "rev1", listingId: "1", userId: "user2", rating: 5, comment: "Amazing spot! So peaceful and the host was very helpful.", createdAt: new Date("2023-10-15")},

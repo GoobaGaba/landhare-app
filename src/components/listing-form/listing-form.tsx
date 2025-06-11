@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
@@ -13,13 +14,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 import { getSuggestedPriceAction } from '@/lib/actions/ai-actions';
 import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
-import type { PriceSuggestionInput, PriceSuggestionOutput } from '@/lib/types';
+import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm } from '@/lib/types';
 import Link from 'next/link';
 
 const amenitiesList = [
@@ -29,6 +30,9 @@ const amenitiesList = [
   { id: 'road_access', label: 'Road Access' },
   { id: 'fenced', label: 'Fenced' },
   { id: 'wifi', label: 'Wi-Fi Available' },
+  { id: 'pet_friendly', label: 'Pet Friendly'},
+  { id: 'lake_access', label: 'Lake Access'},
+  { id: 'fire_pit', label: 'Fire Pit'},
 ];
 
 const listingFormSchema = z.object({
@@ -38,6 +42,8 @@ const listingFormSchema = z.object({
   sizeSqft: z.coerce.number().positive({ message: "Size must be a positive number." }),
   pricePerMonth: z.coerce.number().positive({ message: "Price must be a positive number." }),
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
+  leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
+  minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
   // images: typeof window === 'undefined' ? z.any() : z.instanceof(FileList).optional(), // Basic file upload validation
 });
 
@@ -63,6 +69,8 @@ export function ListingForm() {
       sizeSqft: 1000,
       pricePerMonth: 100,
       amenities: [],
+      leaseTerm: 'flexible',
+      minLeaseDurationMonths: undefined,
     },
   });
 
@@ -71,6 +79,7 @@ export function ListingForm() {
   const watchedLocation = watch('location');
   const watchedSizeSqft = watch('sizeSqft');
   const watchedAmenities = watch('amenities');
+  const watchedLeaseTerm = watch('leaseTerm');
 
   const handleSuggestPrice = async () => {
     setIsSuggestionLoading(true);
@@ -121,7 +130,7 @@ export function ListingForm() {
         variant: formState.success ? "default" : "destructive",
       });
       if (formState.success) {
-        form.reset(); // Reset form on successful submission
+        form.reset(); 
       }
     }
   }, [formState, toast, isPending, form]);
@@ -132,7 +141,10 @@ export function ListingForm() {
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
         value.forEach(amenity => formData.append(key, amenity));
-      } else if (value !== undefined && value !== null) {
+      } else if (key === 'minLeaseDurationMonths' && value === undefined && watchedLeaseTerm !== 'flexible') {
+        // Don't append if undefined and term is not flexible
+      }
+       else if (value !== undefined && value !== null) {
         formData.append(key, String(value));
       }
     });
@@ -206,13 +218,57 @@ export function ListingForm() {
             {errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
           </div>
 
+           <div>
+            <Label className="flex items-center mb-2">
+                <CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term
+            </Label>
+            <Controller
+                name="leaseTerm"
+                control={control}
+                render={({ field }) => (
+                    <RadioGroup 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                        className="space-y-1 p-2 border rounded-md"
+                    >
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="short-term" id="term-short" />
+                            <Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 months)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="long-term" id="term-long" />
+                            <Label htmlFor="term-long" className="font-normal">Long Term (6+ months)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="flexible" id="term-flexible" />
+                            <Label htmlFor="term-flexible" className="font-normal">Flexible (No min/max)</Label>
+                        </div>
+                    </RadioGroup>
+                )}
+            />
+            {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
+          </div>
+
+          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
+            <div>
+              <Label htmlFor="minLeaseDurationMonths">Minimum Lease Duration (Months)</Label>
+              <Input 
+                id="minLeaseDurationMonths" 
+                type="number" 
+                {...register('minLeaseDurationMonths')} 
+                aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"}
+              />
+              {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
+            </div>
+          )}
+
+
           <div>
             <Label htmlFor="pricePerMonth">Price per Month ($)</Label>
             <Input id="pricePerMonth" type="number" {...register('pricePerMonth')} aria-invalid={errors.pricePerMonth ? "true" : "false"} />
             {errors.pricePerMonth && <p className="text-sm text-destructive mt-1">{errors.pricePerMonth.message}</p>}
           </div>
 
-          {/* AI Price Suggestion Section */}
           <Card className="bg-secondary/30">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Sparkles className="text-accent h-5 w-5" /> AI Pricing Assistant</CardTitle>
@@ -257,12 +313,10 @@ export function ListingForm() {
               )}
             </CardContent>
           </Card>
-          {/* Image upload placeholder */}
           <div>
             <Label htmlFor="images">Upload Images (Optional)</Label>
-            <Input id="images" type="file" multiple disabled /* {...register('images')} */ />
+            <Input id="images" type="file" multiple disabled />
             <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not fully implemented in this demo.</p>
-            {/* {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>} */}
           </div>
 
           {formState.message && !formState.success && (

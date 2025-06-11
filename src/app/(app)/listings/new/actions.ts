@@ -1,7 +1,9 @@
+
 'use server';
 
 import { z } from 'zod';
-import type { Listing } from '@/lib/types';
+import type { Listing, LeaseTerm } from '@/lib/types';
+import { addListing as dbAddListing } from '@/lib/mock-data';
 
 const ListingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -10,6 +12,8 @@ const ListingFormSchema = z.object({
   sizeSqft: z.coerce.number().positive("Size must be a positive number"),
   pricePerMonth: z.coerce.number().positive("Price must be a positive number"),
   amenities: z.array(z.string()).min(1, "Select at least one amenity or type 'none'"),
+  leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
+  minLeaseDurationMonths: z.coerce.number().optional(),
   // images would be handled differently, e.g. file uploads
 });
 
@@ -22,6 +26,8 @@ export type ListingFormState = {
     sizeSqft?: string[];
     pricePerMonth?: string[];
     amenities?: string[];
+    leaseTerm?: string[];
+    minLeaseDurationMonths?: string[];
   };
   listingId?: string;
   success: boolean;
@@ -37,9 +43,9 @@ export async function createListingAction(
     location: formData.get('location'),
     sizeSqft: formData.get('sizeSqft'),
     pricePerMonth: formData.get('pricePerMonth'),
-    // Amenities are typically checkboxes, so need to handle them correctly
-    // For simplicity, assume it's a comma-separated string from a hidden input or handled client-side
-    amenities: formData.getAll('amenities'), // If using multiple checkboxes with same name
+    amenities: formData.getAll('amenities'), 
+    leaseTerm: formData.get('leaseTerm') || undefined, // Handle optional field
+    minLeaseDurationMonths: formData.get('minLeaseDurationMonths') || undefined, // Handle optional field
   };
 
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
@@ -51,16 +57,28 @@ export async function createListingAction(
       success: false,
     };
   }
+  
+  try {
+    // In a real app, landownerId would come from the authenticated user session
+    // For now, addListing in mock-data assigns a default
+    const newListingData = {
+        ...validatedFields.data,
+        leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined, // Ensure correct type
+        minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ? Number(validatedFields.data.minLeaseDurationMonths) : undefined,
+    };
+    
+    const newListing = dbAddListing(newListingData);
 
-  // Simulate saving to a database
-  console.log("Creating listing with data:", validatedFields.data);
-  const newListingId = `listing-${Date.now()}`; 
-  // In a real app, save validatedFields.data to DB and get an ID
-
-  // Simulate successful creation
-  return {
-    message: `Listing "${validatedFields.data.title}" created successfully!`,
-    listingId: newListingId,
-    success: true,
-  };
+    return {
+      message: `Listing "${newListing.title}" created successfully!`,
+      listingId: newListing.id,
+      success: true,
+    };
+  } catch (error) {
+    console.error("Error creating listing in mock DB:", error);
+    return {
+      message: (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.",
+      success: false,
+    };
+  }
 }
