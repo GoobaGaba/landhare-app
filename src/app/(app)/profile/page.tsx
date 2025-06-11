@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2 } from "lucide-react";
+import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 
 interface ProfileData {
@@ -18,6 +19,8 @@ interface ProfileData {
   avatarUrl?: string;
   bio: string;
   memberSince: Date;
+  // Mock subscription status
+  subscriptionTier: 'Free' | 'Premium'; 
 }
 
 export default function ProfilePage() {
@@ -29,7 +32,7 @@ export default function ProfilePage() {
   
   // Form state for editing
   const [name, setName] = useState('');
-  const [email, setEmail] = useState(''); // Email might not be editable usually
+  const [email, setEmail] = useState(''); 
   const [bio, setBio] = useState('');
 
   useEffect(() => {
@@ -38,8 +41,9 @@ export default function ProfilePage() {
         name: currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: "Welcome to my LandShare profile! More details coming soon.", // Placeholder bio
+        bio: "Welcome to my LandShare profile! More details coming soon.", 
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
+        subscriptionTier: 'Free', // Mock: In a real app, fetch this from your backend
       };
       setProfileData(currentProfile);
       setName(currentProfile.name);
@@ -55,10 +59,7 @@ export default function ProfilePage() {
       toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
       return;
     }
-    // In a real app, call an API to save changes (e.g., updateProfile in Firebase)
     console.log("Saving profile:", { name, bio }); 
-    // Example: await updateProfile(currentUser, { displayName: name, photoURL: newAvatarUrl });
-    // For now, we'll just update local state and mock
     setProfileData(prev => prev ? { ...prev, name, bio } : null);
     setIsEditing(false);
     toast({ title: "Profile Updated", description: "Your changes have been saved (mocked)." });
@@ -200,13 +201,32 @@ export default function ProfilePage() {
         <TabsContent value="billing">
           <Card>
             <CardHeader>
-              <CardTitle>Billing Information</CardTitle>
-              <CardDescription>Manage your payment methods and view billing history.</CardDescription>
+              <CardTitle>Billing & Subscription</CardTitle>
+              <CardDescription>Manage your payment methods, view billing history, and your subscription.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm">Your current primary payment method: Visa **** **** **** 1234</p>
-              <Button variant="outline">Update Payment Method</Button>
-              <Button variant="outline">View Billing History</Button>
+            <CardContent className="space-y-6">
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <h3 className="text-md font-semibold mb-1">Current Plan: <span className="text-primary">{profileData.subscriptionTier} Tier</span></h3>
+                {profileData.subscriptionTier === 'Free' ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.99% vs 3%).</p>
+                    <Button asChild>
+                      <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">You're enjoying all the benefits of Premium! Manage your subscription or view billing details below.</p>
+                  // Add button to "Manage Subscription" if logic was available
+                )}
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Payment Methods</h4>
+                <p className="text-sm text-muted-foreground">Your current primary payment method: Visa **** **** **** 1234 (mocked)</p>
+                <div className="mt-3 flex gap-2">
+                    <Button variant="outline">Update Payment Method</Button>
+                    <Button variant="outline">View Billing History</Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -45,7 +45,7 @@ const listingFormSchema = z.object({
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
-  landownerId: z.string().min(1, "Landowner ID is required"), // Added to schema
+  landownerId: z.string().min(1, "Landowner ID is required"), 
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -62,6 +62,17 @@ export function ListingForm() {
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
+  // Mock subscription status - in a real app, this would come from useAuth or a similar context
+  const [isPremiumUser, setIsPremiumUser] = useState(false); 
+  useEffect(() => {
+    // Simulate fetching subscription status
+    if(currentUser) {
+        // For demo: randomly assign premium status, or check a mock field on currentUser
+        setIsPremiumUser(Math.random() > 0.7); // ~30% chance of being premium for demo
+    }
+  }, [currentUser]);
+
+
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
     defaultValues: {
@@ -73,17 +84,17 @@ export function ListingForm() {
       amenities: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
-      landownerId: '', // Initialize landownerId
+      landownerId: currentUser?.uid || '', 
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = form;
   
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !form.getValues('landownerId')) {
       setValue('landownerId', currentUser.uid);
     }
-  }, [currentUser, setValue]);
+  }, [currentUser, setValue, form]);
 
   const watchedLocation = watch('location');
   const watchedSizeSqft = watch('sizeSqft');
@@ -140,7 +151,7 @@ export function ListingForm() {
       });
       if (formState.success) {
         form.reset(); 
-        if(currentUser) setValue('landownerId', currentUser.uid); // Re-set landownerId after reset
+        if(currentUser) setValue('landownerId', currentUser.uid); 
       }
     }
   }, [formState, toast, isPending, form, currentUser, setValue]);
@@ -151,10 +162,9 @@ export function ListingForm() {
       toast({ title: "Authentication Error", description: "You must be logged in to create a listing.", variant: "destructive"});
       return;
     }
-    // Ensure landownerId from form matches current user for basic client-side check
-    // Server-side validation of this is CRUCIAL in a real app.
     if (data.landownerId !== currentUser.uid) {
         toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
+        setValue('landownerId', currentUser.uid); // Attempt to self-correct
         return;
     }
 
@@ -318,6 +328,19 @@ export function ListingForm() {
             <Input id="pricePerMonth" type="number" {...register('pricePerMonth')} aria-invalid={errors.pricePerMonth ? "true" : "false"} />
             {errors.pricePerMonth && <p className="text-sm text-destructive mt-1">{errors.pricePerMonth.message}</p>}
           </div>
+
+          <Alert variant="default" className="mt-4 bg-muted/40">
+            <Percent className="h-4 w-4" />
+            <AlertTitle className="text-sm font-medium">Service Fee Information</AlertTitle>
+            <AlertDescription className="text-xs">
+                LandShare Connect applies a service fee to successful bookings. 
+                {isPremiumUser ? 
+                " As a Premium member, you benefit from a reduced closing fee of 0.99% on your payouts." :
+                " Free accounts are subject to a 3% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!" 
+                }
+                <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link>
+            </AlertDescription>
+          </Alert>
 
           <Card className="bg-secondary/30">
             <CardHeader>
