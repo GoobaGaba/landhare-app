@@ -1,18 +1,12 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle } from "lucide-react";
-
-// Chart components
-import { LineChart, Line, CartesianGrid, XAxis, YAxis } from "recharts"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import type { ChartConfig } from "@/components/ui/chart"
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2 } from "lucide-react";
+import dynamic from 'next/dynamic';
+import type { ChartConfig } from "@/components/ui/chart"; // Keep type import
 
 // Mock user data - in a real app, this would come from authentication context
 const mockUser = {
@@ -36,6 +30,44 @@ const chartConfig = {
     color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;
+
+// Dynamically import chart components
+const DynamicChartContainer = dynamic(() => 
+  import('@/components/ui/chart').then(mod => mod.ChartContainer), 
+  { 
+    ssr: false,
+    loading: () => <div className="h-[250px] w-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /><p className="ml-2">Loading chart...</p></div> 
+  }
+);
+const DynamicLineChart = dynamic(() => 
+  import('recharts').then(mod => mod.LineChart), 
+  { ssr: false }
+);
+const DynamicLine = dynamic(() => 
+  import('recharts').then(mod => mod.Line), 
+  { ssr: false }
+);
+const DynamicCartesianGrid = dynamic(() => 
+  import('recharts').then(mod => mod.CartesianGrid), 
+  { ssr: false }
+);
+const DynamicXAxis = dynamic(() => 
+  import('recharts').then(mod => mod.XAxis), 
+  { ssr: false }
+);
+const DynamicYAxis = dynamic(() => 
+  import('recharts').then(mod => mod.YAxis), 
+  { ssr: false }
+);
+const DynamicChartTooltip = dynamic(() => 
+  import('@/components/ui/chart').then(mod => mod.ChartTooltip), 
+  { ssr: false }
+);
+const DynamicChartTooltipContent = dynamic(() => 
+  import('@/components/ui/chart').then(mod => mod.ChartTooltipContent), 
+  { ssr: false }
+);
+
 
 export default function DashboardPage() {
   const currentMonthEarnings = chartData[chartData.length - 1].earnings;
@@ -62,21 +94,21 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="h-[250px] w-full">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart
+                <DynamicChartContainer config={chartConfig} className="h-full w-full">
+                  <DynamicLineChart
                     accessibilityLayer
                     data={chartData}
                     margin={{ top: 20, right: 20, left: -10, bottom: 5 }}
                   >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                    <XAxis
+                    <DynamicCartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                    <DynamicXAxis
                       dataKey="month"
                       tickLine={false}
                       axisLine={false}
                       tickMargin={8}
                       className="text-xs"
                     />
-                    <YAxis
+                    <DynamicYAxis
                       tickLine={false}
                       axisLine={false}
                       tickMargin={8}
@@ -84,11 +116,11 @@ export default function DashboardPage() {
                       className="text-xs"
                       width={60}
                     />
-                    <ChartTooltip
+                    <DynamicChartTooltip
                       cursor={true}
-                      content={<ChartTooltipContent indicator="dot" labelFormatter={(value) => `Month: ${value}`} />}
+                      content={<DynamicChartTooltipContent indicator="dot" labelFormatter={(value) => `Month: ${value}`} />}
                     />
-                    <Line
+                    <DynamicLine
                       dataKey="earnings"
                       type="monotone"
                       stroke="hsl(var(--primary))"
@@ -103,8 +135,8 @@ export default function DashboardPage() {
                         stroke: "hsl(var(--primary))",
                       }}
                     />
-                  </LineChart>
-                </ChartContainer>
+                  </DynamicLineChart>
+                </DynamicChartContainer>
               </div>
               <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/earnings">View Full Earnings Report</Link>
@@ -176,3 +208,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
