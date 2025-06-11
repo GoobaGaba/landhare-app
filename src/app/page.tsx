@@ -22,7 +22,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const allListings = getListings();
-    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 6)); // Get up to 6 available listings for better carousel feel
+    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 8)); // Get up to 8 available listings for smaller cards
   }, []);
 
   const getFirstName = () => {
@@ -47,7 +47,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
       {/* Hero Section */}
-      <section className="w-full py-20 md:py-32 bg-gradient-to-br from-primary/10 via-background to-background">
+      <section className="w-full py-16 md:py-24 bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="container mx-auto text-center px-4">
           {!loading && currentUser && (
             <p className="mb-4 text-lg text-muted-foreground">
@@ -59,31 +59,31 @@ export default function HomePage() {
           </h1>
           
           {!loading && currentUser ? (
-            <div className="mt-10 max-w-2xl mx-auto">
-              <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="mt-10 max-w-3xl mx-auto"> {/* Increased max-width for search bar area */}
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                 <Input
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search for land (e.g., 'Willow Creek, CO', 'tiny home plot')"
-                  className="w-full h-14 pl-12 pr-4 rounded-lg text-lg shadow-md focus-visible:ring-primary"
+                  className="w-full h-12 pl-12 pr-28 rounded-lg text-base shadow-md focus-visible:ring-primary" 
                   aria-label="Search for land"
                 />
-                 <Button type="submit" size="lg" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-10 px-6">
-                  Search
+                 <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 h-9 px-5 text-sm">
+                  Search Land
                 </Button>
               </form>
 
               {recentListings.length > 0 && (
-                <div className="mt-20 text-left"> {/* Increased top margin */}
-                  <h2 className="text-2xl font-semibold mb-8 text-primary"> {/* Title changed and bottom margin increased */}
+                <div className="mt-16 text-left"> 
+                  <h2 className="text-2xl font-semibold mb-6 text-primary"> 
                     Recently added
                   </h2>
-                  <div className="flex overflow-x-auto space-x-6 pb-6 -mx-1 sm:-mx-4 px-1 sm:px-4 custom-scrollbar"> {/* Increased space-x and pb */}
+                  <div className="flex overflow-x-auto space-x-4 pb-6 -mx-1 sm:-mx-4 px-1 sm:px-4 custom-scrollbar">
                     {recentListings.map(listing => (
-                      <div key={listing.id} className="w-80 flex-shrink-0"> {/* Consistent card width */}
-                        <ListingCard listing={listing} viewMode="grid" />
+                      <div key={listing.id} className="w-64 flex-shrink-0"> {/* Card width reduced */}
+                        <ListingCard listing={listing} viewMode="grid" sizeVariant="compact" />
                       </div>
                     ))}
                   </div>
@@ -209,6 +209,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+       
+      {/* Pricing Plans Section - Removed as per previous request, now on /pricing page */}
 
       {/* Call to Action Section */}
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
