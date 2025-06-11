@@ -9,53 +9,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { Listing, Review as ReviewType, User, LeaseTerm } from '@/lib/types';
+import type { Listing, Review as ReviewType, User } from '@/lib/types';
+import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data'; // Updated import
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInCalendarMonths, startOfMonth, endOfMonth, isBefore } from 'date-fns';
 
-// Mock data - replace with API call
-const getListingDetails = async (id: string): Promise<Listing | null> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const mockListings: Listing[] = [
-     {
-      id: "1",
-      title: "Sunny Meadow Plot",
-      description: "Beautiful 2-acre plot perfect for a tiny home. Quiet and serene with great views. Enjoy the open space and connect with nature. Ideal for long-term lease or a weekend getaway. Close to local hiking trails and a small town for supplies.",
-      location: "Willow Creek, CO",
-      sizeSqft: 87120,
-      amenities: ["Water Hookup", "Road Access", "Pet Friendly"],
-      pricePerMonth: 350,
-      images: ["https://placehold.co/800x600.png?text=Sunny+Meadow+1", "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-      landownerId: "user1",
-      isAvailable: true,
-      rating: 4.5,
-      numberOfRatings: 12,
-      leaseTerm: "long-term",
-      minLeaseDurationMonths: 6,
-    },
-  ];
-  return mockListings.find(l => l.id === id) || null;
-};
-
-const getLandownerDetails = async (id: string): Promise<User | null> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  const mockUsers: User[] = [
-    { id: "user1", name: "Sarah Miller", email: "sarah@example.com", avatarUrl: "https://placehold.co/100x100.png?text=SM", userType: "landowner" },
-  ];
-  return mockUsers.find(u => u.id === id) || null;
-};
-
-const getListingReviews = async (listingId: string): Promise<ReviewType[]> => {
-   await new Promise(resolve => setTimeout(resolve, 300));
-   return [
-     { id: "rev1", listingId, userId: "user2", rating: 5, comment: "Amazing spot! So peaceful and the host was very helpful.", createdAt: new Date("2023-10-15")},
-     { id: "rev2", listingId, userId: "user3", rating: 4, comment: "Great location, amenities as described. A bit tricky to find initially.", createdAt: new Date("2023-09-20")},
-   ];
-};
-
+// Mock current user ID for booking requests - in a real app, this comes from auth
+const MOCK_CURRENT_USER_ID_FOR_BOOKING = "user2"; 
 
 export default function ListingDetailPage({ params }: { params: { id: string } }) {
   const [listing, setListing] = useState<Listing | null>(null);
@@ -64,17 +27,22 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
+  const [isBookingRequested, setIsBookingRequested] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-      const listingData = await getListingDetails(params.id);
+      // Simulate async fetch even with mock data for realistic loading state
+      await new Promise(resolve => setTimeout(resolve, 300)); 
+      
+      const listingData = getListingById(params.id);
       setListing(listingData);
+
       if (listingData) {
-        const landownerData = await getLandownerDetails(listingData.landownerId);
+        const landownerData = getUserById(listingData.landownerId);
         setLandowner(landownerData);
-        const reviewsData = await getListingReviews(listingData.id);
+        const reviewsData = getReviewsForListing(listingData.id);
         setReviews(reviewsData);
       }
       setIsLoading(false);
@@ -90,7 +58,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     return <div className="text-center py-10">Listing not found.</div>;
   }
 
-  const handleBookingRequest = () => {
+  const handleBookingRequestOpen = () => {
     if (!dateRange || !dateRange.from || !dateRange.to) {
       toast({
         title: "Select Dates",
@@ -114,34 +82,50 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   };
 
   const handleConfirmBooking = () => {
-    setShowBookingDialog(false);
-    // In a real app, this would trigger a server action to create a booking
-    console.log("Booking request submitted for:", listing.title, dateRange);
-    toast({
-      title: "Booking Request Submitted!",
-      description: `Your request for "${listing.title}" from ${dateRange?.from ? format(dateRange.from, "PPP") : ''} to ${dateRange?.to ? format(dateRange.to, "PPP") : ''} has been sent.`,
-    });
-    setDateRange(undefined); // Reset dates
+    if (!dateRange?.from || !dateRange?.to || !listing) return;
+
+    try {
+      addBookingRequest({
+        listingId: listing.id,
+        renterId: MOCK_CURRENT_USER_ID_FOR_BOOKING, // Use mock current user
+        landownerId: listing.landownerId,
+        dateRange: { from: dateRange.from, to: dateRange.to },
+      });
+      
+      setShowBookingDialog(false);
+      setIsBookingRequested(true); // Local state to update button on this page
+      toast({
+        title: "Booking Request Submitted!",
+        description: `Your request for "${listing.title}" from ${format(dateRange.from, "PPP")} to ${format(dateRange.to, "PPP")} has been sent.`,
+      });
+      // Resetting dateRange might be good UX, or keep it if user might want to adjust
+      // setDateRange(undefined); 
+    } catch (error) {
+      console.error("Error creating booking request:", error);
+      toast({
+        title: "Booking Failed",
+        description: (error instanceof Error) ? error.message : "Could not submit booking request.",
+        variant: "destructive",
+      });
+    }
   };
   
   const today = new Date();
-  today.setHours(0,0,0,0); // Normalize today to start of day
+  today.setHours(0,0,0,0); 
 
   const calculateTotalPrice = () => {
     if (!dateRange || !dateRange.from || !dateRange.to || !listing) return 0;
-    // Ensure 'to' date is after 'from' date for calculation
     const fromDate = startOfMonth(dateRange.from);
     const toDate = endOfMonth(dateRange.to);
     
     let months = differenceInCalendarMonths(toDate, fromDate) + 1;
-    if (months <= 0) months = 1; // Minimum 1 month if range is within the same month
+    if (months <= 0) months = 1; 
 
     return listing.pricePerMonth * months;
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      {/* Image Gallery */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div className="relative w-full h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
           <Image
@@ -162,7 +146,6 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
-        {/* Main Listing Info */}
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -192,11 +175,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                     <CheckCircle className="h-4 w-4 mr-2 text-green-500" /> {amenity}
                   </li>
                 ))}
+                {listing.amenities.length === 0 && <li className="text-muted-foreground">No specific amenities listed.</li>}
               </ul>
             </CardContent>
           </Card>
           
-          {/* Date Selection */}
            {listing.isAvailable && (
             <Card>
               <CardHeader>
@@ -214,7 +197,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   selected={dateRange}
                   onSelect={setDateRange}
                   numberOfMonths={1}
-                  fromDate={today} // Disable past dates
+                  fromDate={today} 
                   disabled={(date) => isBefore(date, today)}
                   className="rounded-md border"
                 />
@@ -227,13 +210,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             </Card>
            )}
 
-
-          {/* Reviews Section */}
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl flex items-center">
                 <Star className="h-6 w-6 mr-2 text-yellow-400 fill-yellow-400" />
-                Reviews ({listing.numberOfRatings || 0})
+                Reviews ({listing.numberOfRatings || reviews.length})
                 {listing.rating && <span className="ml-2 text-xl font-bold text-muted-foreground">{listing.rating.toFixed(1)}/5</span>}
               </CardTitle>
             </CardHeader>
@@ -242,7 +223,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 <Card key={review.id} className="bg-muted/30">
                   <CardHeader className="flex flex-row justify-between items-start pb-2">
                     <div>
-                      <CardTitle className="text-sm">Reviewer {review.userId.slice(-4)}</CardTitle>
+                      <CardTitle className="text-sm">Reviewer {getUserById(review.userId)?.name || review.userId.slice(-4)}</CardTitle>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
@@ -261,7 +242,6 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
           </Card>
         </div>
 
-        {/* Landowner & Booking Card */}
         <div className="space-y-6">
           <Card className="sticky top-24 shadow-lg">
             <CardHeader className="items-center text-center">
@@ -285,10 +265,10 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               <Button 
                 size="lg" 
                 className="w-full" 
-                onClick={handleBookingRequest}
-                disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to}
+                onClick={handleBookingRequestOpen}
+                disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested}
               >
-                {listing.isAvailable ? "Request to Book" : "Currently Unavailable"}
+                {isBookingRequested ? "Booking Requested" : (listing.isAvailable ? "Request to Book" : "Currently Unavailable")}
               </Button>
               <Button variant="outline" className="w-full">
                 <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner

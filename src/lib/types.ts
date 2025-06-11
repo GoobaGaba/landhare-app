@@ -5,17 +5,17 @@ export interface Listing {
   id: string;
   title: string;
   description: string;
-  location: string; // Could be more complex (e.g., lat/lng)
+  location: string; 
   sizeSqft: number;
-  amenities: string[]; // e.g., ["water", "power", "septic"]
+  amenities: string[]; 
   pricePerMonth: number;
-  images: string[]; // URLs to images
-  landownerId: string; // ID of the user who owns the land
+  images: string[]; 
+  landownerId: string; 
   isAvailable: boolean;
-  rating?: number; // Average rating
+  rating?: number; 
   numberOfRatings?: number;
-  leaseTerm?: LeaseTerm; // New field for lease term
-  minLeaseDurationMonths?: number; // Optional: minimum lease duration in months
+  leaseTerm?: LeaseTerm; 
+  minLeaseDurationMonths?: number; 
 }
 
 export interface User {
@@ -23,18 +23,31 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  userType: 'landowner' | 'renter' | 'admin'; // Example user types
-  // Add other relevant user fields
+  userType: 'landowner' | 'renter' | 'admin'; 
 }
 
 export interface Review {
   id: string;
   listingId: string;
   userId: string;
-  rating: number; // 1-5 stars
+  rating: number; 
   comment: string;
   createdAt: Date;
 }
+
+export interface Booking {
+  id: string;
+  listingId: string;
+  renterId: string; 
+  landownerId: string; 
+  status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled';
+  dateRange: { from: Date; to: Date };
+  // Optional denormalized fields for display convenience
+  listingTitle?: string;
+  landownerName?: string;
+  renterName?: string;
+}
+
 
 export interface Message {
   id: string;
@@ -48,9 +61,9 @@ export interface Message {
 
 export interface Conversation {
   id:string;
-  participantIds: string[]; // IDs of users in the conversation
-  lastMessage?: Message; // For preview
-  listingId?: string; // Optional: if conversation is about a specific listing
+  participantIds: string[]; 
+  lastMessage?: Message; 
+  listingId?: string; 
 }
 
 // For AI price suggestion
@@ -64,3 +77,4 @@ export type PriceSuggestionOutput = {
   suggestedPrice: number;
   reasoning: string;
 };
+
