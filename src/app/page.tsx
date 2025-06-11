@@ -6,23 +6,39 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
-import { getListings } from '@/lib/mock-data';
+import { getListings } from '@/lib/mock-data'; // This now fetches from Firestore
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [recentListings, setRecentListings] = useState<Listing[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const allListings = getListings();
-    setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 8)); // Get up to 8 available listings for smaller cards
+    async function fetchRecentListings() {
+      setIsLoadingListings(true);
+      try {
+        const allListings = await getListings(); // Await the promise
+        if (Array.isArray(allListings)) {
+          setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 8));
+        } else {
+          setRecentListings([]); // Handle case where getListings might not return an array as expected
+        }
+      } catch (error) {
+        console.error("Failed to fetch recent listings:", error);
+        setRecentListings([]); // Set to empty array on error
+      } finally {
+        setIsLoadingListings(false);
+      }
+    }
+    fetchRecentListings();
   }, []);
 
   const getFirstName = () => {
@@ -49,7 +65,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="w-full py-16 md:py-24 bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="container mx-auto text-center px-4">
-          {!loading && currentUser && (
+          {!authLoading && currentUser && (
             <p className="mb-4 text-lg text-muted-foreground">
               Welcome back, {getFirstName()}!
             </p>
@@ -58,37 +74,44 @@ export default function HomePage() {
             Unlock Your Land. Find Your Space.
           </h1>
           
-          {!loading && currentUser ? (
-            <div className="mt-10 max-w-3xl mx-auto"> {/* Increased max-width for search bar area */}
-              <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
+          {!authLoading && currentUser ? (
+            <div className="mt-10 max-w-3xl mx-auto">
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full shadow-md rounded-lg">
                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
                 <Input
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search for land (e.g., 'Willow Creek, CO', 'tiny home plot')"
-                  className="w-full h-12 pl-12 pr-28 rounded-lg text-base shadow-md focus-visible:ring-primary" 
+                  className="w-full h-12 pl-12 pr-28 rounded-l-lg text-base focus-visible:ring-primary border-r-0" 
                   aria-label="Search for land"
                 />
-                 <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 h-9 px-5 text-sm">
+                 <Button type="submit" size="lg" className="h-12 px-5 text-sm rounded-r-lg rounded-l-none">
                   Search Land
                 </Button>
               </form>
 
-              {recentListings.length > 0 && (
-                <div className="mt-16 text-left"> 
-                  <h2 className="text-2xl font-semibold mb-6 text-primary"> 
-                    Recently added
-                  </h2>
+              <div className="mt-16 text-left"> 
+                <h2 className="text-2xl font-semibold mb-6 text-primary"> 
+                  Recently added
+                </h2>
+                {isLoadingListings ? (
+                  <div className="flex justify-center items-center h-48">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2 text-muted-foreground">Loading listings...</p>
+                  </div>
+                ) : recentListings.length > 0 ? (
                   <div className="flex overflow-x-auto space-x-4 pb-6 -mx-1 sm:-mx-4 px-1 sm:px-4 custom-scrollbar">
                     {recentListings.map(listing => (
-                      <div key={listing.id} className="w-64 flex-shrink-0"> {/* Card width reduced */}
+                      <div key={listing.id} className="w-64 flex-shrink-0">
                         <ListingCard listing={listing} viewMode="grid" sizeVariant="compact" />
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No recent listings available.</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
@@ -210,8 +233,6 @@ export default function HomePage() {
         </div>
       </section>
        
-      {/* Pricing Plans Section - Removed as per previous request, now on /pricing page */}
-
       {/* Call to Action Section */}
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
