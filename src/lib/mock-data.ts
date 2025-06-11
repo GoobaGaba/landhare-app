@@ -14,9 +14,12 @@ import {
   orderBy,
   writeBatch,
   or,
-  setDoc, // Added for createUserProfile
+  setDoc,
+  getCountFromServer, // For counting documents
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, LeaseTerm, SubscriptionStatus } from './types';
+
+export const FREE_TIER_LISTING_LIMIT = 1;
 
 // Helper to convert Firestore doc data to our User type
 const mapDocToUser = (docSnap: any): User => {
@@ -24,11 +27,12 @@ const mapDocToUser = (docSnap: any): User => {
   return {
     id: docSnap.id,
     name: data.name || 'Unknown User',
-    email: data.email || '', 
+    email: data.email || '',
     avatarUrl: data.avatarUrl || `https://placehold.co/100x100.png?text=${(data.name || 'U').charAt(0)}`,
     subscriptionStatus: data.subscriptionStatus || 'free',
     stripeCustomerId: data.stripeCustomerId,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+    bio: data.bio || '',
   };
 };
 
@@ -43,13 +47,14 @@ const mapDocToListing = (docSnap: any): Listing => {
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
     pricePerMonth: data.pricePerMonth,
-    images: data.images || ["https://placehold.co/800x600.png"],
+    images: data.images && data.images.length > 0 ? data.images : ["https://placehold.co/800x600.png?text=Land"],
     landownerId: data.landownerId,
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
     rating: data.rating,
     numberOfRatings: data.numberOfRatings,
     leaseTerm: data.leaseTerm,
     minLeaseDurationMonths: data.minLeaseDurationMonths,
+    isBoosted: data.isBoosted || false,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
 };
@@ -105,7 +110,6 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
   }
 };
 
-// Used during signup to create a user profile document in Firestore
 export const createUserProfile = async (userId: string, email: string, name?: string): Promise<User> => {
   if (!db || firebaseInitializationError) {
     throw new Error("Firestore is not available. Cannot create user profile.");
@@ -115,14 +119,13 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     const profileData: Partial<User> & { email: string; createdAt: Timestamp; subscriptionStatus: SubscriptionStatus } = {
       email: email,
       name: name || email.split('@')[0],
-      avatarUrl: `https://placehold.co/100x100.png?text=${(name || email.split('@')[0]).charAt(0).toUpperCase()}`,
-      subscriptionStatus: 'free', // Default to free tier
-      // stripeCustomerId: undefined, // Will be set after Stripe customer creation
+      avatarUrl: `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`,
+      subscriptionStatus: 'free',
       createdAt: Timestamp.now(),
+      bio: "Welcome to LandShare Connect!",
     };
-    await setDoc(userDocRef, profileData); 
-    
-    // Fetch the just created profile to return the full User object including id
+    await setDoc(userDocRef, profileData);
+
     const newUserSnap = await getDoc(userDocRef);
     if (newUserSnap.exists()) {
         return mapDocToUser(newUserSnap);
@@ -145,12 +148,36 @@ export const getListings = async (): Promise<Listing[]> => {
     const listingsCol = collection(db, "listings");
     const q = query(listingsCol, orderBy("createdAt", "desc"));
     const listingSnapshot = await getDocs(q);
-    return listingSnapshot.docs.map(mapDocToListing);
+    const allListings = listingSnapshot.docs.map(mapDocToListing);
+    // Client-side sort for boosted (basic example, ideally handle with indexing/queries)
+    allListings.sort((a, b) => {
+        if (a.isBoosted && !b.isBoosted) return -1;
+        if (!a.isBoosted && b.isBoosted) return 1;
+        return 0; // Maintain original sort for same-boosted status
+    });
+    return allListings;
   } catch (error) {
     console.error("Error fetching listings:", error);
-    throw error; 
+    throw error;
   }
 };
+
+export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
+  if (!db || firebaseInitializationError) {
+    console.warn("Firestore is not available. Returning 0 for listings count.");
+    return 0;
+  }
+  try {
+    const listingsCol = collection(db, "listings");
+    const q = query(listingsCol, where("landownerId", "==", landownerId));
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("Error fetching listings count for landowner:", error);
+    throw error;
+  }
+};
+
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
   if (!db || firebaseInitializationError) {
@@ -171,8 +198,9 @@ export const getListingById = async (id: string): Promise<Listing | undefined> =
 };
 
 export const addListing = async (
-  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'leaseTerm' | 'minLeaseDurationMonths'>,
-  landownerId: string
+  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'>,
+  landownerId: string,
+  isLandownerPremium: boolean = false
 ): Promise<Listing> => {
   if (!db || firebaseInitializationError) {
     throw new Error("Firestore is not available. Cannot add listing.");
@@ -183,9 +211,10 @@ export const addListing = async (
       ...data,
       landownerId: landownerId,
       isAvailable: true,
-      images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"], 
+      images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
       rating: 0,
       numberOfRatings: 0,
+      isBoosted: isLandownerPremium,
       createdAt: Timestamp.now(),
     };
     const docRef = await addDoc(listingsCol, newListingData);
@@ -211,16 +240,14 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     const listingDocRef = doc(db, "listings", listingId);
     batch.delete(listingDocRef);
 
-    // Also delete related bookings
     const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
     const bookingsSnapshot = await getDocs(bookingsQuery);
     bookingsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
 
-    // Also delete related reviews
     const reviewsQuery = query(collection(db, "reviews"), where("listingId", "==", listingId));
     const reviewsSnapshot = await getDocs(reviewsQuery);
     reviewsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-    
+
     await batch.commit();
     return true;
   } catch (error) {
@@ -292,10 +319,10 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("dateRange.from", "desc") 
+      orderBy("dateRange.from", "desc")
     );
     const bookingSnapshot = await getDocs(q);
-    
+
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
 
     const populatedBookings = await Promise.all(bookings.map(async (booking) => {
@@ -307,7 +334,7 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
             const listing = await getListingById(booking.listingId);
             listingTitle = listing?.title;
         } catch (e) { console.error(`Failed to get listing ${booking.listingId}`, e); }
-        
+
         try {
             const renter = await getUserById(booking.renterId);
             renterName = renter?.name;
@@ -352,7 +379,7 @@ export const addBookingRequest = async (
     const newBookingData = {
       listingId: data.listingId,
       renterId: data.renterId,
-      landownerId: listingData.landownerId, 
+      landownerId: listingData.landownerId,
       status: 'Pending Confirmation' as Booking['status'],
       dateRange: {
         from: Timestamp.fromDate(data.dateRange.from),
@@ -409,4 +436,23 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     console.error("Error updating booking status:", error);
     throw error;
   }
+};
+
+export const updateUserProfile = async (userId: string, data: Partial<Pick<User, 'name' | 'bio' | 'avatarUrl'>>): Promise<User | undefined> => {
+    if (!db || firebaseInitializationError) {
+        console.warn("Firestore is not available. Cannot update user profile.");
+        return undefined;
+    }
+    try {
+        const userDocRef = doc(db, "users", userId);
+        await updateDoc(userDocRef, data);
+        const updatedSnap = await getDoc(userDocRef);
+        if (updatedSnap.exists()) {
+            return mapDocToUser(updatedSnap);
+        }
+        return undefined;
+    } catch (error) {
+        console.error("Error updating user profile:", error);
+        throw error;
+    }
 };

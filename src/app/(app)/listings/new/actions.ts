@@ -2,11 +2,8 @@
 'use server';
 
 import { z } from 'zod';
-import type { Listing, LeaseTerm } from '@/lib/types';
-import { addListing as dbAddListing } from '@/lib/mock-data'; // Now uses Firestore
-// import { auth } from '@/lib/firebase'; // Firebase auth isn't directly used in server actions this way
-// For checking subscription status, you'd typically get the UID from an authenticated session
-// and then query your Firestore 'users' collection for their subscription status.
+import type { Listing, LeaseTerm, User } from '@/lib/types';
+import { addListing as dbAddListing, getUserById, getListingsByLandownerCount, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Now uses Firestore
 
 const ListingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -15,9 +12,10 @@ const ListingFormSchema = z.object({
   sizeSqft: z.coerce.number().positive("Size must be a positive number"),
   pricePerMonth: z.coerce.number().positive("Price must be a positive number"),
   amenities: z.array(z.string()).min(1, "Select at least one amenity or type 'none' if applicable"),
+  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]), // Expecting URLs from client-side upload
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string().min(1, "Landowner ID is required"), 
+  landownerId: z.string().min(1, "Landowner ID is required"),
 });
 
 export type ListingFormState = {
@@ -29,6 +27,7 @@ export type ListingFormState = {
     sizeSqft?: string[];
     pricePerMonth?: string[];
     amenities?: string[];
+    images?: string[];
     leaseTerm?: string[];
     minLeaseDurationMonths?: string[];
     landownerId?: string[];
@@ -41,17 +40,18 @@ export async function createListingAction(
   prevState: ListingFormState,
   formData: FormData
 ): Promise<ListingFormState> {
-  
+
   const rawFormData = {
     title: formData.get('title'),
     description: formData.get('description'),
     location: formData.get('location'),
     sizeSqft: formData.get('sizeSqft'),
     pricePerMonth: formData.get('pricePerMonth'),
-    amenities: formData.getAll('amenities').map(String), 
+    amenities: formData.getAll('amenities').map(String),
+    images: formData.getAll('images').map(String).filter(url => url), // Get all image URLs, filter out empty ones
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
-    landownerId: formData.get('landownerId'), 
+    landownerId: formData.get('landownerId'),
   };
 
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
@@ -63,44 +63,60 @@ export async function createListingAction(
       success: false,
     };
   }
-  
+
   const currentUserId = validatedFields.data.landownerId;
 
   if (!currentUserId) {
-    // This should ideally be caught by client-side checks or a server-side session check
     return {
       message: "Authentication error: Could not determine landowner.",
       success: false,
     };
   }
 
-  // --- Backend Subscription & Listing Limit Check (Placeholder) ---
-  // In a real app with Stripe and Firestore:
-  // 1. Get currentUserId from a secure server-side session (e.g., NextAuth.js, or Firebase Admin SDK if this were an HTTP function).
-  //    For Server Actions, this usually relies on cookies or headers managed by an auth library.
-  // 2. Fetch user's profile from Firestore: `const userProfile = await getUserById(currentUserId);`
-  // 3. Check `userProfile?.subscriptionStatus`.
-  // 4. If 'free', fetch their current number of active listings from Firestore.
-  //    `const listingsCount = await getListingsCountForUser(currentUserId);`
-  // 5. If `listingsCount >= FREE_TIER_LISTING_LIMIT` (e.g., 1), return an error:
-  //    `return { message: "Free accounts can only create 1 listing. Upgrade to Premium for unlimited listings.", success: false };`
-  // For now, we'll proceed without this check as it requires more backend setup.
-  // --- End Placeholder ---
-  
+  let landownerProfile: User | undefined;
   try {
-    const newListingData: Omit<Listing, 'id' | 'images' | 'rating' | 'numberOfRatings' | 'isAvailable' | 'createdAt' | 'landownerId'> & { landownerId?: string } = {
+    landownerProfile = await getUserById(currentUserId);
+  } catch (e) {
+    console.error("Failed to fetch landowner profile:", e);
+    return { message: "Could not verify landowner status.", success: false };
+  }
+
+  const isPremiumUser = landownerProfile?.subscriptionStatus === 'premium';
+
+  if (!isPremiumUser) {
+    try {
+      const listingsCount = await getListingsByLandownerCount(currentUserId);
+      if (listingsCount >= FREE_TIER_LISTING_LIMIT) {
+        return {
+          message: `Free accounts can only create ${FREE_TIER_LISTING_LIMIT} listing(s). Upgrade to Premium for unlimited listings.`,
+          success: false,
+        };
+      }
+    } catch (e) {
+      console.error("Failed to check listing count:", e);
+      return { message: "Could not verify your current listing count.", success: false };
+    }
+  }
+
+  // **IMPORTANT**: Image file upload to Firebase Storage should happen client-side.
+  // The `validatedFields.data.images` should contain an array of *URLs*
+  // obtained *after* successful client-side uploads.
+  // This server action does NOT handle raw file uploads.
+
+  try {
+    const newListingData: Omit<Listing, 'id' | 'rating' | 'numberOfRatings' | 'isAvailable' | 'createdAt' | 'landownerId' | 'isBoosted'> & { landownerId?: string } = {
         title: validatedFields.data.title,
         description: validatedFields.data.description,
         location: validatedFields.data.location,
         sizeSqft: validatedFields.data.sizeSqft,
         pricePerMonth: validatedFields.data.pricePerMonth,
         amenities: validatedFields.data.amenities,
+        images: validatedFields.data.images, // These are expected to be URLs
         leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined,
         minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ?? undefined,
     };
-    
-    // dbAddListing now uses Firestore and takes landownerId separately
-    const newListing = await dbAddListing(newListingData, currentUserId);
+
+    const newListing = await dbAddListing(newListingData, currentUserId, isPremiumUser);
 
     return {
       message: `Listing "${newListing.title}" created successfully!`,

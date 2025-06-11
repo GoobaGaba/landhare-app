@@ -7,18 +7,19 @@ export interface Listing {
   id: string;
   title: string;
   description: string;
-  location: string; 
+  location: string;
   sizeSqft: number;
-  amenities: string[]; 
+  amenities: string[];
   pricePerMonth: number;
-  images: string[]; 
-  landownerId: string; 
+  images: string[];
+  landownerId: string;
   isAvailable: boolean;
-  rating?: number; 
+  rating?: number;
   numberOfRatings?: number;
-  leaseTerm?: LeaseTerm; 
-  minLeaseDurationMonths?: number; 
-  createdAt?: Date | Timestamp; // For Firestore, often Timestamp
+  leaseTerm?: LeaseTerm;
+  minLeaseDurationMonths?: number;
+  isBoosted?: boolean; // For premium listings
+  createdAt?: Date | Timestamp;
 }
 
 export type SubscriptionStatus = 'free' | 'premium';
@@ -28,32 +29,32 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
+  bio?: string;
   createdAt?: Date | Timestamp;
-  subscriptionStatus?: SubscriptionStatus; // Added for subscription tier
-  stripeCustomerId?: string; // Added for Stripe integration
+  subscriptionStatus?: SubscriptionStatus;
+  stripeCustomerId?: string;
 }
 
 export interface Review {
   id: string;
   listingId: string;
   userId: string;
-  rating: number; 
+  rating: number;
   comment: string;
-  createdAt: Date | Timestamp; // Firestore Timestamp
+  createdAt: Date | Timestamp;
 }
 
 export interface Booking {
   id: string;
   listingId: string;
-  renterId: string; 
-  landownerId: string; 
+  renterId: string;
+  landownerId: string;
   status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled';
-  dateRange: { 
-    from: Date | Timestamp; // Firestore Timestamp
-    to: Date | Timestamp;   // Firestore Timestamp
+  dateRange: {
+    from: Date | Timestamp;
+    to: Date | Timestamp;
   };
   createdAt?: Date | Timestamp;
-  // Optional denormalized fields for display convenience
   listingTitle?: string;
   landownerName?: string;
   renterName?: string;
@@ -66,27 +67,25 @@ export interface Message {
   senderId: string;
   receiverId: string;
   content: string;
-  timestamp: Date | Timestamp; // Firestore Timestamp
+  timestamp: Date | Timestamp;
   isRead: boolean;
 }
 
 export interface Conversation {
   id:string;
-  participantIds: string[]; 
-  lastMessage?: Message; 
-  listingId?: string; 
+  participantIds: string[];
+  lastMessage?: Message;
+  listingId?: string;
   updatedAt?: Date | Timestamp;
 }
 
-// For AI price suggestion
 export type PriceSuggestionInput = {
   location: string;
   sizeSqft: number;
-  amenities: string; // Comma-separated
+  amenities: string;
 };
 
 export type PriceSuggestionOutput = {
   suggestedPrice: number;
   reasoning: string;
 };
-

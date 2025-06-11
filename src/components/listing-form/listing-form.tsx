@@ -1,11 +1,12 @@
 
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, ChangeEvent } from 'react';
 import { useFormState } from 'react-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -23,6 +24,7 @@ import { getSuggestedPriceAction } from '@/lib/actions/ai-actions';
 import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
 import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm } from '@/lib/types';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 const amenitiesList = [
   { id: 'water', label: 'Water Hookup' },
@@ -36,6 +38,9 @@ const amenitiesList = [
   { id: 'fire_pit', label: 'Fire Pit'},
 ];
 
+const MAX_IMAGES = 5;
+const MAX_FILE_SIZE_MB = 5;
+
 const listingFormSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }),
   description: z.string().min(20, { message: "Description must be at least 20 characters." }),
@@ -43,9 +48,10 @@ const listingFormSchema = z.object({
   sizeSqft: z.coerce.number().positive({ message: "Size must be a positive number." }),
   pricePerMonth: z.coerce.number().positive({ message: "Price must be a positive number." }),
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
+  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]), // Expecting URLs
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
-  landownerId: z.string().min(1, "Landowner ID is required"), 
+  landownerId: z.string().min(1, "Landowner ID is required"),
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -57,13 +63,17 @@ export function ListingForm() {
   const { toast } = useToast();
   const [formState, formAction] = useFormState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
-  
+
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
-  const isPremiumUser = subscriptionStatus === 'premium';
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
+
+  const isPremiumUser = subscriptionStatus === 'premium';
 
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
@@ -74,14 +84,15 @@ export function ListingForm() {
       sizeSqft: 1000,
       pricePerMonth: 100,
       amenities: [],
+      images: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
-      landownerId: currentUser?.uid || '', 
+      landownerId: currentUser?.uid || '',
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = form;
-  
+
   useEffect(() => {
     if (currentUser && !form.getValues('landownerId')) {
       setValue('landownerId', currentUser.uid);
@@ -142,49 +153,110 @@ export function ListingForm() {
         variant: formState.success ? "default" : "destructive",
       });
       if (formState.success) {
-        form.reset(); 
-        if(currentUser) setValue('landownerId', currentUser.uid); 
-        setPriceSuggestion(null); // Clear suggestion on successful submit
+        form.reset();
+        if(currentUser) setValue('landownerId', currentUser.uid);
+        setPriceSuggestion(null);
         setSuggestionError(null);
+        setSelectedFiles([]);
+        setImagePreviews([]);
+        setImageUploadError(null);
       }
     }
   }, [formState, toast, isPending, form, currentUser, setValue]);
 
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setImageUploadError(null);
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      if (selectedFiles.length + newFiles.length > MAX_IMAGES) {
+        setImageUploadError(`You can upload a maximum of ${MAX_IMAGES} images.`);
+        return;
+      }
 
-  const onSubmit = (data: ListingFormData) => {
+      const validFiles: File[] = [];
+      const previews: string[] = [];
+
+      newFiles.forEach(file => {
+        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+          setImageUploadError(`File "${file.name}" is too large (max ${MAX_FILE_SIZE_MB}MB).`);
+          return;
+        }
+        if (!file.type.startsWith('image/')) {
+          setImageUploadError(`File "${file.name}" is not a valid image type.`);
+          return;
+        }
+        validFiles.push(file);
+        previews.push(URL.createObjectURL(file));
+      });
+
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+      setImagePreviews(prev => [...prev, ...previews]);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => {
+      const newPreviews = prev.filter((_, i) => i !== index);
+      // Revoke object URL for the removed image to free memory
+      if (imagePreviews[index]) {
+        URL.revokeObjectURL(imagePreviews[index]);
+      }
+      return newPreviews;
+    });
+  };
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
+
+
+  const onSubmit = async (data: ListingFormData) => {
     if (!currentUser) {
       toast({ title: "Authentication Error", description: "You must be logged in to create a listing.", variant: "destructive"});
       return;
     }
     if (data.landownerId !== currentUser.uid) {
         toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
-        setValue('landownerId', currentUser.uid); 
+        setValue('landownerId', currentUser.uid);
         return;
     }
-    
-    // Placeholder: Check if free user has reached listing limit
-    // if (subscriptionStatus === 'free') {
-    //   // const userListingsCount = await getListingsByLandownerCount(currentUser.uid);
-    //   // if (userListingsCount >= 1) { // Assuming 1 free listing limit
-    //   //   toast({ title: "Listing Limit Reached", description: "Free accounts can only create 1 listing. Upgrade to Premium for unlimited listings.", variant: "destructive" });
-    //   //   return;
-    //   // }
-    // }
 
-
-    const formData = new FormData();
+    const formDataToSubmit = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
-        value.forEach(amenity => formData.append(key, amenity));
-      } else if (key === 'minLeaseDurationMonths' && value === undefined && watchedLeaseTerm !== 'flexible') {
-        // Don't append if undefined and term is not flexible
-      }
-       else if (value !== undefined && value !== null) {
-        formData.append(key, String(value));
+        value.forEach(amenity => formDataToSubmit.append(key, amenity));
+      } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
+        // Don't append if undefined/null and term is not flexible
+      } else if (key === 'images') {
+        // **IMPORTANT**: This is a placeholder section for image handling.
+        // In a real app, you would upload files to Firebase Storage *client-side*
+        // get their download URLs, and then pass those URLs in the 'images' array.
+        // Server Actions are not ideal for direct file uploads from FormData without
+        // more complex stream handling or dedicated API routes.
+        // For now, we'll pass an empty array or mock URLs if you had them.
+        // setValue('images', ['mock-url-1.jpg']); // Example if you had URLs
+        // The 'data.images' will be an empty array by default from the schema if not set.
+        (data.images || []).forEach(imgUrl => formDataToSubmit.append(key, imgUrl));
+
+      } else if (value !== undefined && value !== null) {
+        formDataToSubmit.append(key, String(value));
       }
     });
+    
+    toast({
+        title: "Image Upload Note",
+        description: "Image upload UI is for demonstration. Actual file uploads and URL generation for listings require separate implementation (e.g., client-side upload to Firebase Storage before submitting this form).",
+        duration: 7000,
+    });
+
+
     startTransition(() => {
-      formAction(formData);
+      formAction(formDataToSubmit);
     });
   };
 
@@ -250,7 +322,64 @@ export function ListingForm() {
               {errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}
             </div>
           </div>
-          
+
+          <div>
+            <Label>Images (up to {MAX_IMAGES})</Label>
+            <div className="mt-2">
+              <label
+                htmlFor="image-upload"
+                className={cn(
+                  "flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary",
+                  imageUploadError ? "border-destructive" : "border-border"
+                )}
+              >
+                <div className="space-y-1 text-center">
+                  <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <div className="flex text-sm text-muted-foreground">
+                    <span className="text-primary font-medium">Upload files</span>
+                    <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={selectedFiles.length >= MAX_IMAGES} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
+                </div>
+              </label>
+            </div>
+            {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
+            {imagePreviews.length > 0 && (
+              <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {imagePreviews.map((previewUrl, index) => (
+                  <div key={index} className="relative aspect-square group">
+                    <Image src={previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveImage(index)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span className="sr-only">Remove image</span>
+                    </Button>
+                  </div>
+                ))}
+                {selectedFiles.length < MAX_IMAGES && (
+                  <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary">
+                    <FileImage className="h-8 w-8"/>
+                    <span className="text-xs mt-1">Add more</span>
+                  </label>
+                )}
+              </div>
+            )}
+            <Alert variant="default" className="mt-2">
+              <Info className="h-4 w-4" />
+              <AlertTitle className="text-sm">Image Handling Note</AlertTitle>
+              <AlertDescription className="text-xs">
+                This form demonstrates image selection. Actual image uploads to cloud storage (like Firebase Storage) and saving their URLs would need to be implemented. The server action currently expects an array of image URLs.
+              </AlertDescription>
+            </Alert>
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+          </div>
+
+
           <div>
             <Label>Amenities</Label>
             <Controller
@@ -290,8 +419,8 @@ export function ListingForm() {
                 name="leaseTerm"
                 control={control}
                 render={({ field }) => (
-                    <RadioGroup 
-                        onValueChange={field.onChange} 
+                    <RadioGroup
+                        onValueChange={field.onChange}
                         value={field.value}
                         className="space-y-1 p-2 border rounded-md"
                     >
@@ -316,10 +445,10 @@ export function ListingForm() {
           {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
             <div>
               <Label htmlFor="minLeaseDurationMonths">Minimum Lease Duration (Months)</Label>
-              <Input 
-                id="minLeaseDurationMonths" 
-                type="number" 
-                {...register('minLeaseDurationMonths')} 
+              <Input
+                id="minLeaseDurationMonths"
+                type="number"
+                {...register('minLeaseDurationMonths')}
                 aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"}
               />
               {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
@@ -337,10 +466,10 @@ export function ListingForm() {
             <Percent className="h-4 w-4" />
             <AlertTitle className="text-sm font-medium">Service Fee Information</AlertTitle>
             <AlertDescription className="text-xs">
-                LandShare Connect applies a service fee to successful bookings. 
-                {isPremiumUser ? 
+                LandShare Connect applies a service fee to successful bookings.
+                {subscriptionStatus === 'premium' ?
                 " As a Premium member, you benefit from a reduced closing fee of 0.99% on your payouts." :
-                " Free accounts are subject to a 3% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!" 
+                " Free accounts are subject to a 3% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!"
                 }
                 <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link>
             </AlertDescription>
@@ -352,10 +481,10 @@ export function ListingForm() {
               <CardDescription className="text-xs">Get an AI-powered price suggestion based on your land's details.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={handleSuggestPrice} 
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSuggestPrice}
                 disabled={isSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
                 className="w-full"
               >
@@ -390,11 +519,7 @@ export function ListingForm() {
               )}
             </CardContent>
           </Card>
-          <div>
-            <Label htmlFor="images">Upload Images (Optional)</Label>
-            <Input id="images" type="file" multiple disabled />
-            <p className="text-xs text-muted-foreground mt-1">Image upload functionality is not fully implemented in this demo. Backend for storage needed.</p>
-          </div>
+
 
           {formState.message && !formState.success && (
              <Alert variant="destructive">
@@ -406,7 +531,7 @@ export function ListingForm() {
            {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setSuggestionError(null);}} disabled={isPending}>Reset Form</Button>
+          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
           <Button type="submit" disabled={isPending || !currentUser}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
@@ -419,7 +544,7 @@ export function ListingForm() {
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
             <AlertTitle className="text-green-700 dark:text-green-300">Listing Created!</AlertTitle>
             <AlertDescription className="text-green-600 dark:text-green-400">
-              {formState.message} {/* Your listing ID is {formState.listingId}. */}
+              {formState.message}
               <Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700 dark:text-green-300">
                 <Link href={`/listings/${formState.listingId}`}>View Your Listing</Link>
               </Button>
