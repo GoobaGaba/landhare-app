@@ -46,10 +46,6 @@ export default function HomePage() {
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">
             Unlock Your Land. Find Your Space.
           </h1>
-          <p className="text-lg md:text-xl text-foreground/80 max-w-3xl mx-auto mb-10">
-            LandShare Connect makes affordable housing accessible and helps landowners earn.
-            Rent or list land for tiny homes, RVs, and more.
-          </p>
           
           {/* Conditional Hero Actions */}
           {!loading && currentUser ? (
@@ -82,6 +78,11 @@ export default function HomePage() {
             </div>
           ) : (
             // Guest User View: Original Buttons
+            <>
+             <p className="text-lg md:text-xl text-foreground/80 max-w-3xl mx-auto mb-10">
+                LandShare Connect makes affordable housing accessible and helps landowners earn.
+                Rent or list land for tiny homes, RVs, and more.
+             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Button size="lg" asChild>
                 <Link href="/search">
@@ -94,6 +95,7 @@ export default function HomePage() {
                 </Link>
               </Button>
             </div>
+            </>
           )}
         </div>
       </section>
@@ -200,8 +202,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* PRICING SECTION REMOVED FROM HOMEPAGE */}
 
       {/* Call to Action Section */}
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
