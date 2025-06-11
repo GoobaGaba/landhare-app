@@ -25,7 +25,7 @@ let mockListings: Listing[] = [
     amenities: ["Water Hookup", "Road Access", "Pet Friendly"],
     pricePerMonth: 350,
     images: ["https://placehold.co/800x600.png?text=Sunny+Meadow+1", "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    landownerId: "user1", // Sarah Miller
+    landownerId: "user1_firebase_uid", // Example: replace with an actual Firebase UID if testing logged-in user
     isAvailable: true,
     rating: 4.5,
     numberOfRatings: 12,
@@ -41,7 +41,7 @@ let mockListings: Listing[] = [
     amenities: ["Power Access"],
     pricePerMonth: 200,
     images: ["https://placehold.co/600x400.png?text=Forest+Retreat"],
-    landownerId: "user3", // Alex Landowner
+    landownerId: "user3_firebase_uid", // Example
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
@@ -49,7 +49,7 @@ let mockListings: Listing[] = [
     minLeaseDurationMonths: 1,
   },
   {
-    id: "l3", // Landowner's own listing
+    id: "l3", 
     title: "My Lakeside Camping Spot",
     description: "My special spot by the lake.",
     location: "My Lake, CO",
@@ -57,14 +57,14 @@ let mockListings: Listing[] = [
     amenities: ["Lake Access", "Fire Pit"],
     pricePerMonth: 150,
     images: ["https://placehold.co/600x400.png?text=My+Lake+Spot"],
-    landownerId: "user1", // Sarah Miller
+    landownerId: "user1_firebase_uid", 
     isAvailable: true,
     rating: 4.8,
     numberOfRatings: 5,
     leaseTerm: "flexible",
   },
    {
-    id: "l4", // Landowner's other listing
+    id: "l4", 
     title: "My Urban Garden Plot",
     description: "Compact plot in an urban setting, perfect for gardening.",
     location: "City Center, TX",
@@ -72,7 +72,7 @@ let mockListings: Listing[] = [
     amenities: ["Water Hookup", "Fenced"],
     pricePerMonth: 100,
     images: ["https://placehold.co/600x400.png?text=Urban+Garden"],
-    landownerId: "user1", // Sarah Miller
+    landownerId: "user1_firebase_uid", 
     isAvailable: true,
     rating: 4.0,
     numberOfRatings: 2,
@@ -83,20 +83,20 @@ export const getListings = (): Listing[] => [...mockListings];
 export const getListingById = (id: string): Listing | undefined => mockListings.find(l => l.id === id);
 
 export const addListing = (
-  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'leaseTerm' | 'minLeaseDurationMonths'>
+  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'leaseTerm' | 'minLeaseDurationMonths'>,
+  landownerId: string // Actual landownerId from auth
 ): Listing => {
   const newListingId = `listing-${Date.now()}`;
   const newListing: Listing = {
     ...data,
     id: newListingId,
-    landownerId: 'user1', 
+    landownerId: landownerId, 
     isAvailable: true,
     images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
     rating: undefined, 
     numberOfRatings: 0,
   };
   mockListings.push(newListing);
-  console.log("Mock DB: Listing added", newListing);
   return newListing;
 };
 
@@ -105,22 +105,19 @@ export const deleteListing = (listingId: string): boolean => {
   mockListings = mockListings.filter(listing => listing.id !== listingId);
   
   if (mockListings.length < initialLength) {
-    // Also remove associated bookings and reviews for data integrity
     mockBookings = mockBookings.filter(booking => booking.listingId !== listingId);
     mockReviews = mockReviews.filter(review => review.listingId !== listingId);
-    console.log("Mock DB: Listing deleted", listingId);
     return true;
   }
-  console.warn("Mock DB: Listing not found for deletion", listingId);
   return false;
 };
 
 
 // --- MOCK REVIEWS ---
 let mockReviews: Review[] = [
- { id: "rev1", listingId: "1", userId: "user2", rating: 5, comment: "Amazing spot! So peaceful and the host was very helpful.", createdAt: new Date("2023-10-15")},
- { id: "rev2", listingId: "1", userId: "user4", rating: 4, comment: "Great location, amenities as described. A bit tricky to find initially.", createdAt: new Date("2023-09-20")},
- { id: "rev3", listingId: "2", userId: "user5", rating: 4, comment: "Nice forest lot, very quiet.", createdAt: new Date("2023-11-01")},
+ { id: "rev1", listingId: "1", userId: "user2_firebase_uid", rating: 5, comment: "Amazing spot! So peaceful and the host was very helpful.", createdAt: new Date("2023-10-15")},
+ { id: "rev2", listingId: "1", userId: "user4_firebase_uid", rating: 4, comment: "Great location, amenities as described. A bit tricky to find initially.", createdAt: new Date("2023-09-20")},
+ { id: "rev3", listingId: "2", userId: "user5_firebase_uid", rating: 4, comment: "Nice forest lot, very quiet.", createdAt: new Date("2023-11-01")},
 ];
 export const getReviewsForListing = (listingId: string): Review[] => mockReviews.filter(r => r.listingId === listingId);
 
@@ -130,32 +127,32 @@ let mockBookings: Booking[] = [
   { 
     id: 'b1', 
     listingId: '1', 
-    renterId: 'user2', 
-    landownerId: 'user1',
+    renterId: 'user2_firebase_uid', 
+    landownerId: 'user1_firebase_uid',
     status: 'Confirmed', 
     dateRange: { from: new Date("2024-07-15"), to: addDays(new Date("2024-07-15"), 29) },
   },
   { 
     id: 'b2', 
     listingId: '2', 
-    renterId: 'user2',
-    landownerId: 'user3',
+    renterId: 'user2_firebase_uid',
+    landownerId: 'user3_firebase_uid',
     status: 'Pending Confirmation', 
     dateRange: { from: new Date("2024-09-01"), to: addDays(new Date("2024-09-01"), 29) },
   },
   { 
     id: 'b3', 
     listingId: 'l3', 
-    renterId: 'user4', 
-    landownerId: 'user1',
+    renterId: 'user4_firebase_uid', 
+    landownerId: 'user1_firebase_uid',
     status: 'Pending Confirmation', 
     dateRange: { from: new Date("2024-07-20"), to: addDays(new Date("2024-07-20"), 6) },
   },
   { 
     id: 'b4', 
     listingId: 'l4', 
-    renterId: 'user5', 
-    landownerId: 'user1',
+    renterId: 'user5_firebase_uid', 
+    landownerId: 'user1_firebase_uid',
     status: 'Confirmed', 
     dateRange: { from: new Date("2024-08-01"), to: addDays(new Date("2024-08-01"), 91) },
   },
@@ -164,13 +161,15 @@ let mockBookings: Booking[] = [
 export const getBookings = (): Booking[] => {
   return mockBookings.map(b => {
     const listing = getListingById(b.listingId);
-    const renter = getUserById(b.renterId);
+    // For user names, in a real app, you'd fetch user profiles based on IDs.
+    // Here we simulate it slightly differently or just use IDs if names aren't critical for mock.
+    const renter = getUserById(b.renterId); // getUserById expects our mock User structure
     const landowner = getUserById(b.landownerId);
     return {
       ...b,
       listingTitle: listing?.title || 'Unknown Listing',
-      renterName: renter?.name || 'Unknown Renter',
-      landownerName: landowner?.name || 'Unknown Landowner',
+      renterName: renter?.name || `Renter...${b.renterId.slice(-4)}`,
+      landownerName: landowner?.name || `Landowner...${b.landownerId.slice(-4)}`,
     };
   });
 };
@@ -185,22 +184,25 @@ export const addBookingRequest = (
     throw new Error("Listing not found for booking request.");
   }
   if (listing.landownerId !== data.landownerId) {
-     console.warn("Landowner ID mismatch in addBookingRequest. Using listing's landownerId.");
+     // This might happen if listing.landownerId in mock data is not a real Firebase UID
+     // and data.landownerId is. For mock purposes, allow it but prefer listing.landownerId.
   }
 
   const newBooking: Booking = {
     ...data,
     id: newBookingId,
-    landownerId: listing.landownerId, 
+    landownerId: listing.landownerId, // Use the landownerId from the listing
     status: 'Pending Confirmation',
   };
   mockBookings.push(newBooking);
-  console.log("Mock DB: Booking request added", newBooking);
+  
+  const renter = getUserById(data.renterId);
+  const landowner = getUserById(listing.landownerId);
   return { 
     ...newBooking,
     listingTitle: listing.title,
-    renterName: getUserById(data.renterId)?.name || 'Unknown Renter',
-    landownerName: getUserById(listing.landownerId)?.name || 'Unknown Landowner',
+    renterName: renter?.name || `Renter...${data.renterId.slice(-4)}`,
+    landownerName: landowner?.name || `Landowner...${listing.landownerId.slice(-4)}`,
   };
 };
 
@@ -208,7 +210,6 @@ export const updateBookingStatus = (bookingId: string, status: Booking['status']
   const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
   if (bookingIndex !== -1) {
     mockBookings[bookingIndex].status = status;
-    console.log("Mock DB: Booking status updated", mockBookings[bookingIndex]);
     const updatedBooking = mockBookings[bookingIndex];
     const listing = getListingById(updatedBooking.listingId);
     const renter = getUserById(updatedBooking.renterId);
@@ -216,12 +217,9 @@ export const updateBookingStatus = (bookingId: string, status: Booking['status']
     return {
       ...updatedBooking,
       listingTitle: listing?.title || 'Unknown Listing',
-      renterName: renter?.name || 'Unknown Renter',
-      landownerName: landowner?.name || 'Unknown Landowner',
+      renterName: renter?.name || `Renter...${updatedBooking.renterId.slice(-4)}`,
+      landownerName: landowner?.name || `Landowner...${updatedBooking.landownerId.slice(-4)}`,
     };
   }
-  console.warn("Mock DB: Booking not found for status update", bookingId);
   return undefined;
 };
-
-    

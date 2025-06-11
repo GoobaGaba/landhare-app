@@ -12,28 +12,26 @@ import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User } from '@/lib/types';
-import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data'; // Updated import
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info } from 'lucide-react';
+import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInCalendarMonths, startOfMonth, endOfMonth, isBefore } from 'date-fns';
-
-// Mock current user ID for booking requests - in a real app, this comes from auth
-const MOCK_CURRENT_USER_ID_FOR_BOOKING = "user2"; 
+import { useAuth } from '@/contexts/auth-context';
 
 export default function ListingDetailPage({ params }: { params: { id: string } }) {
+  const { currentUser, loading: authLoading } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
   const [landowner, setLandowner] = useState<User | null>(null);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [isBookingRequested, setIsBookingRequested] = useState(false);
+  const [isBookingRequested, setIsBookingRequested] = useState(false); // Tracks if current user booked this session
   const { toast } = useToast();
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-      // Simulate async fetch even with mock data for realistic loading state
       await new Promise(resolve => setTimeout(resolve, 300)); 
       
       const listingData = getListingById(params.id);
@@ -50,7 +48,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     fetchData();
   }, [params.id]);
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return <div className="text-center py-10">Loading listing details...</div>;
   }
 
@@ -59,6 +57,14 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   }
 
   const handleBookingRequestOpen = () => {
+    if (!currentUser) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to request a booking.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!dateRange || !dateRange.from || !dateRange.to) {
       toast({
         title: "Select Dates",
@@ -82,26 +88,23 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   };
 
   const handleConfirmBooking = () => {
-    if (!dateRange?.from || !dateRange?.to || !listing) return;
+    if (!currentUser || !dateRange?.from || !dateRange?.to || !listing) return;
 
     try {
       addBookingRequest({
         listingId: listing.id,
-        renterId: MOCK_CURRENT_USER_ID_FOR_BOOKING, // Use mock current user
+        renterId: currentUser.uid, 
         landownerId: listing.landownerId,
         dateRange: { from: dateRange.from, to: dateRange.to },
       });
       
       setShowBookingDialog(false);
-      setIsBookingRequested(true); // Local state to update button on this page
+      setIsBookingRequested(true); 
       toast({
         title: "Booking Request Submitted!",
         description: `Your request for "${listing.title}" from ${format(dateRange.from, "PPP")} to ${format(dateRange.to, "PPP")} has been sent.`,
       });
-      // Resetting dateRange might be good UX, or keep it if user might want to adjust
-      // setDateRange(undefined); 
     } catch (error) {
-      console.error("Error creating booking request:", error);
       toast({
         title: "Booking Failed",
         description: (error instanceof Error) ? error.message : "Could not submit booking request.",
@@ -123,6 +126,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
 
     return listing.pricePerMonth * months;
   };
+
+  const isCurrentUserLandowner = currentUser?.uid === listing.landownerId;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -180,7 +185,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             </CardContent>
           </Card>
           
-           {listing.isAvailable && (
+           {listing.isAvailable && !isCurrentUserLandowner && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">Select Your Dates</CardTitle>
@@ -188,6 +193,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 {listing.minLeaseDurationMonths && (
                     <p className="text-xs text-accent flex items-center mt-1">
                         <AlertTriangle className="h-4 w-4 mr-1" /> This listing requires a minimum {listing.minLeaseDurationMonths}-month lease.
+                    </p>
+                )}
+                {!currentUser && (
+                     <p className="text-xs text-destructive flex items-center mt-2">
+                        <UserCircle className="h-4 w-4 mr-1" /> Please <Link href="/login" className="underline hover:text-destructive/80 mx-1">log in</Link> to request a booking.
                     </p>
                 )}
               </CardHeader>
@@ -198,7 +208,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   onSelect={setDateRange}
                   numberOfMonths={1}
                   fromDate={today} 
-                  disabled={(date) => isBefore(date, today)}
+                  disabled={(date) => isBefore(date, today) || !currentUser}
                   className="rounded-md border"
                 />
                 {dateRange?.from && dateRange?.to && (
@@ -223,7 +233,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 <Card key={review.id} className="bg-muted/30">
                   <CardHeader className="flex flex-row justify-between items-start pb-2">
                     <div>
-                      <CardTitle className="text-sm">Reviewer {getUserById(review.userId)?.name || review.userId.slice(-4)}</CardTitle>
+                      <CardTitle className="text-sm">Reviewer {getUserById(review.userId)?.name || `User...${review.userId.slice(-4)}`}</CardTitle>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-muted-foreground'}`} />
@@ -237,7 +247,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   </CardContent>
                 </Card>
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
-               <Button variant="outline" className="mt-4">Write a Review</Button>
+               <Button variant="outline" className="mt-4" disabled={!currentUser || isCurrentUserLandowner}>Write a Review</Button>
             </CardContent>
           </Card>
         </div>
@@ -262,17 +272,24 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                <p className="text-2xl font-bold text-primary">${listing.pricePerMonth} <span className="text-sm font-normal text-muted-foreground">/ month</span></p>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button 
-                size="lg" 
-                className="w-full" 
-                onClick={handleBookingRequestOpen}
-                disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested}
-              >
-                {isBookingRequested ? "Booking Requested" : (listing.isAvailable ? "Request to Book" : "Currently Unavailable")}
-              </Button>
-              <Button variant="outline" className="w-full">
+              {!isCurrentUserLandowner && (
+                <Button 
+                  size="lg" 
+                  className="w-full" 
+                  onClick={handleBookingRequestOpen}
+                  disabled={!listing.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested || !currentUser}
+                >
+                  {isBookingRequested ? "Booking Requested" : (listing.isAvailable ? "Request to Book" : "Currently Unavailable")}
+                </Button>
+              )}
+              <Button variant="outline" className="w-full" disabled={!currentUser || isCurrentUserLandowner}>
                 <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
               </Button>
+              {isCurrentUserLandowner && (
+                <Button variant="secondary" className="w-full" asChild>
+                    <Link href={`/my-listings`}>Manage My Listings</Link>
+                </Button>
+              )}
             </CardFooter>
           </Card>
            <Card>
@@ -311,8 +328,9 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
-                listing.minLeaseDurationMonths && dateRange?.from && dateRange.to ? 
-                (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths : false
+                !currentUser ||
+                (listing.minLeaseDurationMonths && dateRange?.from && dateRange.to ? 
+                (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths : false)
             }>Submit Request</Button>
           </DialogFooter>
         </DialogContent>

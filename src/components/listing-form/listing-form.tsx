@@ -15,8 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/auth-context';
 
 import { getSuggestedPriceAction } from '@/lib/actions/ai-actions';
 import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
@@ -44,7 +45,7 @@ const listingFormSchema = z.object({
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
-  // images: typeof window === 'undefined' ? z.any() : z.instanceof(FileList).optional(), // Basic file upload validation
+  landownerId: z.string().min(1, "Landowner ID is required"), // Added to schema
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -52,6 +53,7 @@ type ListingFormData = z.infer<typeof listingFormSchema>;
 const initialFormState: ListingFormState = { message: '', success: false };
 
 export function ListingForm() {
+  const { currentUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formState, formAction] = useFormState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
@@ -71,11 +73,18 @@ export function ListingForm() {
       amenities: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
+      landownerId: '', // Initialize landownerId
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = form;
   
+  useEffect(() => {
+    if (currentUser) {
+      setValue('landownerId', currentUser.uid);
+    }
+  }, [currentUser, setValue]);
+
   const watchedLocation = watch('location');
   const watchedSizeSqft = watch('sizeSqft');
   const watchedAmenities = watch('amenities');
@@ -131,12 +140,24 @@ export function ListingForm() {
       });
       if (formState.success) {
         form.reset(); 
+        if(currentUser) setValue('landownerId', currentUser.uid); // Re-set landownerId after reset
       }
     }
-  }, [formState, toast, isPending, form]);
+  }, [formState, toast, isPending, form, currentUser, setValue]);
 
 
   const onSubmit = (data: ListingFormData) => {
+    if (!currentUser) {
+      toast({ title: "Authentication Error", description: "You must be logged in to create a listing.", variant: "destructive"});
+      return;
+    }
+    // Ensure landownerId from form matches current user for basic client-side check
+    // Server-side validation of this is CRUCIAL in a real app.
+    if (data.landownerId !== currentUser.uid) {
+        toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
+        return;
+    }
+
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -153,6 +174,34 @@ export function ListingForm() {
     });
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading form...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Create New Land Listing</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <UserCircle className="h-4 w-4" />
+            <AlertTitle>Login Required</AlertTitle>
+            <AlertDescription>
+              You must be <Link href="/login" className="underline">logged in</Link> to create a new listing.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -161,6 +210,7 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare Connect.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
+        <input type="hidden" {...register('landownerId')} />
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
@@ -326,10 +376,11 @@ export function ListingForm() {
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
           )}
+           {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" type="button" onClick={() => form.reset()} disabled={isPending}>Reset Form</Button>
-          <Button type="submit" disabled={isPending}>
+          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid);}} disabled={isPending}>Reset Form</Button>
+          <Button type="submit" disabled={isPending || !currentUser}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
           </Button>

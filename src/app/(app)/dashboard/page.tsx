@@ -4,16 +4,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2 } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { useAuth } from "@/contexts/auth-context";
+import { useEffect, useState } from "react";
 
-
-// Mock user data - in a real app, this would come from authentication context
-const mockUser = {
-  name: "Alex Landowner",
-  type: "landowner", // or "renter"
-};
 
 // Mock data for the earnings graph
 const chartData = [
@@ -34,15 +30,53 @@ const chartConfig = {
 
 
 export default function DashboardPage() {
+  const { currentUser, loading: authLoading } = useAuth();
+  const [userName, setUserName] = useState("Guest");
+  
+  useEffect(() => {
+    if (currentUser) {
+      setUserName(currentUser.displayName || currentUser.email || "User");
+    } else {
+      setUserName("Guest");
+    }
+  }, [currentUser]);
+
+  if (authLoading) {
+     return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCircle className="h-6 w-6 text-primary" />
+            Access Denied
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            Please <Link href="/login" className="text-primary hover:underline">log in</Link> to view your dashboard.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const currentMonthEarnings = chartData[chartData.length - 1].earnings;
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Welcome back, {mockUser.name}!</h1>
+      <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {mockUser.type === "landowner" && (
-          <Card className="md:col-span-2 lg:col-span-3"> {/* Updated to span full width on larger screens */}
+        {/* For now, assume any logged-in user might be a landowner */}
+        <Card className="md:col-span-2 lg:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="text-primary h-6 w-6" />
@@ -107,7 +141,7 @@ export default function DashboardPage() {
               </Button>
             </CardContent>
           </Card>
-        )}
+        
 
         <Card>
           <CardHeader>
@@ -115,7 +149,8 @@ export default function DashboardPage() {
             <CardDescription>Manage your active and past land listings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>You have <strong>3 active listings</strong>.</p>
+            {/* Real data for active listings count would come from backend */}
+            <p>You have <strong>X active listings</strong>.</p> 
             <div className="flex flex-col sm:flex-row gap-2">
               <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/my-listings">View My Listings</Link>
@@ -133,11 +168,8 @@ export default function DashboardPage() {
             <CardDescription>View and manage your land rental bookings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockUser.type === "landowner" ? (
-              <p>You have <strong>2 upcoming bookings</strong>.</p>
-            ) : (
-              <p>You have <strong>1 active rental</strong>.</p>
-            )}
+             {/* Real data for bookings count would come from backend */}
+            <p>You have <strong>Y upcoming bookings/rentals</strong>.</p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/bookings">View Bookings</Link>
             </Button>
@@ -150,7 +182,8 @@ export default function DashboardPage() {
             <CardDescription>Check your conversations with renters/landowners.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>You have <strong>5 unread messages</strong>.</p>
+            {/* Real data for unread messages would come from backend */}
+            <p>You have <strong>Z unread messages</strong>.</p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/messages">Go to Messages</Link>
             </Button>
@@ -172,5 +205,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
