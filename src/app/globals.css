@@ -52,6 +52,9 @@ body {
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 60 30% 82%;
     --sidebar-ring: 120 33% 30%;
+
+    --neon-green: 120 100% 45%; /* Vibrant Neon Green */
+    --neon-green-foreground: 120 25% 10%; /* Dark Greenish for contrast */
   }
 
   .dark {
@@ -97,6 +100,9 @@ body {
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 120 10% 25%;
     --sidebar-ring: 20 60% 60%;
+
+    --neon-green: 120 100% 50%; /* Slightly adjusted for dark mode if needed */
+    --neon-green-foreground: 0 0% 5%;
   }
 }
 

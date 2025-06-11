@@ -1,15 +1,35 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { MapPin, DollarSign, CheckCircle, Users, Home, Search } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 
 export default function HomePage() {
+  const { currentUser, loading } = useAuth();
+
+  const getFirstName = () => {
+    if (currentUser?.displayName) {
+      return currentUser.displayName.split(' ')[0];
+    }
+    if (currentUser?.email) {
+      return currentUser.email.split('@')[0];
+    }
+    return 'Valued User';
+  };
+
   return (
     <div className="flex flex-col items-center">
       {/* Hero Section */}
       <section className="w-full py-20 md:py-32 bg-gradient-to-br from-primary/10 via-background to-background">
         <div className="container mx-auto text-center px-4">
+          {!loading && currentUser && (
+            <p className="mb-4 text-lg text-primary-foreground/90">
+              Welcome, {getFirstName()}!
+            </p>
+          )}
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">
             Unlock Your Land. Find Your Space.
           </h1>
@@ -23,7 +43,7 @@ export default function HomePage() {
                 <Search className="mr-2 h-5 w-5" /> Find Land
               </Link>
             </Button>
-            <Button size="lg" variant="secondary" asChild>
+            <Button size="lg" className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
               <Link href="/listings/new">
                 <Home className="mr-2 h-5 w-5" /> List Your Land
               </Link>
@@ -144,7 +164,7 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-primary-foreground/50 text-primary-foreground hover:bg-primary-foreground/10" asChild>
+            <Button size="lg" className="bg-neon text-neon-foreground hover:bg-neon/90" asChild>
               <Link href="/listings/new">Become a Host</Link>
             </Button>
           </div>

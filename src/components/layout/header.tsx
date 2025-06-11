@@ -77,7 +77,7 @@ export default function AppHeader() {
               className="pl-10 w-full h-10 bg-card focus-visible:ring-primary" 
             />
           </div>
-          <Button variant="link" asChild className="text-primary hover:text-primary/90 hover:no-underline font-semibold whitespace-nowrap px-2">
+          <Button asChild className="bg-neon text-neon-foreground hover:bg-neon/90 h-10 px-4">
             <Link href="/listings/new">
                 <PlusCircle className="mr-2 h-4 w-4 md:hidden lg:inline-block" /> List Your Land
             </Link>
@@ -95,7 +95,7 @@ export default function AppHeader() {
                       <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || currentUser.email || 'User'} />
-                          <AvatarFallback>{currentUser.email ? currentUser.email[0].toUpperCase() : 'U'}</AvatarFallback>
+                          <AvatarFallback>{currentUser.displayName ? currentUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase() : (currentUser.email ? currentUser.email[0].toUpperCase() : 'U')}</AvatarFallback>
                         </Avatar>
                          <span className="sr-only">Open user menu</span>
                       </Button>
@@ -167,7 +167,7 @@ export default function AppHeader() {
 
                 <nav className="flex flex-col gap-1 px-4 flex-grow">
                   <SheetClose asChild>
-                    <Button variant="ghost" asChild className="w-full justify-start text-base py-3">
+                    <Button asChild className="w-full justify-start text-base py-3 bg-neon text-neon-foreground hover:bg-neon/90">
                       <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
@@ -226,4 +226,3 @@ export default function AppHeader() {
     </header>
   );
 }
-
