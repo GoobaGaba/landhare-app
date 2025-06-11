@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut } from 'lucide-react'; 
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks } from 'lucide-react'; 
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
