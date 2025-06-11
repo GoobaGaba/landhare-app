@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -104,6 +105,7 @@ export default function HomePage() {
                 width={600}
                 height={400}
                 className="rounded-lg shadow-md object-cover w-full"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
               />
             </div>
             <div className="space-y-6">
@@ -118,6 +120,7 @@ export default function HomePage() {
                 width={600}
                 height={400}
                 className="rounded-lg shadow-md object-cover w-full"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px"
               />
             </div>
           </div>
