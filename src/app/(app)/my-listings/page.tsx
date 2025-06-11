@@ -1,39 +1,74 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListChecks, PlusCircle, Edit3, Trash2, Search } from "lucide-react";
+import { ListChecks, PlusCircle, Edit3, Trash2, Search, AlertTriangle } from "lucide-react";
 import type { Listing } from "@/lib/types";
-import { getListings } from "@/lib/mock-data"; // Assuming getListings fetches all and we filter
+import { getListings, deleteListing as dbDeleteListing } from "@/lib/mock-data"; 
 import { ListingCard } from '@/components/land-search/listing-card';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-// Mock current landowner ID - in a real app, this would come from auth
 const MOCK_LANDOWNER_ID = 'user1';
 
 export default function MyListingsPage() {
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
 
-  useEffect(() => {
-    // Simulate API delay
-    const timer = setTimeout(() => {
-      const allListings = getListings();
-      const filteredListings = allListings.filter(listing => listing.landownerId === MOCK_LANDOWNER_ID);
-      setMyListings(filteredListings);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+  const loadMyListings = useCallback(() => {
+    setIsLoading(true);
+    const allListings = getListings();
+    const filteredListings = allListings.filter(listing => listing.landownerId === MOCK_LANDOWNER_ID);
+    setMyListings(filteredListings);
+    setIsLoading(false);
   }, []);
 
-  const handleDeleteListing = (listingId: string) => {
-    // Placeholder for delete functionality
-    console.log("Attempting to delete listing:", listingId);
-    alert(`Delete functionality for listing ${listingId} is not yet implemented.`);
-    // In a real app: call a server action to delete, then update state or re-fetch.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadMyListings();
+    }, 300); // Simulate API delay
+    return () => clearTimeout(timer);
+  }, [loadMyListings]);
+
+  const openDeleteDialog = (listing: Listing) => {
+    setListingToDelete(listing);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteListing = () => {
+    if (!listingToDelete) return;
+
+    const success = dbDeleteListing(listingToDelete.id);
+    if (success) {
+      toast({
+        title: "Listing Deleted",
+        description: `"${listingToDelete.title}" has been successfully deleted.`,
+      });
+      loadMyListings(); // Re-fetch to update the list
+    } else {
+      toast({
+        title: "Deletion Failed",
+        description: `Could not delete "${listingToDelete.title}".`,
+        variant: "destructive",
+      });
+    }
+    setShowDeleteDialog(false);
+    setListingToDelete(null);
   };
 
   if (isLoading) {
@@ -117,11 +152,11 @@ export default function MyListingsPage() {
               <ListingCard listing={listing} viewMode="grid" />
               <div className="mt-2 flex gap-2 p-2 bg-card rounded-b-lg border border-t-0 shadow-sm">
                 <Button variant="outline" size="sm" className="flex-1" asChild>
-                  <Link href={`/listings/edit/${listing.id}`}> {/* Placeholder edit link */}
+                  <Link href={`/listings/edit/${listing.id}`}> 
                     <Edit3 className="mr-2 h-4 w-4" /> Edit
                   </Link>
                 </Button>
-                <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDeleteListing(listing.id)}>
+                <Button variant="destructive" size="sm" className="flex-1" onClick={() => openDeleteDialog(listing)}>
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                 </Button>
               </div>
@@ -129,6 +164,31 @@ export default function MyListingsPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-destructive" />
+              Confirm Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the listing "{listingToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setListingToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteListing}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Listing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+    

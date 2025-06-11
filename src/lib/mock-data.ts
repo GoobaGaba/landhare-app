@@ -86,20 +86,33 @@ export const addListing = (
   data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'pricePerMonth' | 'amenities' | 'leaseTerm' | 'minLeaseDurationMonths'>
 ): Listing => {
   const newListingId = `listing-${Date.now()}`;
-  // For now, assign to a mock landowner and set default image
-  // In a real app, landownerId would come from the authenticated user
   const newListing: Listing = {
     ...data,
     id: newListingId,
-    landownerId: 'user1', // Mock landowner
+    landownerId: 'user1', 
     isAvailable: true,
     images: [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`, "https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    rating: undefined, // New listings start with no rating
+    rating: undefined, 
     numberOfRatings: 0,
   };
   mockListings.push(newListing);
   console.log("Mock DB: Listing added", newListing);
   return newListing;
+};
+
+export const deleteListing = (listingId: string): boolean => {
+  const initialLength = mockListings.length;
+  mockListings = mockListings.filter(listing => listing.id !== listingId);
+  
+  if (mockListings.length < initialLength) {
+    // Also remove associated bookings and reviews for data integrity
+    mockBookings = mockBookings.filter(booking => booking.listingId !== listingId);
+    mockReviews = mockReviews.filter(review => review.listingId !== listingId);
+    console.log("Mock DB: Listing deleted", listingId);
+    return true;
+  }
+  console.warn("Mock DB: Listing not found for deletion", listingId);
+  return false;
 };
 
 
@@ -114,10 +127,9 @@ export const getReviewsForListing = (listingId: string): Review[] => mockReviews
 
 // --- MOCK BOOKINGS ---
 let mockBookings: Booking[] = [
-  // Bookings as Renter (current user is 'user2' for this example)
   { 
     id: 'b1', 
-    listingId: '1', // Sunny Meadow Plot
+    listingId: '1', 
     renterId: 'user2', 
     landownerId: 'user1',
     status: 'Confirmed', 
@@ -125,25 +137,24 @@ let mockBookings: Booking[] = [
   },
   { 
     id: 'b2', 
-    listingId: '2', // Forest Retreat Lot
+    listingId: '2', 
     renterId: 'user2',
     landownerId: 'user3',
     status: 'Pending Confirmation', 
     dateRange: { from: new Date("2024-09-01"), to: addDays(new Date("2024-09-01"), 29) },
   },
-  // Bookings as Landowner (current user is 'user1' for this example)
   { 
     id: 'b3', 
-    listingId: 'l3', // My Lakeside Camping Spot
-    renterId: 'user4', // Alex P.
+    listingId: 'l3', 
+    renterId: 'user4', 
     landownerId: 'user1',
     status: 'Pending Confirmation', 
     dateRange: { from: new Date("2024-07-20"), to: addDays(new Date("2024-07-20"), 6) },
   },
   { 
     id: 'b4', 
-    listingId: 'l4', // My Urban Garden Plot
-    renterId: 'user5', // Maria G.
+    listingId: 'l4', 
+    renterId: 'user5', 
     landownerId: 'user1',
     status: 'Confirmed', 
     dateRange: { from: new Date("2024-08-01"), to: addDays(new Date("2024-08-01"), 91) },
@@ -151,7 +162,6 @@ let mockBookings: Booking[] = [
 ];
 
 export const getBookings = (): Booking[] => {
-  // Populate denormalized fields
   return mockBookings.map(b => {
     const listing = getListingById(b.listingId);
     const renter = getUserById(b.renterId);
@@ -181,12 +191,12 @@ export const addBookingRequest = (
   const newBooking: Booking = {
     ...data,
     id: newBookingId,
-    landownerId: listing.landownerId, // Ensure correct landowner ID from listing
+    landownerId: listing.landownerId, 
     status: 'Pending Confirmation',
   };
   mockBookings.push(newBooking);
   console.log("Mock DB: Booking request added", newBooking);
-  return { // Return with denormalized fields
+  return { 
     ...newBooking,
     listingTitle: listing.title,
     renterName: getUserById(data.renterId)?.name || 'Unknown Renter',
@@ -200,7 +210,6 @@ export const updateBookingStatus = (bookingId: string, status: Booking['status']
     mockBookings[bookingIndex].status = status;
     console.log("Mock DB: Booking status updated", mockBookings[bookingIndex]);
     const updatedBooking = mockBookings[bookingIndex];
-    // Populate denormalized fields for the return
     const listing = getListingById(updatedBooking.listingId);
     const renter = getUserById(updatedBooking.renterId);
     const landowner = getUserById(updatedBooking.landownerId);
@@ -214,3 +223,5 @@ export const updateBookingStatus = (bookingId: string, status: Booking['status']
   console.warn("Mock DB: Booking not found for status update", bookingId);
   return undefined;
 };
+
+    
