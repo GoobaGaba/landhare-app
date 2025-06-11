@@ -1,3 +1,4 @@
+'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,26 +45,8 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold">Welcome back, {mockUser.name}!</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Home className="h-6 w-6 text-primary"/> My Listings</CardTitle>
-            <CardDescription>Manage your active and past land listings.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p>You have <strong>3 active listings</strong>.</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button asChild variant="outline" className="w-full sm:w-auto">
-                <Link href="/my-listings">View My Listings</Link>
-              </Button>
-              <Button asChild className="w-full sm:w-auto">
-                <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         {mockUser.type === "landowner" && (
-          <Card className="md:col-span-2 lg:col-span-2">
+          <Card className="md:col-span-2 lg:col-span-3"> {/* Updated to span full width on larger screens */}
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="text-primary h-6 w-6" />
@@ -129,6 +112,24 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Home className="h-6 w-6 text-primary"/> My Listings</CardTitle>
+            <CardDescription>Manage your active and past land listings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>You have <strong>3 active listings</strong>.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href="/my-listings">View My Listings</Link>
+              </Button>
+              <Button asChild className="w-full sm:w-auto">
+                <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
