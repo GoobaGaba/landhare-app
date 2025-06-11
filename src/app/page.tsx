@@ -25,15 +25,16 @@ export default function HomePage() {
     async function fetchRecentListings() {
       setIsLoadingListings(true);
       try {
-        const allListings = await getListings(); // Await the promise
-        if (Array.isArray(allListings)) {
-          setRecentListings(allListings.filter(l => l.isAvailable).slice(0, 8));
+        const allListingsData = await getListings();
+        if (Array.isArray(allListingsData)) {
+          setRecentListings(allListingsData.filter(l => l.isAvailable).slice(0, 8));
         } else {
-          setRecentListings([]); // Handle case where getListings might not return an array as expected
+          console.error("getListings did not return an array:", allListingsData);
+          setRecentListings([]);
         }
       } catch (error) {
         console.error("Failed to fetch recent listings:", error);
-        setRecentListings([]); // Set to empty array on error
+        setRecentListings([]);
       } finally {
         setIsLoadingListings(false);
       }
@@ -82,17 +83,17 @@ export default function HomePage() {
                   type="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search for land (e.g., 'Willow Creek, CO', 'tiny home plot')"
-                  className="w-full h-12 pl-12 pr-28 rounded-l-lg text-base focus-visible:ring-primary border-r-0" 
+                  placeholder="Search land (e.g., location, keywords)"
+                  className="w-full h-12 pl-12 pr-24 rounded-l-lg text-sm focus-visible:ring-primary border-r-0" 
                   aria-label="Search for land"
                 />
-                 <Button type="submit" size="lg" className="h-12 px-5 text-sm rounded-r-lg rounded-l-none">
-                  Search Land
+                 <Button type="submit" className="h-12 px-6 text-sm rounded-r-lg rounded-l-none">
+                  Search
                 </Button>
               </form>
 
               <div className="mt-16 text-left"> 
-                <h2 className="text-2xl font-semibold mb-6 text-primary"> 
+                <h2 className="text-2xl font-semibold mb-6 text-primary text-center"> 
                   Recently added
                 </h2>
                 {isLoadingListings ? (
@@ -109,7 +110,7 @@ export default function HomePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">No recent listings available.</p>
+                  <p className="text-muted-foreground text-center py-8">No recent listings available at the moment. Check back soon!</p>
                 )}
               </div>
             </div>
