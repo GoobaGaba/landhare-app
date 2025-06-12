@@ -39,23 +39,27 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   name: 'Mock Google User',
   email: 'mock.google.user@example.com',
   avatarUrl: 'https://placehold.co/100x100.png?text=GU',
-  subscriptionStatus: 'premium', // Ensure this is premium for testing listing creation
+  subscriptionStatus: 'premium',
   createdAt: new Date('2023-04-01T10:00:00Z'),
   bio: 'I am a mock user signed in via Google for testing purposes with premium status.',
   bookmarkedListingIds: [],
 };
 
+// Predefined main mock user for email/password testing
+export const MOCK_USER_FOR_UI_TESTING: User = {
+  id: 'mock-user-uid-12345',
+  name: 'Mock UI Tester',
+  email: 'mocktester@example.com',
+  avatarUrl: 'https://placehold.co/100x100.png?text=MT',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2023-01-01T10:00:00Z'),
+  bio: 'I am the main mock user for testing purposes with premium status.',
+  bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
+};
+
+
 export let mockUsers: User[] = [
-  {
-    id: 'mock-user-uid-12345',
-    name: 'Mock UI Tester',
-    email: 'mocktester@example.com',
-    avatarUrl: 'https://placehold.co/100x100.png?text=MT',
-    subscriptionStatus: 'premium',
-    createdAt: new Date('2023-01-01T10:00:00Z'),
-    bio: 'I am the main mock user for testing purposes with premium status.',
-    bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
-  },
+  MOCK_USER_FOR_UI_TESTING,
   {
     id: 'landowner-jane-doe',
     name: 'Jane Doe',
@@ -648,8 +652,8 @@ export const addListing = async (
   if (firebaseInitializationError || !db) {
     console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Current mockDataVersion before add: ${mockDataVersion}`);
     mockListings.unshift(newListingData); // Add to the beginning of the array
-    incrementMockDataVersion('addListing'); // This will log the new version
     console.log(`[MockData] addListing (mock): Listing data:`, { ...newListingData });
+    incrementMockDataVersion('addListing'); // This will log the new version
     console.log(`[MockData] addListing (mock): Current mockListings count: ${mockListings.length}. Titles: ${mockListings.map(l => l.title).join(', ')}`);
     return Promise.resolve(newListingData);
   }
@@ -1055,3 +1059,5 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
   }
 };
 
+
+    

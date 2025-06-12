@@ -17,17 +17,18 @@ interface ListingsDataState {
 
 export function useListingsData(): ListingsDataState {
   const { currentUser } = useAuth();
+  // Use the global mockDataVersion directly as a dependency for fetching.
+  // No need for a separate local state to track its changes if effects depend on it directly.
   const [internalListings, setInternalListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentMockDataVersion, setCurrentMockDataVersion] = useState(mockDataVersion);
 
   const fetchAndProcessListings = useCallback(async () => {
-    console.log(`[useListingsData] fetchAndProcessListings: Triggered. Current mockDataVersion in hook: ${currentMockDataVersion}, global mockDataVersion: ${mockDataVersion}`);
+    console.log(`[useListingsData] fetchAndProcessListings: Triggered. Global mockDataVersion: ${mockDataVersion}`);
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedListings = await getListings();
+      const fetchedListings = await getListings(); // getListings will use the latest mockListings if in mock mode
       setInternalListings(fetchedListings);
       console.log(`[useListingsData] fetchAndProcessListings: Fetched ${fetchedListings.length} total listings internally.`);
     } catch (err: any) {
@@ -37,20 +38,13 @@ export function useListingsData(): ListingsDataState {
     } finally {
       setIsLoading(false);
     }
-  }, [currentMockDataVersion]); // Depends on local version
+  }, []); // This callback itself doesn't change based on mockDataVersion, but its execution does
 
   useEffect(() => {
-    if (mockDataVersion !== currentMockDataVersion) {
-      console.log(`[useListingsData] useEffect (version change): mockDataVersion changed from ${currentMockDataVersion} to ${mockDataVersion}. Updating local version and re-fetching.`);
-      setCurrentMockDataVersion(mockDataVersion);
-      // fetchAndProcessListings will be called by the next effect if currentMockDataVersion changed
-    }
-  }, [mockDataVersion, currentMockDataVersion]);
-
-  useEffect(() => {
-    console.log("[useListingsData] useEffect (initial/fetch trigger): Fetching listings due to component mount or currentMockDataVersion change.");
+    // This effect re-runs when the global mockDataVersion changes or on initial mount.
+    console.log(`[useListingsData] Main data fetching effect triggered due to mockDataVersion change or mount. Global mockDataVersion: ${mockDataVersion}`);
     fetchAndProcessListings();
-  }, [fetchAndProcessListings]); // This now correctly depends on the memoized fetchAndProcessListings
+  }, [mockDataVersion, fetchAndProcessListings]); // Now directly depends on global mockDataVersion
 
   const allAvailableListings = useMemo(() => {
     console.log('[useListingsData] Calculating allAvailableListings. Internal listings count:', internalListings.length);
@@ -60,16 +54,16 @@ export function useListingsData(): ListingsDataState {
   }, [internalListings]);
 
   const myListings = useMemo(() => {
-    console.log('[useListingsData] Calculating myListings. currentUser.uid:', currentUser?.uid, 'Internal listings count:', internalListings.length);
+    console.log(`[useListingsData] Calculating myListings. currentUser.uid: ${currentUser?.uid}, Internal listings count: ${internalListings.length}, Global mockDataVersion: ${mockDataVersion}`);
     if (currentUser?.uid && internalListings.length > 0) {
-      console.log('[useListingsData] internalListings sample (first 5) for myListings filter:', internalListings.slice(0,5).map(l => ({id: l.id, title: l.title, owner: l.landownerId})));
+      console.log('[useListingsData] internalListings sample (first 5 for myListings filter):', internalListings.slice(0,5).map(l => ({id: l.id, title: l.title, owner: l.landownerId})));
     }
     const filtered = currentUser
       ? internalListings.filter(listing => listing.landownerId === currentUser.uid)
       : [];
-    console.log('[useListingsData] myListings calculated. Filtered count:', filtered.length, 'Titles:', filtered.map(l => l.title));
+    console.log(`[useListingsData] myListings calculated for UID ${currentUser?.uid}. Filtered count: ${filtered.length}, Titles: ${filtered.map(l => l.title).join(', ') || 'None'}`);
     return filtered;
-  }, [internalListings, currentUser]);
+  }, [internalListings, currentUser?.uid]); // Depend on currentUser.uid for re-filtering if user changes
 
   const recentListings = useMemo(() => {
     console.log('[useListingsData] Calculating recentListings. allAvailableListings count:', allAvailableListings.length);
@@ -86,7 +80,7 @@ export function useListingsData(): ListingsDataState {
   
   const refreshListings = useCallback(() => {
     console.log("[useListingsData] Manual refreshListings called. Triggering fetch.");
-    fetchAndProcessListings();
+    fetchAndProcessListings(); // This will use the latest mockDataVersion implicitly
   }, [fetchAndProcessListings]);
 
   return {
