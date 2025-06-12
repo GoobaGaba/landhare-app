@@ -41,7 +41,6 @@ const amenitiesList = [
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 5;
 
-// Client-side schema: landownerId is removed as it's handled directly from context during submission
 const listingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, { message: "Title must be at least 3 characters." }),
   description: z.string({ required_error: "Description is required." }).min(10, { message: "Description must be at least 10 characters." }),
@@ -49,7 +48,15 @@ const listingFormSchema = z.object({
   sizeSqft: z.coerce.number({ required_error: "Size is required.", invalid_type_error: "Size must be a number." }).positive({ message: "Size must be a positive number." }),
   price: z.coerce.number({ required_error: "Price is required.", invalid_type_error: "Price must be a number." }).positive({ message: "Price must be a positive number." }),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
-  leaseToOwnDetails: z.string().optional(),
+  leaseToOwnDetails: z.string().optional().refine(
+    (val, ctx) => {
+      if (ctx.parent?.pricingModel === 'lease-to-own' && (!val || val.trim().length < 10)) {
+        return false;
+      }
+      return true;
+    },
+    { message: "Lease-to-Own details are required and must be at least 10 characters if selected." }
+  ),
   amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
@@ -275,19 +282,24 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-    if (!currentUser?.uid || currentUser.uid.trim() === '') {
-      toast({ title: "Authentication Error", description: "You must be logged in with a valid User ID to create a listing. Please log in again.", variant: "destructive"});
+    if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
+      toast({
+        title: "Cannot Submit Listing",
+        description: `Auth Loading: ${String(authLoading)}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
+        variant: "destructive",
+        duration: 7000,
+      });
       return;
     }
     
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
-    // Append landownerId directly from currentUser context
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
-    // Append other form data
-    const submissionData = { ...data, images: uploadedImageUrls };
+    const { ...listingDataForDb } = data;
+    const submissionData = { ...listingDataForDb, images: uploadedImageUrls };
+
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -314,7 +326,7 @@ export function ListingForm() {
     });
   };
 
-  if (authLoading || subscriptionStatus === 'loading') {
+  if (authLoading || (!currentUser && subscriptionStatus === 'loading')) { // Adjusted loading check
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -346,8 +358,7 @@ export function ListingForm() {
                      : watchedPricingModel === 'monthly' ? "Price per Month ($)"
                      : "Est. Monthly Payment ($) for LTO";
 
-  // Simplified and direct check for submit button disabled state
-  const isSubmitDisabled = isPending || !currentUser?.uid;
+  const isSubmitButtonDisabled = isPending || authLoading || !currentUser?.uid || currentUser.uid.trim() === '';
 
 
   return (
@@ -358,6 +369,14 @@ export function ListingForm() {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
+          <div className="p-2 my-2 border border-dashed border-destructive text-xs bg-destructive/10 rounded-md">
+              <p className="font-bold text-destructive-foreground mb-1">DEBUG FORM STATE:</p>
+              <p>Auth Loading: <span className="font-mono">{String(authLoading)}</span></p>
+              <p>Current User Exists: <span className="font-mono">{String(!!currentUser)}</span></p>
+              <p>Current User UID: <span className="font-mono">{currentUser?.uid || 'N/A'}</span></p>
+              <p>Current User Email: <span className="font-mono">{currentUser?.email || 'N/A'}</span></p>
+              <p>Is Submit Button Disabled: <span className="font-mono">{String(isSubmitButtonDisabled)}</span></p>
+          </div>
           <div>
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
@@ -653,7 +672,7 @@ export function ListingForm() {
               title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
               leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
               }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
-            <Button type="submit" disabled={isSubmitDisabled}>
+            <Button type="submit" disabled={isSubmitButtonDisabled}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Listing
             </Button>
@@ -677,8 +696,5 @@ export function ListingForm() {
     </Card>
   );
 }
+
     
-
-      
-
-
