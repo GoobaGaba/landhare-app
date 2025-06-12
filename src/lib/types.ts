@@ -22,7 +22,7 @@ export interface Listing {
   createdAt?: Date | Timestamp;
 }
 
-export type SubscriptionStatus = 'free' | 'premium';
+export type SubscriptionStatus = 'free' | 'premium' | 'loading';
 
 export interface User {
   id: string;

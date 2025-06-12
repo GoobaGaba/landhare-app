@@ -8,14 +8,15 @@ import {
   signInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile as updateFirebaseProfile // Renamed to avoid conflict
 } from 'firebase/auth';
 import { auth as firebaseAuthInstance, db as firestoreInstance, firebaseInitializationError } from '@/lib/firebase'; 
 import type { ReactNode} from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { createUserProfile, getUserById } from '@/lib/mock-data'; // Using Firestore version
-import type { User as AppUserType, SubscriptionStatus } from '@/lib/types'; // Import AppUserType and SubscriptionStatus
+// Using mock-data which now has conditional logic for Firestore or mock arrays
+import { createUserProfile, getUserById, updateUserProfile as updateAppUserProfile } from '@/lib/mock-data'; 
+import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
 interface AuthCredentials {
   email: string;
@@ -23,21 +24,21 @@ interface AuthCredentials {
   displayName?: string;
 }
 
-// Combines Firebase user with our app-specific user data
 export interface CurrentUser extends FirebaseUserType {
-  appProfile?: AppUserType; // To hold Firestore profile data like subscriptionStatus
+  appProfile?: AppUserType;
 }
 
 interface AuthContextType {
   currentUser: CurrentUser | null; 
   loading: boolean;
   authError: string | null; 
-  subscriptionStatus: SubscriptionStatus | 'loading'; // Add subscription status
+  subscriptionStatus: SubscriptionStatus;
   signUpWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<CurrentUser | null>;
   signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<CurrentUser | null>;
   logoutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
-  refreshUserProfile: () => Promise<void>; // Added to refresh profile data
+  refreshUserProfile: () => Promise<void>;
+  updateCurrentAppUserProfile: (data: Partial<Pick<AppUserType, 'name' | 'bio' | 'avatarUrl'>>) => Promise<CurrentUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,7 +55,7 @@ const MOCK_USER_FOR_UI_TESTING: CurrentUser = {
   uid: 'mock-user-uid-12345', 
   email: 'mocktester@example.com',
   displayName: 'Mock UI Tester',
-  photoURL: null,
+  photoURL: 'https://placehold.co/100x100.png?text=MT',
   emailVerified: true,
   isAnonymous: false,
   getIdToken: async () => 'mock-token',
@@ -62,16 +63,18 @@ const MOCK_USER_FOR_UI_TESTING: CurrentUser = {
   reload: async () => {},
   delete: async () => {},
   toJSON: () => ({ uid: 'mock-user-uid-12345', email: 'mocktester@example.com', displayName: 'Mock UI Tester' }),
-  metadata: { creationTime: new Date().toISOString(), lastSignInTime: new Date().toISOString() },
+  metadata: { creationTime: new Date('2023-01-01T10:00:00Z').toISOString(), lastSignInTime: new Date().toISOString() },
   providerData: [{ providerId: 'password', uid: 'mocktester@example.com', displayName: 'Mock UI Tester', email: 'mocktester@example.com', photoURL: null, phoneNumber: null }],
   refreshToken: 'mock-refresh-token',
   tenantId: null,
-  appProfile: { // Mocked app profile data
+  appProfile: {
     id: 'mock-user-uid-12345',
     name: 'Mock UI Tester',
     email: 'mocktester@example.com',
-    subscriptionStatus: 'free', // Default mock status
-    createdAt: new Date(),
+    subscriptionStatus: 'premium',
+    createdAt: new Date('2023-01-01T10:00:00Z'),
+    bio: 'I am the main mock user for testing purposes with premium status.',
+    avatarUrl: 'https://placehold.co/100x100.png?text=MT',
   }
 } as unknown as CurrentUser; 
 
@@ -80,68 +83,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null); 
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | 'loading'>('loading');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>('loading');
   const { toast } = useToast();
 
-  const fetchAndSetAppProfile = async (firebaseUser: FirebaseUserType | null): Promise<CurrentUser | null> => {
+  const fetchAndSetAppProfile = useCallback(async (firebaseUser: FirebaseUserType | null): Promise<CurrentUser | null> => {
     if (!firebaseUser) {
-      setSubscriptionStatus('free'); // Or handle as appropriate for logged-out state
+      setSubscriptionStatus('free');
       return null;
     }
 
     setSubscriptionStatus('loading');
     try {
-      if (firestoreInstance) {
-        const userProfile = await getUserById(firebaseUser.uid);
-        setSubscriptionStatus(userProfile?.subscriptionStatus || 'free');
-        return { ...firebaseUser, appProfile: userProfile } as CurrentUser;
-      } else {
-         // Firestore not available, use auth display name and default free status for appProfile
-        setSubscriptionStatus('free');
-        return { 
-          ...firebaseUser, 
-          appProfile: { 
-            id: firebaseUser.uid, 
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User', 
-            email: firebaseUser.email || '',
-            subscriptionStatus: 'free',
-            createdAt: new Date(firebaseUser.metadata.creationTime || Date.now())
-          } 
-        } as CurrentUser;
-      }
+      // getUserById will use mock or Firestore based on firebaseInitializationError
+      const userProfile = await getUserById(firebaseUser.uid); 
+      setSubscriptionStatus(userProfile?.subscriptionStatus || 'free');
+      return { ...firebaseUser, appProfile: userProfile } as CurrentUser;
     } catch (profileError) {
       console.error("Error fetching user profile:", profileError);
-      setSubscriptionStatus('free'); // Default to free on error
+      setSubscriptionStatus('free');
       toast({ title: "Profile Error", description: "Could not load your complete user profile.", variant: "destructive"});
-      return { ...firebaseUser, appProfile: undefined } as CurrentUser; // Return Firebase user even if profile fetch fails
+      return { ...firebaseUser, appProfile: undefined } as CurrentUser;
     }
-  };
+  }, [toast]);
 
 
   useEffect(() => {
     if (firebaseInitializationError) {
-      console.warn(
-        "Auth Context: Firebase Auth/Firestore is not available due to initialization error. " +
-        "Simulating a mock user for UI testing purposes. Real authentication is disabled."
-      );
+      console.warn("Auth Context: Firebase not available. Using MOCK_USER_FOR_UI_TESTING.");
       setCurrentUser(MOCK_USER_FOR_UI_TESTING);
       setSubscriptionStatus(MOCK_USER_FOR_UI_TESTING.appProfile?.subscriptionStatus || 'free');
       setLoading(false);
-      setAuthError(firebaseInitializationError);
+      setAuthError(firebaseInitializationError); // Keep the error message
       return; 
     }
 
     setAuthError(null); 
-
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, async (user) => {
       setLoading(true);
-      if (user) {
-        const userWithProfile = await fetchAndSetAppProfile(user);
-        setCurrentUser(userWithProfile);
-      } else {
-        setCurrentUser(null);
-        setSubscriptionStatus('free'); 
-      }
+      const userWithProfile = await fetchAndSetAppProfile(user);
+      setCurrentUser(userWithProfile);
       setLoading(false);
     }, (error) => {
       console.error("Auth State Listener Error:", error);
@@ -150,87 +130,159 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus('free');
       setLoading(false);
     });
-
     return unsubscribe; 
-  }, [toast]); 
-
-  const guardAuthOperation = async <T,>(
-    operation: () => Promise<T>,
-    operationName: string
-  ): Promise<T> => {
-    if (!firebaseAuthInstance || firebaseInitializationError || !firestoreInstance) {
-      const errorMessage = firebaseInitializationError || `Firebase not initialized. Cannot perform ${operationName}.`;
-      console.error(`Auth Operation Guard: ${errorMessage}`);
-      setAuthError(errorMessage); 
-      throw new Error(errorMessage); 
-    }
-    setAuthError(null); 
-    try {
-      return await operation();
-    } catch (err) {
-      const firebaseErr = err as AuthError;
-      console.error(`Firebase ${operationName} error:`, firebaseErr);
-      setAuthError(firebaseErr.message || `Error during ${operationName}.`);
-      throw firebaseErr; 
-    }
-  };
+  }, [toast, fetchAndSetAppProfile]); 
 
   const signUpWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<CurrentUser | null> => {
-    return guardAuthOperation(async () => {
-      const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
+    setAuthError(null);
+    if (firebaseInitializationError || !firebaseAuthInstance) {
+      console.warn("Firebase not available. Simulating mock sign up.");
+      const mockId = `mock-user-${Date.now()}`;
+      const newMockAppUser = await createUserProfile(mockId, credentials.email, credentials.displayName);
+      const newMockCurrentUser: CurrentUser = {
+        uid: mockId,
+        email: credentials.email,
+        displayName: credentials.displayName,
+        // ... other necessary FirebaseUserType fields mocked ...
+        emailVerified: false, isAnonymous: false, photoURL: null,
+        getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
+        reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
+        metadata: { creationTime: new Date().toISOString(), lastSignInTime: new Date().toISOString() },
+        providerData: [], refreshToken: 'mock-refresh-token', tenantId: null,
+        appProfile: newMockAppUser,
+      } as CurrentUser;
+      setCurrentUser(newMockCurrentUser);
+      setSubscriptionStatus(newMockAppUser.subscriptionStatus || 'free');
+      toast({ title: "Mock Signup Successful", description: "Account created in mock environment."});
+      return newMockCurrentUser;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
-        await updateProfile(firebaseUser, {
+        await updateFirebaseProfile(firebaseUser, { // Renamed import
           displayName: credentials.displayName || credentials.email.split('@')[0],
         });
-        if (firestoreInstance) {
-           const appProfile = await createUserProfile(firebaseUser.uid, firebaseUser.email!, credentials.displayName);
-           setSubscriptionStatus(appProfile.subscriptionStatus || 'free');
-           return { ...firebaseUser, appProfile } as CurrentUser;
-        }
-         // Fallback if firestoreInstance not available after all checks
-        setSubscriptionStatus('free');
-        return { ...firebaseUser, appProfile: undefined } as CurrentUser;
+        const appProfile = await createUserProfile(firebaseUser.uid, firebaseUser.email!, credentials.displayName);
+        const userWithProfile = { ...firebaseUser, appProfile } as CurrentUser;
+        setCurrentUser(userWithProfile); // onAuthStateChanged should also pick this up
+        setSubscriptionStatus(appProfile.subscriptionStatus || 'free');
+        return userWithProfile;
       }
       return null;
-    }, 'sign up');
+    } catch (err) {
+      const firebaseErr = err as AuthError;
+      console.error("Firebase sign up error:", firebaseErr);
+      setAuthError(firebaseErr.message || "Error during sign up.");
+      throw firebaseErr;
+    }
   };
 
   const signInWithEmailPassword = async (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>): Promise<CurrentUser | null> => {
-     return guardAuthOperation(async () => {
-      const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
+    setAuthError(null);
+     if (firebaseInitializationError || !firebaseAuthInstance) {
+      console.warn("Firebase not available. Simulating mock sign in with MOCK_USER_FOR_UI_TESTING.");
+      // For simplicity in mock mode, always "log in" the MOCK_USER_FOR_UI_TESTING
+      // A more complex mock would try to find user in mockUsers array by email/pass
+      const userProfile = await getUserById(MOCK_USER_FOR_UI_TESTING.uid); // refresh mock profile
+      const updatedMockUser = {...MOCK_USER_FOR_UI_TESTING, appProfile: userProfile};
+      setCurrentUser(updatedMockUser);
+      setSubscriptionStatus(userProfile?.subscriptionStatus || 'free');
+      toast({ title: "Mock Login Successful", description: `Welcome back, ${MOCK_USER_FOR_UI_TESTING.displayName} (mock).`});
+      return updatedMockUser;
+    }
+    try {
+      const userCredential = await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
       const firebaseUser = userCredential.user;
-      if (firebaseUser) {
-        return await fetchAndSetAppProfile(firebaseUser);
-      }
-      return null;
-    }, 'sign in');
+      // onAuthStateChanged will handle setting user and profile
+      return firebaseUser ? { ...firebaseUser, appProfile: (await getUserById(firebaseUser.uid)) } as CurrentUser : null;
+    } catch (err) {
+      const firebaseErr = err as AuthError;
+      console.error("Firebase sign in error:", firebaseErr);
+      setAuthError(firebaseErr.message || "Error during sign in.");
+      throw firebaseErr;
+    }
   };
 
   const logoutUser = async (): Promise<void> => {
-    if (firebaseInitializationError) {
+    setAuthError(null);
+    if (firebaseInitializationError || !firebaseAuthInstance) {
+      console.warn("Firebase not available. Simulating mock logout.");
       setCurrentUser(null);
       setSubscriptionStatus('free');
-      toast({ title: 'Mock Logout', description: 'Simulated logout (Firebase not available).' });
-      return Promise.resolve();
+      toast({ title: 'Mock Logout', description: 'Simulated logout.' });
+      return;
     }
-    return guardAuthOperation(async () => {
-      await firebaseSignOut(firebaseAuthInstance!);
-      // onAuthStateChanged will handle setting currentUser to null and resetting subscriptionStatus
-    }, 'logout');
+    try {
+      await firebaseSignOut(firebaseAuthInstance);
+      // onAuthStateChanged will handle setting currentUser to null and subscriptionStatus
+    } catch (err) {
+      const firebaseErr = err as AuthError;
+      console.error("Firebase logout error:", firebaseErr);
+      setAuthError(firebaseErr.message || "Error during logout.");
+      throw firebaseErr;
+    }
   };
   
   const sendPasswordReset = async (email: string): Promise<void> => {
-    return guardAuthOperation(async () => {
-      await sendPasswordResetEmail(firebaseAuthInstance!, email);
-    }, 'password reset');
+     setAuthError(null);
+    if (firebaseInitializationError || !firebaseAuthInstance) {
+      toast({ title: "Feature Unavailable", description: "Password reset is not available in mock mode.", variant: "default"});
+      console.warn("Firebase not available. Mock password reset requested.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(firebaseAuthInstance, email);
+      toast({ title: "Password Reset Email Sent", description: "Check your inbox for instructions."});
+    } catch (err) {
+       const firebaseErr = err as AuthError;
+      console.error("Firebase password reset error:", firebaseErr);
+      setAuthError(firebaseErr.message || "Error sending password reset.");
+      throw firebaseErr;
+    }
   };
 
-  const refreshUserProfile = async (): Promise<void> => {
-    if (currentUser && !firebaseInitializationError && firestoreInstance) {
+  const refreshUserProfile = useCallback(async (): Promise<void> => {
+    if (currentUser) { // currentUser here is FirebaseUser with potentially stale appProfile
         setLoading(true);
-        const userWithProfile = await fetchAndSetAppProfile(currentUser); // Pass the FirebaseUser part
-        setCurrentUser(userWithProfile);
+        // Re-fetch and set the app profile part
+        const userWithFreshProfile = await fetchAndSetAppProfile(currentUser); // currentUser is FirebaseUser part
+        setCurrentUser(userWithFreshProfile); // Update the full CurrentUser object
+        setLoading(false);
+    }
+  }, [currentUser, fetchAndSetAppProfile]);
+
+  const updateCurrentAppUserProfile = async (data: Partial<Pick<AppUserType, 'name' | 'bio' | 'avatarUrl'>>): Promise<CurrentUser | null> => {
+    if (!currentUser) {
+        toast({ title: "Error", description: "Not logged in.", variant: "destructive"});
+        return null;
+    }
+    setAuthError(null);
+    setLoading(true);
+    try {
+        const updatedAppProfile = await updateAppUserProfile(currentUser.uid, data);
+        if (updatedAppProfile) {
+            // If Firebase Auth profile also needs update (e.g. displayName, photoURL)
+            if (data.name && firebaseAuthInstance && currentUser.displayName !== data.name) {
+               await updateFirebaseProfile(currentUser, { displayName: data.name });
+            }
+            if (data.avatarUrl && firebaseAuthInstance && currentUser.photoURL !== data.avatarUrl) {
+               await updateFirebaseProfile(currentUser, { photoURL: data.avatarUrl });
+            }
+
+            const refreshedUser = await fetchAndSetAppProfile(currentUser); // Re-fetch to get latest FB auth data too
+            setCurrentUser(refreshedUser);
+            toast({ title: "Profile Updated", description: "Your profile information has been saved."});
+            return refreshedUser;
+        }
+        throw new Error("App profile update returned undefined.");
+    } catch (error: any) {
+        console.error("Error updating app user profile:", error);
+        setAuthError(error.message || "Failed to update profile.");
+        toast({ title: "Update Failed", description: error.message || "Could not update profile.", variant: "destructive"});
+        return currentUser; // Return old state
+    } finally {
         setLoading(false);
     }
   };
@@ -246,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutUser,
     sendPasswordReset,
     refreshUserProfile,
+    updateCurrentAppUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
