@@ -172,13 +172,13 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Solution: LandShare Connect</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Bridging the gap between available land and those who need it. Unlock affordable leases and new income opportunities.
+            LandShare Connect: Where affordable space meets available land. We make direct connections simple, creating new possibilities for everyone.
           </p>
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Land Seekers</h3>
               <p className="text-foreground/90">
-                Find affordable land for your tiny home, RV, or project. Explore diverse listings with flexible lease options and transparent agreements, paving a path to your ideal space.
+                Searching for space for your tiny home, RV, or next big idea? Discover affordable land leases directly from property owners. Your perfect plot is just a click away.
               </p>
               <Image
                 src="https://placehold.co/600x400.png"
@@ -193,7 +193,7 @@ export default function HomePage() {
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Landowners</h3>
               <p className="text-foreground/90">
-                Transform your unused land into a revenue stream. Our platform simplifies listing, booking management, and secure payments, helping you earn from your property.
+                Have land sitting idle? List it on LandShare Connect and start earning. We provide easy tools for listing, managing bookings, and secure payments. Turn your empty space into opportunity.
               </p>
               <Image
                 src="https://placehold.co/600x400.png"
