@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info } from 'lucide-react';
+import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
@@ -14,14 +14,14 @@ const pricingPlans = [
     title: "Standard Account",
     price: "Free",
     period: "to Join",
-    description: "Great for getting started, browsing, and occasional use. Clear, straightforward fees.",
+    description: "Great for getting started, browsing, and listing a couple of properties.",
     features: [
-      { text: "Unlimited browsing & account creation", icon: SearchIcon, category: "general" },
-      { text: "List 1 property", icon: Home, category: "landowner" },
+      // For Renters
       { text: "$0.99 Per-Booking Fee (when you rent)", icon: DollarSign, category: "renter" },
+      // For Landowners
+      { text: "List up to 2 properties", icon: Home, category: "landowner" },
       { text: "2% Service Fee (on your lease earnings)", icon: Percent, category: "landowner" },
-      { text: "Standard listing visibility", icon: TrendingUp, category: "landowner" },
-      { text: "Basic support", icon: CheckCircle, category: "general" },
+      { text: "Basic support", icon: CheckCircle, category: "landowner" },
     ],
     cta: "Sign Up for Standard",
     href: "/signup",
@@ -33,12 +33,15 @@ const pricingPlans = [
     period: "/month",
     description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
     features: [
+      // For Renters
       { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, category: "renter", iconColor: "text-green-500" },
+      // For Landowners
       { text: "List unlimited properties", icon: InfinityIcon, category: "landowner" },
       { text: "Add more photos to listings", icon: ImagePlus, category: "landowner"},
       { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, category: "landowner", iconColor: "text-green-500" },
       { text: "Boosted exposure for your listings", icon: Sparkles, category: "landowner" },
-      { text: "Access to exclusive Market Insights", icon: BarChart3, category: "landowner" },
+      // General Premium
+      { text: "Access to exclusive Market Insights", icon: BarChart3, category: "general" },
       { text: "Priority support", icon: Crown, category: "general" },
     ],
     cta: "Upgrade to Premium",
@@ -54,6 +57,8 @@ export default function PricingPage() {
   const handlePremiumCTAClick = () => {
     if (!currentUser) {
         toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
+        // Potentially redirect to login with a redirect back to pricing:
+        // router.push('/login?redirect=/pricing'); 
         return;
     }
     // Placeholder for Stripe integration
@@ -83,18 +88,19 @@ export default function PricingPage() {
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
           const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
+          
           let ctaLink = plan.id === 'premium'
-            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : undefined)
+            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing"))
             : (currentUser ? "/dashboard" : plan.href);
-          if (plan.id === 'premium' && !currentUser && !isCurrentUserPremium) ctaLink = "/signup?redirect=/pricing"; // Direct to signup then pricing for premium if not logged in
-
+          if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; // Will use ctaAction
+          
           const ctaText = plan.id === 'premium'
             ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
             : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
           
-          const generalFeatures = plan.features.filter(f => f.category === 'general');
           const renterFeatures = plan.features.filter(f => f.category === 'renter');
           const landownerFeatures = plan.features.filter(f => f.category === 'landowner');
+          const generalFeatures = plan.features.filter(f => f.category === 'general');
 
           return (
             <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
@@ -138,7 +144,7 @@ export default function PricingPage() {
                     </ul>
                   </div>
                 )}
-                 {generalFeatures.length > 0 && (
+                 {generalFeatures.length > 0 && plan.id !== 'standard' && ( // Conditionally render General for Premium
                   <div>
                     <h4 className="text-sm font-semibold mt-3 mb-2 text-accent">General:</h4>
                     <ul className="space-y-2 text-sm">
@@ -159,10 +165,10 @@ export default function PricingPage() {
                     variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"}
                     className="w-full"
                     onClick={ctaAction}
-                    disabled={plan.highlight && isCurrentUserPremium} 
+                    disabled={(plan.highlight && isCurrentUserPremium) || (plan.id === 'premium' && !currentUser)}
                   >
                     {plan.highlight && isCurrentUserPremium ? <Crown className="mr-2 h-4 w-4" /> : null}
-                    {ctaText}
+                    {plan.id === 'premium' && !currentUser ? "Sign Up to Go Premium" : ctaText}
                   </Button>
                 ) : (
                   <Button
@@ -189,10 +195,10 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>
-                    The $0.99 Per-Booking fee for Standard accounts is applied to the renter at checkout. Premium renters enjoy a $0 fee on bookings they initiate.
+                    The $0.99 Per-Booking fee for Standard account renters is applied at checkout. Premium renters enjoy a $0 fee on bookings they initiate.
                 </p>
                 <p>
-                    Service Fees (2% for Standard, 0.49% for Premium) are calculated on the total lease value and deducted from the landowner's payout per booking. This applies whether the lease is short-term, long-term, or paid monthly.
+                    Service Fees (2% for Standard, 0.49% for Premium landowners) are calculated on the total lease value and deducted from the landowner's payout per booking. This applies whether the lease is short-term, long-term, or paid monthly.
                 </p>
                 <p>
                     Please note: National or regional sales taxes (typically 5-7%) may apply to transactions and are handled according to local regulations. These are separate from LandShare Connect's fees.
@@ -206,3 +212,4 @@ export default function PricingPage() {
     </div>
   );
 }
+
