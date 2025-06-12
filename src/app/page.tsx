@@ -159,7 +159,7 @@ export default function HomePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-foreground/90">
-                  Millions of acres sit idle across the country. LandShare empowers property owners to transform these underused spaces into a steady stream of cash flow. Listing your land is simple – unlock its earning potential today.
+                  Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.
                 </p>
               </CardContent>
             </Card>
