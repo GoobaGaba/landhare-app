@@ -33,58 +33,70 @@ export default function MyListingsPage() {
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  useEffect(() => {
-    const loadMyListings = async () => {
-      if (authLoading) return; // Wait for auth state to settle
+  const loadMyListings = useCallback(async () => {
+    if (authLoading) {
+      console.log("[MyListingsPage] loadMyListings: Auth still loading, deferring.");
+      setIsLoading(true); // Keep loading state true if auth is still processing
+      return;
+    }
 
-      if (firebaseInitializationError && !currentUser) {
-        setIsLoading(false);
-        setMyListings([]);
-        if (firebaseInitializationError) {
-          toast({
-            title: "Preview Mode Active",
-            description: "Firebase not configured. Cannot load live listings.",
-            variant: "default",
-            duration: 5000
-          });
-        }
-        return;
-      }
-      if (firebaseInitializationError && currentUser) {
+    if (firebaseInitializationError && !currentUser) {
+      setIsLoading(false);
+      setMyListings([]);
+      if (firebaseInitializationError) {
         toast({
           title: "Preview Mode Active",
-          description: "Firebase not configured. Displaying sample listings.",
+          description: "Firebase not configured. Cannot load live listings.",
           variant: "default",
           duration: 5000
         });
       }
+      console.log("[MyListingsPage] loadMyListings: Preview mode & no user. No listings to load.");
+      return;
+    }
+    if (firebaseInitializationError && currentUser) {
+      toast({
+        title: "Preview Mode Active",
+        description: "Firebase not configured. Displaying sample listings.",
+        variant: "default",
+        duration: 5000
+      });
+      console.log("[MyListingsPage] loadMyListings: Preview mode with user. Loading mock listings.");
+    }
 
-      if (!currentUser) {
-        setIsLoading(false);
-        setMyListings([]);
-        return;
-      }
+    if (!currentUser) {
+      setIsLoading(false);
+      setMyListings([]);
+      console.log("[MyListingsPage] loadMyListings: No current user. Clearing listings.");
+      return;
+    }
 
-      setIsLoading(true);
-      try {
-        const allListings = await getListings(); // This will use mockDataVersion
-        const filteredListings = allListings.filter(listing => listing.landownerId === currentUser!.uid);
-        setMyListings(filteredListings);
-      } catch (error: any) {
-        console.error("Failed to load listings:", error);
-        toast({
-          title: "Loading Failed",
-          description: error.message || "Could not load your listings.",
-          variant: "destructive",
-        });
-        setMyListings([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    console.log(`[MyListingsPage] loadMyListings: Triggered. CurrentUser ID: ${currentUser?.uid}, MockDataVersion: ${mockDataVersion}`);
+    setIsLoading(true);
+    try {
+      const allListings = await getListings(); // This will use mockDataVersion
+      console.log(`[MyListingsPage] loadMyListings: Fetched ${allListings.length} total listings from getListings.`);
+      const filteredListings = allListings.filter(listing => listing.landownerId === currentUser!.uid);
+      console.log(`[MyListingsPage] loadMyListings: Filtered to ${filteredListings.length} listings for user ${currentUser!.uid}. Titles: ${filteredListings.map(l => l.title).join(', ')}`);
+      setMyListings(filteredListings);
+    } catch (error: any) {
+      console.error("[MyListingsPage] loadMyListings: Failed to load listings:", error);
+      toast({
+        title: "Loading Failed",
+        description: error.message || "Could not load your listings.",
+        variant: "destructive",
+      });
+      setMyListings([]);
+    } finally {
+      setIsLoading(false);
+      console.log("[MyListingsPage] loadMyListings: Finished loading.");
+    }
+  }, [authLoading, currentUser, toast, mockDataVersion]); // mockDataVersion is key here
 
+  useEffect(() => {
+    console.log("[MyListingsPage] useEffect: Triggered. AuthLoading:", authLoading, "CurrentUser:", !!currentUser);
     loadMyListings();
-  }, [authLoading, currentUser, toast, mockDataVersion]);
+  }, [loadMyListings]);
 
 
   const openDeleteDialog = (listing: Listing) => {
@@ -117,6 +129,7 @@ export default function MyListingsPage() {
         return;
     }
 
+    // This block would be for live Firebase deletion, but current logic relies on mockDataVersion for re-fetch
     try {
       const success = await dbDeleteListing(listingToDelete.id);
       if (success) {
@@ -124,9 +137,7 @@ export default function MyListingsPage() {
           title: "Listing Deleted",
           description: `"${listingToDelete.title}" has been successfully deleted.`,
         });
-        // loadMyListings will be re-triggered by useEffect due to mockDataVersion change if still in mock mode,
-        // or needs explicit call if it was a real DB operation (though dbDeleteListing also handles mockDataVersion)
-        // The current useEffect setup should handle re-fetch correctly due to mockDataVersion.
+        // loadMyListings(); // useEffect should handle this due to mockDataVersion change
       } else {
         throw new Error("Deletion operation failed.");
       }
@@ -176,7 +187,7 @@ export default function MyListingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading) {
+  if (!currentUser && !authLoading) { // Ensure !authLoading here
      return (
       <Card>
         <CardHeader>

@@ -556,7 +556,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
-    console.warn("Firestore not available. Using mock data for listings. Version:", mockDataVersion);
+    console.warn("[MockData] getListings: Firestore not available. Using mock data for listings. Current mockDataVersion:", mockDataVersion);
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -635,10 +635,11 @@ export const addListing = async (
   };
 
   if (firebaseInitializationError || !db) {
-    console.warn("Firestore not available. Adding listing to mock data.");
+    console.warn("[MockData] addListing: Firestore not available. Adding listing to mock data.");
     mockListings.unshift(newListingData);
     mockDataVersion++;
-    console.log("Mock listing added, new mockDataVersion:", mockDataVersion);
+    console.log(`[MockData] addListing: New listing '${newListingData.title}' (ID: ${newListingData.id}) added with landownerId: ${landownerId}. mockDataVersion incremented to: ${mockDataVersion}`);
+    console.log("[MockData] addListing: Current mockListings count:", mockListings.length);
     return Promise.resolve(newListingData);
   }
 
@@ -666,7 +667,8 @@ export const addListing = async (
     console.error("Error adding listing to Firestore, adding to mock data as fallback:", error);
     mockListings.unshift(newListingData);
     mockDataVersion++;
-    console.log("Mock listing added (fallback), new mockDataVersion:", mockDataVersion);
+    console.log(`[MockData] addListing (fallback): New listing '${newListingData.title}' added with landownerId: ${landownerId}. mockDataVersion incremented to: ${mockDataVersion}`);
+    console.log("[MockData] addListing (fallback): Current mockListings count:", mockListings.length);
     return Promise.resolve(newListingData);
   }
 };
@@ -742,7 +744,7 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
   } catch (error) {
     console.error("Error fetching reviews from Firestore, using mock data:", error);
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
-        .sort((a, b) => {
+        .sort((a,b) => {
            const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
            const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0;
            return timeB - timeA;
