@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -107,7 +107,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = (listing.price || 0) * durationValue;
-      displayRateString = `$${listing.price.toFixed(0)}/${durationValue === 1 ? 'night' : 'nights'}`;
+      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText}`;
     } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
       durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
@@ -152,7 +152,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-     if (firebaseInitializationError && !currentUser?.appProfile) { // Already checked currentUser above
+     if (firebaseInitializationError && !currentUser?.appProfile) {
       toast({ title: "Preview Mode", description: "Booking is disabled in full preview mode (no mock user).", variant: "default" });
       return;
     }
@@ -175,7 +175,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   };
 
   const handleConfirmBooking = async () => {
-    if (!currentUser || !listing) return; // currentUser check is redundant here if handleBookingRequestOpen did its job
+    if (!currentUser || !listing) return;
     if (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) {
         toast({ title: "Error", description: "Date range is missing for this booking type.", variant: "destructive"});
         return;
@@ -351,7 +351,6 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
                <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
                 <AlertDialogTrigger asChild>
-                    {/* Review button is visually enabled; actual submission would be auth-gated. */}
                     <Button variant="outline" className="mt-4" disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
                          <Edit className="mr-2 h-4 w-4" /> Write a Review
                     </Button>
@@ -360,7 +359,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                   <AlertDialogHeader>
                     <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
                     <AlertDialogDescription>
-                      The ability to write and submit reviews is currently under development. This is a placeholder for that functionality. Submitting reviews will require you to be logged in.
+                       The ability to write and submit reviews is a placeholder. Full review functionality will be added in a future update and will require login.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
@@ -380,7 +379,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         </div>
 
         <div className="space-y-6 md:sticky md:top-24 self-start">
-          <Card className={cn("shadow-xl border-primary/30", listing.isBoosted && "ring-1 ring-accent")}>
+          <Card className={cn("shadow-xl", listing.isBoosted && "ring-1 ring-accent")}>
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
                      <span className={cn("text-3xl font-bold font-body", displayPriceInfo.model === 'lease-to-own' ? "text-2xl" : "text-primary")}>
@@ -396,16 +395,18 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {listing.isAvailable && !isCurrentUserLandowner && listing.pricingModel !== 'lease-to-own' && (
                   <div className="space-y-2">
                     <Label htmlFor="booking-calendar" className="font-medium block mb-1">Select Dates</Label>
-                    <Calendar
-                        id="booking-calendar"
-                        mode="range"
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={1}
-                        fromDate={today}
-                        disabled={(date) => isBefore(date, today) || (firebaseInitializationError !== null && !currentUser?.appProfile)}
-                        className="rounded-md border w-full"
-                    />
+                    <div className="overflow-x-auto custom-scrollbar">
+                      <Calendar
+                          id="booking-calendar"
+                          mode="range"
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          numberOfMonths={1}
+                          fromDate={today}
+                          disabled={(date) => isBefore(date, today) || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)} // Calendar still disabled for full preview
+                          className="rounded-md border w-full"
+                      />
+                    </div>
                     {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
                         <p className="text-xs text-accent flex items-center pt-1">
                             <AlertTriangle className="h-4 w-4 mr-1" /> Min. {listing.minLeaseDurationMonths}-month lease required for listed monthly rate. Shorter stays prorated.
@@ -425,7 +426,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {priceDetails && listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange?.to && (
                   <div className="space-y-1 text-sm pt-2 border-t">
                     <div className="flex justify-between">
-                        <span>{priceDetails.displayRate} ({priceDetails.duration} {priceDetails.durationUnit})</span>
+                        <span>{priceDetails.displayRate}</span>
                         <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
                     </div>
                     {priceDetails.renterFee > 0 && (
@@ -460,7 +461,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         <UserCircle className="h-4 w-4 mr-1" /> Please <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
                     </p>
                 )}
-                 {firebaseInitializationError && !currentUser?.appProfile && (
+                 {firebaseInitializationError && !currentUser?.appProfile && !currentUser && (
                     <p className="text-xs text-amber-600 flex items-center mt-2">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode without mock user login.
                     </p>
@@ -476,7 +477,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
                         isBookingRequested ||
-                        (firebaseInitializationError !== null && !currentUser?.appProfile)
+                        (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)
                     }
                     >
                     {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Requested")
@@ -500,7 +501,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                             size="sm"
                             className="ml-auto"
                             onClick={handleContactLandowner}
-                            disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}
+                            disabled={(firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}
                         >
                             <MessageSquare className="h-4 w-4 mr-1.5" /> Contact
                         </Button>
@@ -512,7 +513,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         variant="outline"
                         className="w-full"
                         onClick={handleContactLandowner}
-                        disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={(firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}
                     >
                         <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
                     </Button>
