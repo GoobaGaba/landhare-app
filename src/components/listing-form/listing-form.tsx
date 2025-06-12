@@ -53,7 +53,7 @@ const listingFormSchema = z.object({
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string({ required_error: "Landowner ID is unexpectedly missing from form data."}).min(1, "Landowner ID is required for form submission."),
+  landownerId: z.string().min(1, "Landowner ID must be present in form data.").optional(), // Optional here as we set it manually
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -101,20 +101,22 @@ export function ListingForm() {
       images: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
-      landownerId: currentUser?.uid || '',
+      landownerId: currentUser?.uid || undefined, // Initialize if available
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
   useEffect(() => {
+    // This effect ensures the landownerId in the form's state (used by the hidden input)
+    // is kept in sync with the actual currentUser.uid from AuthContext.
     if (currentUser?.uid) {
       if (getValues('landownerId') !== currentUser.uid) {
-        setValue('landownerId', currentUser.uid, { shouldValidate: true, shouldDirty: true });
+        setValue('landownerId', currentUser.uid, { shouldValidate: false, shouldDirty: false });
       }
     } else {
       if (getValues('landownerId')) {
-        setValue('landownerId', '', { shouldValidate: true, shouldDirty: true });
+        setValue('landownerId', undefined, { shouldValidate: false, shouldDirty: false });
       }
     }
   }, [currentUser, getValues, setValue]);
@@ -225,7 +227,7 @@ export function ListingForm() {
         form.reset({
             title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
             leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-            landownerId: currentUser?.uid || ''
+            landownerId: currentUser?.uid || undefined
         });
         setPriceSuggestion(null);
         setPriceSuggestionError(null);
@@ -288,20 +290,28 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-    // data here is from react-hook-form's state
     if (!currentUser?.uid || currentUser.uid.trim() === '') {
       toast({ title: "Authentication Error", description: "Valid User ID is required to create a listing. Please log in.", variant: "destructive"});
       return;
     }
+    
+    // DEBUG TOAST: Display currentUser.uid
+    toast({
+      title: "Debug: Landowner ID Check",
+      description: `Client-side currentUser.uid: '${currentUser.uid}'`,
+      variant: "default",
+      duration: 8000, 
+    });
 
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
-    // ** Crucial change: Directly append the confirmed currentUser.uid **
+    // Explicitly append the confirmed currentUser.uid
     formDataToSubmit.append('landownerId', currentUser.uid);
 
-    // For other fields, use the 'data' object from RHF, but exclude landownerId as we've handled it.
-    const { landownerId, ...otherRHFData } = data; // Destructure to remove landownerId from RHF data
+    // Destructure landownerId from RHF data to avoid sending it if it was from the hidden input
+    // and ensure we only use the directly confirmed currentUser.uid.
+    const { landownerId: _rhfLandownerId, ...otherRHFData } = data;
     const submissionData = { ...otherRHFData, images: uploadedImageUrls };
 
     Object.entries(submissionData).forEach(([key, value]) => {
@@ -310,7 +320,7 @@ export function ListingForm() {
       } else if (key === 'images' && Array.isArray(value)) {
         value.forEach(imgUrl => formDataToSubmit.append(key, imgUrl as string));
       } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append if not relevant or not set
+        // Don't append if not relevant or not set for non-flexible terms
       } else if (value !== undefined && value !== null) {
         formDataToSubmit.append(key, String(value));
       }
@@ -369,8 +379,7 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Hidden input for landownerId, its value is kept in sync by useEffect and defaultValues */}
-        {/* It's less critical now that onSubmit directly uses currentUser.uid for FormData, but doesn't hurt for RHF state. */}
+        {/* Conditionally render hidden input; primary source of truth is now currentUser.uid in onSubmit */}
         {currentUser?.uid && <input type="hidden" {...register('landownerId')} value={currentUser.uid} />}
 
         <CardContent className="space-y-6">
@@ -672,7 +681,7 @@ export function ListingForm() {
           <Button variant="outline" type="button" onClick={() => {form.reset({
             title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
             leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-            landownerId: currentUser?.uid || ''
+            landownerId: currentUser?.uid || undefined
             }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
           <Button type="submit" disabled={isPending || !currentUser || !currentUser.uid}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -698,3 +707,5 @@ export function ListingForm() {
   );
 }
     
+
+      
