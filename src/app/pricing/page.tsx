@@ -40,7 +40,7 @@ const pricingPlans = [
       { text: "Add more photos to listings", icon: ImagePlus, category: "landowner"},
       { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, category: "landowner", iconColor: "text-green-500" },
       { text: "Boosted exposure for your listings", icon: Sparkles, category: "landowner" },
-      // General Premium
+      // General Premium (No "General:" subtitle rendered)
       { text: "Access to exclusive Market Insights", icon: BarChart3, category: "general" },
       { text: "Priority support", icon: Crown, category: "general" },
     ],
@@ -100,7 +100,7 @@ export default function PricingPage() {
           
           const renterFeatures = plan.features.filter(f => f.category === 'renter');
           const landownerFeatures = plan.features.filter(f => f.category === 'landowner');
-          const generalFeatures = plan.features.filter(f => f.category === 'general');
+          const generalFeatures = plan.features.filter(f => f.category === 'general'); // We still filter them to render them correctly
 
           return (
             <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
@@ -144,9 +144,9 @@ export default function PricingPage() {
                     </ul>
                   </div>
                 )}
-                 {generalFeatures.length > 0 && plan.id !== 'standard' && ( // Conditionally render General for Premium
-                  <div>
-                    <h4 className="text-sm font-semibold mt-3 mb-2 text-accent">General:</h4>
+                 {generalFeatures.length > 0 && plan.id === 'premium' && ( 
+                  <div className={plan.id === 'premium' ? 'mt-3' : ''}> 
+                    {/* No "General:" h4 subtitle here for Premium */}
                     <ul className="space-y-2 text-sm">
                       {generalFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
@@ -212,4 +212,3 @@ export default function PricingPage() {
     </div>
   );
 }
-
