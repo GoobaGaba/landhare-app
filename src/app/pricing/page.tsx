@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users } from 'lucide-react';
+import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
@@ -47,7 +47,7 @@ const pricingPlans = [
       { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true },
       { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true },
     ],
-    generalFeatures: [
+    generalFeatures: [ // Features applicable to both renters and landowners under premium
       { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true },
       { text: "Priority support", icon: Crown, isBenefit: true },
     ],
@@ -66,12 +66,16 @@ export default function PricingPage() {
         toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
         return;
     }
+    // In a real app, this would redirect to Stripe or similar payment flow.
+    // For now, it just shows a toast and directs to profile for simulation.
     toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here. Subscription simulation available on Profile page."});
+    // router.push('/profile?tab=billing'); // Optional: redirect to profile page
   };
 
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        {/* Consider adding a Loader2 component here if you have one */}
       </div>
     );
   }
@@ -92,9 +96,13 @@ export default function PricingPage() {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
           const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
           
+          // Determine CTA link: If premium plan, and user is premium, link to profile. If not logged in, link to signup.
+          // If standard plan, and user is logged in, link to dashboard, else link to signup.
           let ctaLink = plan.id === 'premium'
-            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing"))
-            : (currentUser ? "/dashboard" : plan.href);
+            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing")) // If premium plan: if user is premium, profile; if logged in but not premium, no link (button has action); if not logged in, signup.
+            : (currentUser ? "/dashboard" : plan.href); // If standard plan: if logged in, dashboard; else, signup.
+          
+          // If premium plan and user is logged in but not premium, ctaAction is used, so ctaLink should be undefined for <Button asChild>
           if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; 
           
           const ctaText = plan.id === 'premium'
@@ -143,7 +151,7 @@ export default function PricingPage() {
                     </ul>
                   </div>
                 )}
-                 {plan.generalFeatures && plan.generalFeatures.length > 0 && ( 
+                 {plan.generalFeatures && plan.generalFeatures.length > 0 && ( // Display general premium benefits
                   <div className="mt-3">
                     <h4 className="text-sm font-semibold mb-2 text-accent">Premium Benefits:</h4>
                     <ul className="space-y-2 text-sm">
@@ -161,10 +169,10 @@ export default function PricingPage() {
                 {ctaAction ? (
                    <Button
                     size="lg"
-                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"}
+                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"} // Premium CTA is default if user is not premium
                     className="w-full"
                     onClick={ctaAction}
-                    disabled={(plan.highlight && isCurrentUserPremium) || (plan.id === 'premium' && !currentUser)}
+                    disabled={(plan.highlight && isCurrentUserPremium) || (plan.id === 'premium' && !currentUser)} // Disable premium CTA if user is already premium, or if not logged in for premium button
                   >
                     {plan.highlight && isCurrentUserPremium ? <Crown className="mr-2 h-4 w-4" /> : null}
                     {plan.id === 'premium' && !currentUser ? "Sign Up to Go Premium" : ctaText}
