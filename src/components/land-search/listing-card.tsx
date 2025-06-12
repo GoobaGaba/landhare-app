@@ -32,10 +32,8 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
   if (viewMode === 'list') {
     return (
       <Card className={cn(
-        "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full",
-        listing.isBoosted 
-          ? "shadow-boosted-lg hover:shadow-boosted-xl" 
-          : "shadow-lg hover:shadow-xl"
+        "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl",
+        listing.isBoosted && "ring-1 ring-accent"
       )}>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
@@ -110,11 +108,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
   // Grid View (default or compact)
   return (
     <Card className={cn(
-      "overflow-hidden transition-shadow duration-300 flex flex-col h-full", 
+      "overflow-hidden transition-shadow duration-300 flex flex-col h-full shadow-lg hover:shadow-xl", 
       isCompact ? "text-sm" : "",
-      listing.isBoosted 
-        ? "shadow-boosted-lg hover:shadow-boosted-xl" 
-        : "shadow-lg hover:shadow-xl"
+      listing.isBoosted && "ring-1 ring-accent"
     )}>
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
