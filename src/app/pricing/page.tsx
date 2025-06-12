@@ -48,19 +48,24 @@ const pricingPlans = [
 
 const feeDetails = [
     {
-        title: "Contract Initiation Fee (Free Accounts)",
-        description: "A small fee of $0.99 is charged to the party initiating a lease agreement when using a Free Account. Premium subscribers do not pay this fee."
+        title: "Contract Initiation Fee",
+        description: "A one-time $0.99 fee when you start a lease using a Free Account. Premium members don't pay this!",
     },
     {
-        title: "Closing Fees (Landowner Payouts)",
-        description: "We apply a small percentage-based fee on the total value of a lease agreement, deducted from the landowner's payout. This helps us operate and improve the platform.",
+        title: "Landowner Closing Fee",
+        description: "When you successfully lease your land, we take a small percentage from your payout. This keeps LandShare Connect running and improving.",
+        detailsTitle: "Fee based on your account:",
         details: [
-            "Free Accounts: 3% of the total lease value.",
-            "Premium Subscribers: A reduced fee of 0.99% of the total lease value."
+            "Free Accounts: 3% of total lease value.",
+            "Premium Members: Just 0.99% (Save over 65% on fees!)",
         ],
-        example: "For an average land lease valued at $3,000/year: Free account holders would see a $90 fee, while Premium subscribers would see a significantly lower $29.70 fee."
+        exampleTitle: "Example (on a $3,000 lease):",
+        example: [
+            "Free User Fee: $90",
+            "Premium User Fee: $29.70",
+        ]
     }
-]
+];
 
 export default function PricingPage() {
   const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
@@ -101,12 +106,12 @@ export default function PricingPage() {
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
           const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
-          const ctaLink = plan.id === 'premium' 
+          const ctaLink = plan.id === 'premium'
             ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : undefined) // Link to billing if premium, else undefined for action
             : (currentUser ? "/dashboard" : plan.href); // For free, if logged in go to dash, else signup
-          
-          const ctaText = plan.id === 'premium' 
-            ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta) 
+
+          const ctaText = plan.id === 'premium'
+            ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
             : (currentUser && plan.id === 'free' ? "Go to Dashboard" : plan.cta);
 
           return (
@@ -136,9 +141,9 @@ export default function PricingPage() {
               </CardContent>
               <CardFooter className="mt-auto">
                 {ctaAction ? (
-                   <Button 
-                    size="lg" 
-                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"} 
+                   <Button
+                    size="lg"
+                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"}
                     className="w-full"
                     onClick={ctaAction}
                     disabled={plan.highlight && isCurrentUserPremium} // Disable "Upgrade" if already premium
@@ -147,10 +152,10 @@ export default function PricingPage() {
                     {ctaText}
                   </Button>
                 ) : (
-                  <Button 
-                    size="lg" 
-                    variant={plan.highlight ? "default" : "outline"} 
-                    className="w-full" 
+                  <Button
+                    size="lg"
+                    variant={plan.highlight ? "default" : "outline"}
+                    className="w-full"
                     asChild
                   >
                     <Link href={ctaLink!}>{ctaText}</Link>
@@ -174,12 +179,18 @@ export default function PricingPage() {
                     </CardHeader>
                     <CardContent className="text-sm text-muted-foreground space-y-2">
                         <p>{fee.description}</p>
+                        {fee.detailsTitle && <p className="font-medium text-foreground/90 mt-3">{fee.detailsTitle}</p>}
                         {fee.details && (
                             <ul className="list-disc list-inside pl-2 space-y-1">
                                 {fee.details.map(detail => <li key={detail}>{detail}</li>)}
                             </ul>
                         )}
-                        {fee.example && <p className="mt-2 text-xs italic">{fee.example}</p>}
+                        {fee.exampleTitle && <p className="font-medium text-foreground/90 mt-3">{fee.exampleTitle}</p>}
+                        {fee.example && (
+                             <ul className="list-disc list-inside pl-2 space-y-1 text-xs">
+                                {fee.example.map(ex => <li key={ex}>{ex}</li>)}
+                            </ul>
+                        )}
                     </CardContent>
                  </Card>
             ))}
