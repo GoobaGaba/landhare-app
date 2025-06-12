@@ -29,7 +29,7 @@ interface NavLink {
 export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, setTheme } = useTheme(); // Added theme here
+  const { theme, setTheme } = useTheme();
   const { currentUser, logoutUser, loading } = useAuth();
   const { toast } = useToast();
 
@@ -77,7 +77,7 @@ export default function AppHeader() {
               type="search"
               placeholder="Search land (e.g., Willow Creek, CO)"
               className="pl-10 w-full h-10 bg-card focus-visible:ring-primary"
-              onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${e.currentTarget.value}`); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${encodeURIComponent(e.currentTarget.value)}`); }}
             />
           </div>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
@@ -123,7 +123,13 @@ export default function AppHeader() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Theme</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault(); // Prevent the dropdown from closing
+                          setTheme(theme === 'dark' ? 'light' : 'dark');
+                        }}
+                        className="cursor-pointer"
+                      >
                         {theme === 'dark' ? (
                           <><Sun className="mr-2 h-4 w-4" /> Light Mode</>
                         ) : (
@@ -166,7 +172,7 @@ export default function AppHeader() {
                       type="search"
                       placeholder="Search land..."
                       className="pl-8 w-full bg-background h-10"
-                      onKeyDown={(e) => { if (e.key === 'Enter') { router.push(`/search?q=${e.currentTarget.value}`); (e.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click(); }}}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { router.push(`/search?q=${encodeURIComponent(e.currentTarget.value)}`); (e.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click(); }}}
                     />
                   </div>
                 </div>
