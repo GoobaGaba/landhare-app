@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown } from 'lucide-react'; 
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import { MobileThemeToggleButton } from './theme-toggle-button'; 
+import { MobileThemeToggleButton } from './theme-toggle-button';
 import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +29,7 @@ interface NavLink {
 export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme(); // Added theme here
   const { currentUser, logoutUser, loading } = useAuth();
   const { toast } = useToast();
 
@@ -51,7 +51,7 @@ export default function AppHeader() {
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon focus:bg-neon/10 focus:text-neon hover:bg-neon/10 hover:text-neon" }, // Styled "Premium" link
     { href: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
-  
+
   const guestNavLinks: NavLink[] = [
      { href: '/login', label: 'Log In', icon: LogIn },
      { href: '/signup', label: 'Sign Up', icon: UserPlus },
@@ -71,12 +71,12 @@ export default function AppHeader() {
 
         {/* Center Part (Desktop): Search Bar + List your Land */}
         <div className="hidden md:flex items-center justify-center gap-3 flex-1 min-w-0 px-4">
-          <div className="relative w-full max-w-md"> 
+          <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              type="search" 
-              placeholder="Search land (e.g., Willow Creek, CO)" 
-              className="pl-10 w-full h-10 bg-card focus-visible:ring-primary" 
+            <Input
+              type="search"
+              placeholder="Search land (e.g., Willow Creek, CO)"
+              className="pl-10 w-full h-10 bg-card focus-visible:ring-primary"
               onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${e.currentTarget.value}`); }}
             />
           </div>
@@ -123,14 +123,12 @@ export default function AppHeader() {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Theme</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setTheme("light")}>
-                        <Sun className="mr-2 h-4 w-4" /> Light
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("dark")}>
-                        <Moon className="mr-2 h-4 w-4" /> Dark
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("system")}>
-                        <Landmark className="mr-2 h-4 w-4" /> System 
+                      <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                        {theme === 'dark' ? (
+                          <><Sun className="mr-2 h-4 w-4" /> Light Mode</>
+                        ) : (
+                          <><Moon className="mr-2 h-4 w-4" /> Dark Mode</>
+                        )}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -143,7 +141,7 @@ export default function AppHeader() {
               )}
             </>
           )}
-          
+
           {/* Mobile Menu Trigger */}
           <div className="md:hidden">
             <Sheet>
@@ -160,14 +158,14 @@ export default function AppHeader() {
                     <span className="font-headline text-xl font-bold text-primary">LandShare</span>
                   </Link>
                 </div>
-                
+
                 <div className="p-4">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      type="search" 
-                      placeholder="Search land..." 
-                      className="pl-8 w-full bg-background h-10" 
+                    <Input
+                      type="search"
+                      placeholder="Search land..."
+                      className="pl-8 w-full bg-background h-10"
                       onKeyDown={(e) => { if (e.key === 'Enter') { router.push(`/search?q=${e.currentTarget.value}`); (e.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click(); }}}
                     />
                   </div>
@@ -179,12 +177,12 @@ export default function AppHeader() {
                       <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
-                  
+
                   {!loading && currentUser && userNavLinks.map((link) => (
                     <SheetClose asChild key={`mobile-user-${link.href}`}>
-                      <Button 
-                        variant={pathname === link.href ? 'secondary' : 'ghost'} 
-                        asChild 
+                      <Button
+                        variant={pathname === link.href ? 'secondary' : 'ghost'}
+                        asChild
                         className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon hover:text-neon hover:bg-neon/10')}
                       >
                         <Link href={link.href}><link.icon className="mr-2 h-4 w-4" />{link.label}</Link>
@@ -192,9 +190,9 @@ export default function AppHeader() {
                     </SheetClose>
                   ))}
                 </nav>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div className="px-4 pb-4">
                   {!loading && (
                     <>
@@ -208,9 +206,9 @@ export default function AppHeader() {
                         <div className="flex flex-col gap-2">
                           {guestNavLinks.map(link => (
                              <SheetClose asChild key={`mobile-guest-${link.href}`}>
-                               <Button 
-                                variant={pathname === link.href ? 'secondary' : (link.label === 'Sign Up' ? 'default' : 'outline')} 
-                                asChild 
+                               <Button
+                                variant={pathname === link.href ? 'secondary' : (link.label === 'Sign Up' ? 'default' : 'outline')}
+                                asChild
                                 className="w-full justify-start text-base py-3"
                               >
                                 <Link href={link.href}><link.icon className="mr-2 h-4 w-4"/>{link.label}</Link>
@@ -222,7 +220,7 @@ export default function AppHeader() {
                     </>
                   )}
                 </div>
-                
+
                 <div className="mt-auto p-4 border-t">
                   <MobileThemeToggleButton />
                 </div>
