@@ -49,7 +49,7 @@ const listingFormSchema = z.object({
   price: z.coerce.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive({ message: "Price must be a positive number." }),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
-  amenities: z.array(z.string()).optional().default([]), // Made optional
+  amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
@@ -126,7 +126,7 @@ export function ListingForm() {
     setPriceSuggestion(null);
     setPriceSuggestionError(null);
 
-    const amenitiesString = watchedAmenities?.join(', '); // Optional chaining for watchedAmenities
+    const amenitiesString = watchedAmenities?.join(', ');
     const input: PriceSuggestionInput = {
       location: watchedLocation,
       sizeSqft: Number(watchedSizeSqft),
@@ -282,20 +282,23 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-    if (!currentUser) {
+    if (!currentUser?.uid) {
       toast({ title: "Authentication Error", description: "You must be logged in to create a listing.", variant: "destructive"});
       return;
     }
-    if (data.landownerId !== currentUser.uid) {
+    // Explicitly set landownerId from currentUser to ensure it's correct
+    data.landownerId = currentUser.uid;
+
+    if (data.landownerId !== currentUser.uid) { // This check is now somewhat redundant but safe
         toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
-        setValue('landownerId', currentUser.uid);
+        setValue('landownerId', currentUser.uid); // Attempt to re-sync form state
         return;
     }
 
-    // Simulate generating URLs for selected files. In a real app, these would come from an upload service.
-    const uploadedImageUrls = imagePreviews; // Using previews as placeholders for actual URLs
+    const uploadedImageUrls = imagePreviews; 
 
     const formDataToSubmit = new FormData();
+    // Use the 'data' object which now has the guaranteed landownerId
     const submissionData = { ...data, images: uploadedImageUrls };
 
     Object.entries(submissionData).forEach(([key, value]) => {
@@ -317,7 +320,6 @@ export function ListingForm() {
             duration: 7000,
         });
     }
-
 
     startTransition(() => {
       formAction(formDataToSubmit);
@@ -344,7 +346,7 @@ export function ListingForm() {
             <UserCircle className="h-4 w-4" />
             <AlertTitle>Login Required</AlertTitle>
             <AlertDescription>
-              You must be <Link href="/login" className="underline">logged in</Link> to create a new listing.
+              You must be <Link href={`/login?redirect=${encodeURIComponent("/listings/new")}`} className="underline">logged in</Link> to create a new listing.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -364,7 +366,8 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <input type="hidden" {...register('landownerId')} />
+        {/* Landowner ID is primarily handled in onSubmit, but keep hidden field for schema consistency if needed */}
+        <input type="hidden" {...register('landownerId')} value={currentUser.uid} />
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
@@ -651,7 +654,14 @@ export function ListingForm() {
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
           )}
-           {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
+           {/* Display landownerId error if it exists, though it should be caught by earlier checks now */}
+           {errors.landownerId && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Form Error</AlertTitle>
+                <AlertDescription>{errors.landownerId.message}</AlertDescription>
+              </Alert>
+            )}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
           <Button variant="outline" type="button" onClick={() => {form.reset({
@@ -682,3 +692,5 @@ export function ListingForm() {
     </Card>
   );
 }
+
+    
