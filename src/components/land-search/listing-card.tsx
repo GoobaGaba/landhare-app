@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, CheckCircle, Home, PlusCircle } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, Home, Plus } from 'lucide-react'; // Changed PlusCircle to Plus
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -42,16 +42,14 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
            {listing.isBoosted && (
-            <div
+            <Plus
               className={cn(
-                "absolute top-2 left-2 z-10 flex items-center justify-center rounded-full shadow-md",
-                "bg-accent text-accent-foreground",
-                "h-6 w-6 p-1"
+                "absolute top-2 left-2 z-10 text-accent",
+                "h-5 w-5" // Adjusted size for list view
               )}
+              strokeWidth={3}
               title="Boosted Listing"
-            >
-              <PlusCircle className="h-4 w-4" />
-            </div>
+            />
           )}
         </div>
         <div className="flex flex-col flex-grow">
@@ -121,16 +119,14 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
           {listing.isBoosted && (
-            <div
+            <Plus
               className={cn(
-                "absolute top-2 left-2 z-10 flex items-center justify-center rounded-full shadow-md",
-                "bg-accent text-accent-foreground", 
-                isCompact ? "h-5 w-5 p-0.5" : "h-6 w-6 p-1"
+                "absolute top-2 left-2 z-10 text-accent",
+                isCompact ? "h-4 w-4" : "h-5 w-5" // Adjusted size
               )}
+              strokeWidth={3} // Thicker stroke
               title="Boosted Listing"
-            >
-              <PlusCircle className={cn(isCompact ? "h-3 w-3" : "h-4 w-4")} />
-            </div>
+            />
           )}
         </div>
       </CardHeader>
