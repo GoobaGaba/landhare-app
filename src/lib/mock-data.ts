@@ -30,7 +30,7 @@ console.log(`[MockData] Initial mockDataVersion: ${mockDataVersion}`);
 
 export const incrementMockDataVersion = (source: string) => {
   mockDataVersion++;
-  console.log(`[MockData] mockDataVersion incremented by ${source}. New version: ${mockDataVersion}`);
+  // console.log(`[MockData] mockDataVersion incremented by ${source}. New version: ${mockDataVersion}`);
 };
 
 // Predefined mock Google user for testing UI flows when Firebase is not available
@@ -442,7 +442,7 @@ const mapDocToReview = (docSnap: any): Review => {
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] getUserById (mock): Searching for user ${id}. Current mockDataVersion: ${mockDataVersion}`);
+    // console.log(`[MockData] getUserById (mock): Searching for user ${id}.`);
     return mockUsers.find(user => user.id === id);
   }
   try {
@@ -484,7 +484,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     } else {
       mockUsers.push(profileData);
     }
-    incrementMockDataVersion('createUserProfile');
+    incrementMockDataVersion('createUserProfile_mock');
     return Promise.resolve(profileData);
   }
 
@@ -526,7 +526,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
                 mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
-            incrementMockDataVersion('updateUserProfile');
+            incrementMockDataVersion('updateUserProfile_mock');
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -567,8 +567,8 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] getListings (mock): Firestore not available. Using mock data. Current mockDataVersion: ${mockDataVersion}`);
-    console.log(`[MockData] getListings (mock): Current mockListings array (first 3 titles): ${mockListings.slice(0, 3).map(l => `${l.title} (Owner: ${l.landownerId})`).join(', ')}`);
+    // console.log(`[MockData] getListings (mock): Firestore not available. Using mock data. Current mockDataVersion: ${mockDataVersion}`);
+    // console.log(`[MockData] getListings (mock): Current mockListings array (first 3 titles): ${mockListings.slice(0, 3).map(l => `${l.title} (Owner: ${l.landownerId})`).join(', ')}`);
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -598,9 +598,9 @@ export const getListings = async (): Promise<Listing[]> => {
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
   if (firebaseInitializationError || !db) {
-    console.warn(`[MockData] getListingsByLandownerCount (mock): Counting mock listings for landowner ${landownerId}. Current mockListings count: ${mockListings.length}`);
+    // console.warn(`[MockData] getListingsByLandownerCount (mock): Counting mock listings for landowner ${landownerId}. Current mockListings count: ${mockListings.length}`);
     const count = mockListings.filter(l => l.landownerId === landownerId).length;
-    console.warn(`[MockData] Found ${count} listings for landowner ${landownerId}.`);
+    // console.warn(`[MockData] Found ${count} listings for landowner ${landownerId}.`);
     return count;
   }
   try {
@@ -616,7 +616,7 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] getListingById (mock): Searching for listing ${id}. Current mockDataVersion: ${mockDataVersion}`);
+    // console.log(`[MockData] getListingById (mock): Searching for listing ${id}.`);
     return mockListings.find(listing => listing.id === id);
   }
   try {
@@ -650,11 +650,10 @@ export const addListing = async (
   };
 
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Current mockDataVersion before add: ${mockDataVersion}`);
+    // console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Full data:`, newListingData);
     mockListings.unshift(newListingData); // Add to the beginning of the array
-    console.log(`[MockData] addListing (mock): Listing data:`, { ...newListingData });
-    incrementMockDataVersion('addListing'); // This will log the new version
-    console.log(`[MockData] addListing (mock): Current mockListings count: ${mockListings.length}. Titles: ${mockListings.map(l => l.title).join(', ')}`);
+    incrementMockDataVersion('addListing_mock');
+    // console.log(`[MockData] addListing (mock): Current mockListings count: ${mockListings.length}. Titles: ${mockListings.map(l => l.title).join(', ')}`);
     return Promise.resolve(newListingData);
   }
 
@@ -682,7 +681,7 @@ export const addListing = async (
     console.error("[MockData] Error adding listing to Firestore, adding to mock data as fallback:", error);
     mockListings.unshift(newListingData);
     incrementMockDataVersion('addListing_fallback');
-    console.log(`[MockData] addListing (fallback): New listing '${newListingData.title}' added. mockListings count: ${mockListings.length}`);
+    // console.log(`[MockData] addListing (fallback): New listing '${newListingData.title}' added. mockListings count: ${mockListings.length}`);
     return Promise.resolve(newListingData);
   }
 };
@@ -696,7 +695,7 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     mockReviews = mockReviews.filter(r => r.listingId !== listingId);
     const deleted = mockListings.length < initialLength;
     if (deleted) {
-        incrementMockDataVersion('deleteListing');
+        incrementMockDataVersion('deleteListing_mock');
     }
     return Promise.resolve(deleted);
   }
@@ -732,7 +731,7 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
 
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] getReviewsForListing (mock): Fetching for listing ${listingId}. Current mockDataVersion: ${mockDataVersion}`);
+    // console.log(`[MockData] getReviewsForListing (mock): Fetching for listing ${listingId}.`);
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
         .sort((a, b) => {
           const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
@@ -795,7 +794,7 @@ export const addReview = async (
         listing.numberOfRatings = (listing.numberOfRatings || 0) + 1;
         listing.rating = totalRating / listing.numberOfRatings;
     }
-    incrementMockDataVersion('addReview');
+    incrementMockDataVersion('addReview_mock');
     return Promise.resolve(newReview);
   }
 
@@ -855,7 +854,7 @@ const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
 
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] getBookingsForUser (mock): Fetching for user ${userId}. Current mockDataVersion: ${mockDataVersion}`);
+    // console.log(`[MockData] getBookingsForUser (mock): Fetching for user ${userId}.`);
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
         .sort((a,b) => {
           const timeA = a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0;
@@ -914,7 +913,7 @@ export const addBookingRequest = async (
   if (firebaseInitializationError || !db) {
     console.warn("[MockData] addBookingRequest (mock): Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
-    incrementMockDataVersion('addBookingRequest');
+    incrementMockDataVersion('addBookingRequest_mock');
     return populateBookingDetails(newBooking);
   }
 
@@ -956,7 +955,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
-      incrementMockDataVersion('updateBookingStatus');
+      incrementMockDataVersion('updateBookingStatus_mock');
       return populateBookingDetails(mockBookings[bookingIndex]);
     }
     return undefined;
@@ -1005,7 +1004,7 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
-      incrementMockDataVersion('addBookmarkToList');
+      incrementMockDataVersion('addBookmarkToList_mock');
       return mockUsers[userIndex];
     }
     return undefined;
@@ -1040,7 +1039,7 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
-      incrementMockDataVersion('removeBookmarkFromList');
+      incrementMockDataVersion('removeBookmarkFromList_mock');
       return mockUsers[userIndex];
     }
     return undefined;
