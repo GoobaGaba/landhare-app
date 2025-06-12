@@ -3,52 +3,67 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { HelpCircle, User, Home, DollarSign, Search } from "lucide-react";
+import { HelpCircle, User, Home, DollarSign, Search, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
-const faqItems = [
+type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
+  iconName: "HelpCircle" | "User" | "Home" | "DollarSign" | "Search";
+};
+
+const faqItems: FaqItem[] = [
   {
     id: "general-1",
     question: "What is LandShare?",
     answer: "LandShare is a platform that connects landowners who have unused or underutilized land with individuals or businesses looking for space. This can be for tiny homes, RVs, storage, agriculture, events, and more.",
-    icon: HelpCircle,
+    iconName: "HelpCircle",
   },
   {
     id: "renter-1",
     question: "How do I find land to rent?",
     answer: "You can use our search page to browse listings. Filter by location, size, price, amenities, and lease terms to find the perfect spot. Once you find a suitable listing, you can contact the landowner or request to book directly through the platform.",
-    icon: Search,
+    iconName: "Search",
   },
   {
     id: "landowner-1",
     question: "How do I list my land?",
     answer: "If you're a landowner, you can easily create a listing by clicking on the 'List Your Land' button. You'll need to provide details about your land, such as location, size, available amenities, photos, and your desired price per month. Our AI assistant can help suggest a competitive price.",
-    icon: Home,
+    iconName: "Home",
   },
   {
     id: "general-2",
     question: "What are the fees involved?",
     answer: "LandShare aims for transparent pricing. Renters on our Standard (free) plan pay a small per-booking fee. Landowners on the Standard plan have a small percentage-based service fee on their earnings. Our Premium plan offers $0 booking fees for renters and significantly lower service fees for landowners, plus other benefits. Please visit our [[Pricing Page]] for full details.",
-    icon: DollarSign,
+    iconName: "DollarSign",
   },
   {
     id: "account-1",
     question: "Do I need an account to browse listings?",
     answer: "You can browse listings without an account. However, to contact landowners, request bookings, or list your own land, you will need to create a free LandShare account.",
-    icon: User,
+    iconName: "User",
   },
   {
     id: "landowner-2",
     question: "What kind of land can I list?",
     answer: "You can list various types of land, from small plots in urban areas to large rural acreages. Be sure to clearly state what the land can be used for (e.g., suitable for RVs, tiny homes, agriculture, etc.) and any local zoning regulations or restrictions that apply.",
-    icon: Home,
+    iconName: "Home",
   },
 ];
+
+const iconMap: Record<FaqItem["iconName"], LucideIcon> = {
+  HelpCircle: HelpCircle,
+  User: User,
+  Home: Home,
+  DollarSign: DollarSign,
+  Search: Search,
+};
 
 export default function FaqPage() {
 
   const renderAnswerWithLinks = (answerText: string) => {
-    const parts = answerText.split(/(\[\[.*?\]\])/g); // Split by [[Link Text]] pattern
+    const parts = answerText.split(/(\[\[.*?\]\])/g);
     return parts.map((part, index) => {
       if (part.startsWith('[[') && part.endsWith(']]')) {
         const linkText = part.substring(2, part.length - 2);
@@ -61,7 +76,6 @@ export default function FaqPage() {
         if (href) {
           return <Link key={index} href={href} className="text-primary hover:underline">{linkText}</Link>;
         } else {
-          // Fallback for unmapped placeholders
           return linkText; 
         }
       }
@@ -82,19 +96,22 @@ export default function FaqPage() {
       <Card className="max-w-3xl mx-auto shadow-lg">
         <CardContent className="p-6 md:p-8">
           <Accordion type="single" collapsible className="w-full">
-            {faqItems.map((item) => (
-              <AccordionItem value={item.id} key={item.id}>
-                <AccordionTrigger className="text-left hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5 text-accent flex-shrink-0" />
-                    <span className="font-medium">{item.question}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground prose-sm dark:prose-invert max-w-none">
-                  {renderAnswerWithLinks(item.answer)}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
+            {faqItems.map((item) => {
+              const IconComponent = iconMap[item.iconName];
+              return (
+                <AccordionItem value={item.id} key={item.id}>
+                  <AccordionTrigger className="text-left hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      {IconComponent && <IconComponent className="h-5 w-5 text-accent flex-shrink-0" />}
+                      <span className="font-medium">{item.question}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground prose-sm dark:prose-invert max-w-none">
+                    {renderAnswerWithLinks(item.answer)}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
           </Accordion>
         </CardContent>
       </Card>
