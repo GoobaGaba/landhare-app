@@ -16,13 +16,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 
-import { getSuggestedPriceAction } from '@/lib/actions/ai-actions';
+import { getSuggestedPriceAction, getSuggestedTitleAction } from '@/lib/actions/ai-actions';
 import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
-import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm } from '@/lib/types';
+import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput } from '@/lib/types';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +48,7 @@ const listingFormSchema = z.object({
   sizeSqft: z.coerce.number().positive({ message: "Size must be a positive number." }),
   pricePerMonth: z.coerce.number().positive({ message: "Price must be a positive number." }),
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
-  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]), // Expecting URLs
+  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
   landownerId: z.string().min(1, "Landowner ID is required"),
@@ -64,14 +64,17 @@ export function ListingForm() {
   const [formState, formAction] = useFormState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
 
-  const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+  const [isPriceSuggestionLoading, setIsPriceSuggestionLoading] = useState(false);
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [priceSuggestionError, setPriceSuggestionError] = useState<string | null>(null);
+
+  const [isTitleSuggestionLoading, setIsTitleSuggestionLoading] = useState(false);
+  const [titleSuggestion, setTitleSuggestion] = useState<SuggestListingTitleOutput | null>(null);
+  const [titleSuggestionError, setTitleSuggestionError] = useState<string | null>(null);
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
-
 
   const isPremiumUser = subscriptionStatus === 'premium';
 
@@ -91,23 +94,25 @@ export function ListingForm() {
     },
   });
 
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = form;
+  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
   useEffect(() => {
-    if (currentUser && !form.getValues('landownerId')) {
+    if (currentUser && !getValues('landownerId')) {
       setValue('landownerId', currentUser.uid);
     }
-  }, [currentUser, setValue, form]);
+  }, [currentUser, setValue, getValues]);
 
+  const watchedTitle = watch('title');
+  const watchedDescription = watch('description');
   const watchedLocation = watch('location');
   const watchedSizeSqft = watch('sizeSqft');
   const watchedAmenities = watch('amenities');
   const watchedLeaseTerm = watch('leaseTerm');
 
   const handleSuggestPrice = async () => {
-    setIsSuggestionLoading(true);
+    setIsPriceSuggestionLoading(true);
     setPriceSuggestion(null);
-    setSuggestionError(null);
+    setPriceSuggestionError(null);
 
     const amenitiesString = watchedAmenities.join(', ');
     const input: PriceSuggestionInput = {
@@ -122,12 +127,12 @@ export function ListingForm() {
             description: "Please provide a valid location and size to get a price suggestion.",
             variant: "destructive",
         });
-        setIsSuggestionLoading(false);
+        setIsPriceSuggestionLoading(false);
         return;
     }
 
     const result = await getSuggestedPriceAction(input);
-    setIsSuggestionLoading(false);
+    setIsPriceSuggestionLoading(false);
 
     if (result.data) {
       setPriceSuggestion(result.data);
@@ -136,14 +141,60 @@ export function ListingForm() {
         description: `Suggested price: $${result.data.suggestedPrice.toFixed(2)}/month.`,
       });
     } else if (result.error) {
-      setSuggestionError(result.error);
+      setPriceSuggestionError(result.error);
        toast({
-        title: "Suggestion Error",
+        title: "Price Suggestion Error",
         description: result.error,
         variant: "destructive",
       });
     }
   };
+
+  const handleSuggestTitle = async () => {
+    setIsTitleSuggestionLoading(true);
+    setTitleSuggestion(null);
+    setTitleSuggestionError(null);
+
+    const descriptionSnippet = watchedDescription.substring(0, 200); // Use a snippet of description
+    const keywords = watchedAmenities.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
+
+
+    const input: SuggestListingTitleInput = {
+      location: watchedLocation,
+      sizeSqft: Number(watchedSizeSqft) || undefined,
+      keywords: keywords || 'land for rent',
+      existingDescription: descriptionSnippet,
+    };
+
+    if (!input.location || !input.keywords) {
+        toast({
+            title: "Input Error",
+            description: "Please provide location and some keywords (from amenities/description) to get a title suggestion.",
+            variant: "destructive",
+        });
+        setIsTitleSuggestionLoading(false);
+        return;
+    }
+
+    const result = await getSuggestedTitleAction(input);
+    setIsTitleSuggestionLoading(false);
+
+    if (result.data) {
+      setTitleSuggestion(result.data);
+      toast({
+        title: "Title Suggestion Ready!",
+        description: `Suggested title: "${result.data.suggestedTitle}".`,
+      });
+    } else if (result.error) {
+      setTitleSuggestionError(result.error);
+       toast({
+        title: "Title Suggestion Error",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+  };
+
 
   useEffect(() => {
     if (formState.message && !isPending) {
@@ -156,7 +207,9 @@ export function ListingForm() {
         form.reset();
         if(currentUser) setValue('landownerId', currentUser.uid);
         setPriceSuggestion(null);
-        setSuggestionError(null);
+        setPriceSuggestionError(null);
+        setTitleSuggestion(null);
+        setTitleSuggestionError(null);
         setSelectedFiles([]);
         setImagePreviews([]);
         setImageUploadError(null);
@@ -199,7 +252,6 @@ export function ListingForm() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => {
       const newPreviews = prev.filter((_, i) => i !== index);
-      // Revoke object URL for the removed image to free memory
       if (imagePreviews[index]) {
         URL.revokeObjectURL(imagePreviews[index]);
       }
@@ -207,7 +259,6 @@ export function ListingForm() {
     });
   };
 
-  // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
       imagePreviews.forEach(url => URL.revokeObjectURL(url));
@@ -231,29 +282,19 @@ export function ListingForm() {
       if (key === 'amenities' && Array.isArray(value)) {
         value.forEach(amenity => formDataToSubmit.append(key, amenity));
       } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append if undefined/null and term is not flexible
+        // Don't append
       } else if (key === 'images') {
-        // **IMPORTANT**: This is a placeholder section for image handling.
-        // In a real app, you would upload files to Firebase Storage *client-side*
-        // get their download URLs, and then pass those URLs in the 'images' array.
-        // Server Actions are not ideal for direct file uploads from FormData without
-        // more complex stream handling or dedicated API routes.
-        // For now, we'll pass an empty array or mock URLs if you had them.
-        // setValue('images', ['mock-url-1.jpg']); // Example if you had URLs
-        // The 'data.images' will be an empty array by default from the schema if not set.
         (data.images || []).forEach(imgUrl => formDataToSubmit.append(key, imgUrl));
-
       } else if (value !== undefined && value !== null) {
         formDataToSubmit.append(key, String(value));
       }
     });
-    
+
     toast({
         title: "Image Upload Note",
-        description: "Image upload UI is for demonstration. Actual file uploads and URL generation for listings require separate implementation (e.g., client-side upload to Firebase Storage before submitting this form).",
+        description: "Image upload UI is for demonstration. Actual file uploads and URL generation for listings require separate implementation.",
         duration: 7000,
     });
-
 
     startTransition(() => {
       formAction(formDataToSubmit);
@@ -288,7 +329,6 @@ export function ListingForm() {
     );
   }
 
-
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -300,8 +340,46 @@ export function ListingForm() {
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
-            <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} />
+            <div className="flex items-center gap-2">
+                <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="flex-grow" />
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleSuggestTitle}
+                    disabled={isTitleSuggestionLoading || !watchedLocation || (!watchedDescription && watchedAmenities.length === 0)}
+                    title="Suggest Title with AI"
+                >
+                    {isTitleSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+                </Button>
+            </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
+            {titleSuggestion && (
+                <Alert className="mt-2">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Suggested Title: "{titleSuggestion.suggestedTitle}"</AlertTitle>
+                  <AlertDescription>
+                    <p className="font-medium text-xs">Reasoning:</p>
+                    <p className="text-xs">{titleSuggestion.reasoning}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="p-0 h-auto mt-1 text-accent text-xs"
+                      onClick={() => setValue('title', titleSuggestion.suggestedTitle)}
+                    >
+                      Use this title
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+            )}
+            {titleSuggestionError && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Title Suggestion Error</AlertTitle>
+                  <AlertDescription className="text-xs">{titleSuggestionError}</AlertDescription>
+                </Alert>
+            )}
           </div>
 
           <div>
@@ -379,7 +457,6 @@ export function ListingForm() {
             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
 
-
           <div>
             <Label>Amenities</Label>
             <Controller
@@ -455,11 +532,48 @@ export function ListingForm() {
             </div>
           )}
 
-
           <div>
             <Label htmlFor="pricePerMonth">Price per Month ($)</Label>
-            <Input id="pricePerMonth" type="number" {...register('pricePerMonth')} aria-invalid={errors.pricePerMonth ? "true" : "false"} />
+            <div className="flex items-center gap-2">
+                <Input id="pricePerMonth" type="number" {...register('pricePerMonth')} aria-invalid={errors.pricePerMonth ? "true" : "false"} className="flex-grow" />
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleSuggestPrice}
+                    disabled={isPriceSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
+                    title="Suggest Price with AI"
+                >
+                    {isPriceSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                </Button>
+            </div>
             {errors.pricePerMonth && <p className="text-sm text-destructive mt-1">{errors.pricePerMonth.message}</p>}
+            {priceSuggestion && (
+                <Alert className="mt-2">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Suggested Price: ${priceSuggestion.suggestedPrice.toFixed(2)}/month</AlertTitle>
+                  <AlertDescription>
+                    <p className="font-medium text-xs">Reasoning:</p>
+                    <p className="text-xs">{priceSuggestion.reasoning}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="p-0 h-auto mt-1 text-accent text-xs"
+                      onClick={() => setValue('pricePerMonth', priceSuggestion.suggestedPrice)}
+                    >
+                      Use this price
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+            )}
+            {priceSuggestionError && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Price Suggestion Error</AlertTitle>
+                  <AlertDescription className="text-xs">{priceSuggestionError}</AlertDescription>
+                </Alert>
+            )}
           </div>
 
           <Alert variant="default" className="mt-4 bg-muted/40">
@@ -475,52 +589,6 @@ export function ListingForm() {
             </AlertDescription>
           </Alert>
 
-          <Card className="bg-secondary/30">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Sparkles className="text-accent h-5 w-5" /> AI Pricing Assistant</CardTitle>
-              <CardDescription className="text-xs">Get an AI-powered price suggestion based on your land's details.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSuggestPrice}
-                disabled={isSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
-                className="w-full"
-              >
-                {isSuggestionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Suggest Price
-              </Button>
-              {priceSuggestion && (
-                <Alert className="mt-4">
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Suggested Price: ${priceSuggestion.suggestedPrice.toFixed(2)}/month</AlertTitle>
-                  <AlertDescription>
-                    <p className="font-medium">Reasoning:</p>
-                    <p className="text-xs">{priceSuggestion.reasoning}</p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="link"
-                      className="p-0 h-auto mt-1 text-accent"
-                      onClick={() => setValue('pricePerMonth', priceSuggestion.suggestedPrice)}
-                    >
-                      Use this price
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {suggestionError && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{suggestionError}</AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-
           {formState.message && !formState.success && (
              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -531,7 +599,7 @@ export function ListingForm() {
            {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
+          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
           <Button type="submit" disabled={isPending || !currentUser}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
@@ -555,5 +623,3 @@ export function ListingForm() {
     </Card>
   );
 }
-
-    

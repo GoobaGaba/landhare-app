@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { SubscriptionStatus, User as AppUserType } from '@/lib/types';
-import { Textarea } from '@/components/ui/textarea'; // Changed from direct import
+import { Textarea } from '@/components/ui/textarea';
 import { firebaseInitializationError } from '@/lib/firebase';
 
 
@@ -22,7 +22,7 @@ interface ProfileDisplayData {
   avatarUrl?: string;
   bio: string;
   memberSince: Date;
-  subscriptionTier: SubscriptionStatus; 
+  subscriptionTier: SubscriptionStatus;
 }
 
 export default function ProfilePage() {
@@ -31,9 +31,9 @@ export default function ProfilePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
-  
+
   const [nameInput, setNameInput] = useState('');
-  const [emailDisplay, setEmailDisplay] = useState(''); // Email is not editable here
+  const [emailDisplay, setEmailDisplay] = useState('');
   const [bioInput, setBioInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -44,7 +44,7 @@ export default function ProfilePage() {
         name: currentUser.appProfile.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentUser.appProfile.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: currentUser.appProfile.bio || "Welcome to my LandShare profile!", 
+        bio: currentUser.appProfile.bio || "Welcome to my LandShare profile!",
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
         subscriptionTier: subscriptionStatus !== 'loading' ? subscriptionStatus : (currentUser.appProfile.subscriptionStatus || 'free'),
       };
@@ -53,7 +53,6 @@ export default function ProfilePage() {
       setEmailDisplay(currentProfile.email);
       setBioInput(currentProfile.bio);
     } else if (currentUser && !currentUser.appProfile && !authLoading) {
-        // Case where Firebase user exists but appProfile might be missing (e.g. error during initial fetch)
         const fallbackProfile: ProfileDisplayData = {
             name: currentUser.displayName || currentUser.email?.split('@')[0] || "User",
             email: currentUser.email || "No email provided",
@@ -78,21 +77,18 @@ export default function ProfilePage() {
       return;
     }
     setIsSaving(true);
-    
+
     const updateData: Partial<Pick<AppUserType, 'name' | 'bio'>> = {};
     if (nameInput !== profileDisplayData.name) updateData.name = nameInput;
     if (bioInput !== profileDisplayData.bio) updateData.bio = bioInput;
-    // Avatar URL update would require file upload logic first, then setting the URL.
-    // For now, we don't handle avatar URL changes in this save function.
 
     if (Object.keys(updateData).length > 0) {
         const updatedUser = await updateCurrentAppUserProfile(updateData);
         if (updatedUser && updatedUser.appProfile) {
-            // Update local display data from the source of truth (currentUser.appProfile)
             setProfileDisplayData(prev => prev ? {
-                 ...prev, 
-                 name: updatedUser.appProfile!.name || prev.name, 
-                 bio: updatedUser.appProfile!.bio || prev.bio 
+                 ...prev,
+                 name: updatedUser.appProfile!.name || prev.name,
+                 bio: updatedUser.appProfile!.bio || prev.bio
             } : null);
              setNameInput(updatedUser.appProfile!.name || nameInput);
              setBioInput(updatedUser.appProfile!.bio || bioInput);
@@ -100,7 +96,7 @@ export default function ProfilePage() {
     } else {
         toast({ title: "No Changes", description: "No information was changed."});
     }
-    
+
     setIsEditing(false);
     setIsSaving(false);
   };
@@ -108,15 +104,14 @@ export default function ProfilePage() {
   const handleCancelEdit = () => {
     if (profileDisplayData) {
       setNameInput(profileDisplayData.name);
-      // Email is not directly editable, so no need to reset emailInput
       setBioInput(profileDisplayData.bio);
     }
     setIsEditing(false);
   };
-  
+
   const handleRefreshProfile = async () => {
     toast({ title: "Refreshing...", description: "Fetching latest profile information."});
-    await refreshUserProfile(); // This will trigger the useEffect to update profileDisplayData
+    await refreshUserProfile();
     toast({ title: "Profile Refreshed", description: "Latest data loaded."});
   }
 
@@ -141,7 +136,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
+
   if (firebaseInitializationError && !currentUser) {
      return (
       <Card>
@@ -176,7 +171,7 @@ export default function ProfilePage() {
       </Card>
     );
   }
-  
+
   const avatarFallback = profileDisplayData.name.split(' ').map(n=>n[0]).join('').toUpperCase() || profileDisplayData.email[0].toUpperCase();
 
   return (
@@ -228,10 +223,10 @@ export default function ProfilePage() {
               </div>
               <div>
                 <Label htmlFor="bio">Bio</Label>
-                <Textarea 
-                  id="bio" 
-                  value={bioInput} 
-                  onChange={(e) => setBioInput(e.target.value)} 
+                <Textarea
+                  id="bio"
+                  value={bioInput}
+                  onChange={(e) => setBioInput(e.target.value)}
                   disabled={!isEditing || isSaving}
                   rows={4}
                   placeholder="Tell us a bit about yourself or your land interests..."
@@ -261,7 +256,7 @@ export default function ProfilePage() {
               <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError}>
                 <KeyRound className="mr-2 h-4 w-4" /> Change Password
               </Button>
-              <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. <Button variant="link" className="p-0 h-auto" onClick={() => toast({title: "2FA", description: "2FA setup not implemented."})}>Enable 2FA</Button></p>
+              <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. <Button variant="link" className="p-0 h-auto" onClick={() => toast({title: "Coming Soon!", description: "Two-factor authentication (2FA) setup is not yet implemented."})}>Enable 2FA</Button></p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -281,7 +276,7 @@ export default function ProfilePage() {
                 <Label htmlFor="promo-emails" className="cursor-pointer">Promotional Emails & Updates</Label>
                 <Input type="checkbox" id="promo-emails" className="h-5 w-5 cursor-pointer" />
               </div>
-              <Button onClick={() => toast({title: "Settings Saved", description:"Notification preferences updated (mocked)."}) }><Save className="mr-2 h-4 w-4" /> Save Notification Settings</Button>
+              <Button onClick={() => toast({title: "Preferences Saved (Mock)", description:"Your notification preferences have been noted. Full functionality coming soon."}) }><Save className="mr-2 h-4 w-4" /> Save Notification Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -305,7 +300,7 @@ export default function ProfilePage() {
                 ) : (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
-                  <Button variant="outline" onClick={() => toast({title: "Manage Subscription", description: "Stripe Customer Portal integration needed."})} disabled={!!firebaseInitializationError}>
+                  <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={!!firebaseInitializationError}>
                     Manage Subscription
                   </Button>
                   </>
@@ -315,8 +310,8 @@ export default function ProfilePage() {
                 <h4 className="font-medium mb-2">Payment Methods</h4>
                 <p className="text-sm text-muted-foreground">Your payment methods are managed securely via Stripe. (Placeholder)</p>
                 <div className="mt-3 flex gap-2">
-                    <Button variant="outline" onClick={() => toast({title: "Payment Methods", description: "Stripe integration needed."})} disabled={!!firebaseInitializationError}>Update Payment Method</Button>
-                    <Button variant="outline" onClick={() => toast({title: "Billing History", description: "Stripe integration needed."})} disabled={!!firebaseInitializationError}>View Billing History</Button>
+                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for updating payment methods is not yet implemented."})} disabled={!!firebaseInitializationError}>Update Payment Method</Button>
+                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for viewing billing history is not yet implemented."})} disabled={!!firebaseInitializationError}>View Billing History</Button>
                 </div>
               </div>
             </CardContent>

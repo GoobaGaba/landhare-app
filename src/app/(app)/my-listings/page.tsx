@@ -5,9 +5,9 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListChecks, PlusCircle, Edit3, Trash2, Search, AlertTriangle, Loader2, UserCircle } from "lucide-react";
+import { ListChecks, PlusCircle, Edit3, Trash2, Search, AlertTriangle, Loader2, UserCircle, Edit } from "lucide-react";
 import type { Listing } from "@/lib/types";
-import { getListings, deleteListing as dbDeleteListing } from "@/lib/mock-data"; 
+import { getListings, deleteListing as dbDeleteListing } from "@/lib/mock-data";
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -19,6 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
@@ -30,33 +31,34 @@ export default function MyListingsPage() {
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const loadMyListings = useCallback(async () => {
     if (firebaseInitializationError && !currentUser) {
       setIsLoading(false);
       setMyListings([]);
        if (firebaseInitializationError) {
-        toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Cannot load live listings.", 
+        toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Cannot load live listings.",
             variant: "default",
-            duration: 5000 
+            duration: 5000
         });
       }
       return;
     }
     if (firebaseInitializationError && currentUser) {
-         toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Displaying sample listings.", 
+         toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Displaying sample listings.",
             variant: "default",
-            duration: 5000 
+            duration: 5000
         });
     }
 
     setIsLoading(true);
     try {
-      const allListings = await getListings(); // Will use mock data if Firebase error
+      const allListings = await getListings();
       const filteredListings = allListings.filter(listing => listing.landownerId === currentUser!.uid);
       setMyListings(filteredListings);
     } catch (error: any) {
@@ -73,9 +75,9 @@ export default function MyListingsPage() {
   }, [currentUser, toast]);
 
   useEffect(() => {
-    if(!authLoading && currentUser){ // Ensure currentUser is available before loading
+    if(!authLoading && currentUser){
         loadMyListings();
-    } else if (!authLoading && !currentUser) { // No user, not even mock
+    } else if (!authLoading && !currentUser) {
         setIsLoading(false);
         setMyListings([]);
     }
@@ -83,12 +85,11 @@ export default function MyListingsPage() {
 
   const openDeleteDialog = (listing: Listing) => {
     if (firebaseInitializationError) {
-       toast({ 
-            title: "Preview Mode", 
-            description: "Deleting listings is disabled in preview mode.", 
+       toast({
+            title: "Preview Mode",
+            description: "Deleting listings is disabled in preview mode.",
             variant: "default"
         });
-       // Allow mock deletion to proceed for UI testing
        if (currentUser) {
             setListingToDelete(listing);
             setShowDeleteDialog(true);
@@ -103,9 +104,8 @@ export default function MyListingsPage() {
     if (!listingToDelete) return;
 
     if (firebaseInitializationError && currentUser) {
-        // Attempt mock deletion
         try {
-            await dbDeleteListing(listingToDelete.id); // dbDeleteListing handles mock
+            await dbDeleteListing(listingToDelete.id);
             toast({ title: "Mock Listing Deleted", description: `"${listingToDelete.title}" removed from preview.`});
             loadMyListings();
         } catch (e) {
@@ -117,7 +117,6 @@ export default function MyListingsPage() {
         return;
     }
 
-
     try {
       const success = await dbDeleteListing(listingToDelete.id);
       if (success) {
@@ -125,7 +124,7 @@ export default function MyListingsPage() {
           title: "Listing Deleted",
           description: `"${listingToDelete.title}" has been successfully deleted.`,
         });
-        await loadMyListings(); 
+        await loadMyListings();
       } else {
         throw new Error("Deletion operation failed.");
       }
@@ -141,10 +140,16 @@ export default function MyListingsPage() {
     }
   };
 
+  const handleEditClick = (listing: Listing) => {
+    // For now, just show a dialog. Actual edit page would go here.
+    // router.push(`/listings/edit/${listing.id}`);
+    setShowEditDialog(true);
+  };
+
+
   if (authLoading || isLoading) {
     return (
       <div className="space-y-8">
-        {/* Keep minimal UI for loading state */}
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">My Listings</h1>
           <Button asChild>
@@ -170,8 +175,8 @@ export default function MyListingsPage() {
       </div>
     );
   }
-  
-  if (!currentUser && !authLoading) { // Handles if no user (mock or real)
+
+  if (!currentUser && !authLoading) {
      return (
       <Card>
         <CardHeader>
@@ -227,10 +232,14 @@ export default function MyListingsPage() {
             <div key={listing.id} className="flex flex-col">
               <ListingCard listing={listing} viewMode="grid" />
               <div className="mt-2 flex gap-2 p-2 bg-card rounded-b-lg border border-t-0 shadow-sm">
-                <Button variant="outline" size="sm" className="flex-1" asChild disabled={firebaseInitializationError !== null && !currentUser?.appProfile}>
-                  <Link href={`/listings/edit/${listing.id}`}> {/* Edit page not yet created */}
-                    <Edit3 className="mr-2 h-4 w-4" /> Edit
-                  </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => handleEditClick(listing)}
+                  disabled={firebaseInitializationError !== null && !currentUser?.appProfile}
+                >
+                  <Edit className="mr-2 h-4 w-4" /> Edit
                 </Button>
                 <Button variant="destructive" size="sm" className="flex-1" onClick={() => openDeleteDialog(listing)} disabled={firebaseInitializationError !== null && !currentUser?.appProfile}>
                   <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -261,6 +270,20 @@ export default function MyListingsPage() {
             >
               Delete Listing
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
+            <AlertDialogDescription>
+              The ability to edit listings is currently under development and will be available in a future update.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowEditDialog(false)}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

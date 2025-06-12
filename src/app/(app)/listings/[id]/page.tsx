@@ -4,16 +4,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2 } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInCalendarMonths, startOfMonth, endOfMonth, isBefore } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -28,22 +30,23 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [isBookingRequested, setIsBookingRequested] = useState(false); 
+  const [isBookingRequested, setIsBookingRequested] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchData() {
       if (firebaseInitializationError) {
-        toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Displaying sample listing data.", 
+        toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Displaying sample listing data.",
             variant: "default",
             duration: 5000
         });
       }
       setIsLoading(true);
       try {
-        // These functions will use mock data if firebaseInitializationError is set
         const listingData = await getListingById(params.id);
         setListing(listingData || null);
 
@@ -63,6 +66,20 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     fetchData();
   }, [params.id, toast]);
 
+  const handleContactLandowner = () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "destructive" });
+      return;
+    }
+    if (isCurrentUserLandowner) {
+      toast({ title: "Action Not Available", description: "You cannot contact yourself.", variant: "default" });
+      return;
+    }
+    // In a real app, you might pass landownerId and listingId to pre-fill chat
+    // For now, just navigate to the messages page.
+    router.push('/messages');
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
@@ -71,8 +88,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       </div>
     );
   }
-  
-  if (!listing && !isLoading) { // Show "not found" only if loading is done and listing is still null
+
+  if (!listing && !isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -91,17 +108,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       </div>
     );
   }
-  
-  // If listing exists (even mock), render the page.
-  // The `firebaseInitializationError` will be conveyed by a toast.
-
 
   const handleBookingRequestOpen = () => {
      if (firebaseInitializationError) {
-      toast({ 
-          title: "Preview Mode", 
-          description: "Booking is disabled in preview mode.", 
-          variant: "default" 
+      toast({
+          title: "Preview Mode",
+          description: "Booking is disabled in preview mode.",
+          variant: "default"
       });
       return;
     }
@@ -121,8 +134,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       });
       return;
     }
-    if (listing!.minLeaseDurationMonths) { // listing is guaranteed to be non-null here
-        const monthsSelected = differenceInCalendarMonths(dateRange.to, dateRange.from) + 1; 
+    if (listing!.minLeaseDurationMonths) {
+        const monthsSelected = differenceInCalendarMonths(dateRange.to, dateRange.from) + 1;
         if (monthsSelected < listing!.minLeaseDurationMonths) {
             toast({
                 title: "Minimum Lease Duration",
@@ -146,13 +159,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     try {
       await addBookingRequest({
         listingId: listing.id,
-        renterId: currentUser.uid, 
-        landownerId: listing.landownerId, 
+        renterId: currentUser.uid,
+        landownerId: listing.landownerId,
         dateRange: { from: dateRange.from, to: dateRange.to },
       });
-      
+
       setShowBookingDialog(false);
-      setIsBookingRequested(true); 
+      setIsBookingRequested(true);
       toast({
         title: "Booking Request Submitted!",
         description: `Your request for "${listing.title}" from ${format(dateRange.from, "PPP")} to ${format(dateRange.to, "PPP")} has been sent.`,
@@ -165,17 +178,17 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       });
     }
   };
-  
+
   const today = new Date();
-  today.setHours(0,0,0,0); 
+  today.setHours(0,0,0,0);
 
   const calculateTotalPrice = () => {
     if (!dateRange || !dateRange.from || !dateRange.to || !listing) return 0;
     const fromDate = startOfMonth(dateRange.from);
     const toDate = endOfMonth(dateRange.to);
-    
+
     let months = differenceInCalendarMonths(toDate, fromDate) + 1;
-    if (months <= 0) months = 1; 
+    if (months <= 0) months = 1;
 
     return listing.pricePerMonth * months;
   };
@@ -240,7 +253,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               </ul>
             </CardContent>
           </Card>
-          
+
            {listing?.isAvailable && !isCurrentUserLandowner && (
             <Card>
               <CardHeader>
@@ -268,7 +281,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   selected={dateRange}
                   onSelect={setDateRange}
                   numberOfMonths={1}
-                  fromDate={today} 
+                  fromDate={today}
                   disabled={(date) => isBefore(date, today) || !currentUser || firebaseInitializationError !== null}
                   className="rounded-md border"
                 />
@@ -308,7 +321,28 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                   </CardContent>
                 </Card>
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
-               <Button variant="outline" className="mt-4" disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}>Write a Review</Button> {/* Add actual review functionality later */}
+              <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}
+                  >
+                    <Edit className="mr-2 h-4 w-4" /> Write a Review
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The ability to write and submit reviews is currently under development and will be available in a future update.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => setShowReviewDialog(false)}>OK</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
         </div>
@@ -335,16 +369,21 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               {!isCurrentUserLandowner && (
-                <Button 
-                  size="lg" 
-                  className="w-full" 
+                <Button
+                  size="lg"
+                  className="w-full"
                   onClick={handleBookingRequestOpen}
                   disabled={!listing?.isAvailable || !dateRange?.from || !dateRange?.to || isBookingRequested || !currentUser || firebaseInitializationError !== null}
                 >
                   {isBookingRequested ? "Booking Requested" : (listing?.isAvailable ? "Request to Book" : "Currently Unavailable")}
                 </Button>
               )}
-              <Button variant="outline" className="w-full" disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}> 
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleContactLandowner}
+                disabled={!currentUser || isCurrentUserLandowner || firebaseInitializationError !== null}
+              >
                 <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
               </Button>
               {isCurrentUserLandowner && (
@@ -391,7 +430,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
                 !currentUser || firebaseInitializationError !== null ||
-                (listing?.minLeaseDurationMonths && dateRange?.from && dateRange.to ? 
+                (listing?.minLeaseDurationMonths && dateRange?.from && dateRange.to ?
                 (differenceInCalendarMonths(dateRange.to, dateRange.from) + 1) < listing.minLeaseDurationMonths : false)
             }>Submit Request</Button>
           </DialogFooter>
@@ -400,5 +439,4 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
-
     

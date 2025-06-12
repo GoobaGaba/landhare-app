@@ -7,14 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, MessageSquare, HelpCircle } from "lucide-react";
+import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ContactPage() {
-  // In a real app, this form would submit to a backend endpoint or email service.
-  // For now, it's a UI placeholder.
+  const { toast } = useToast();
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    alert("Contact form submitted (mock)! In a real app, this would send your message.");
-    // Add logic here to send form data.
+    // In a real app, this would send data.
+    // For now, clear the form and show a toast.
+    const form = event.currentTarget;
+    form.reset();
+
+    toast({
+      title: "Message Sent (Mock)",
+      description: "Thank you for reaching out! In a real application, your message would be processed.",
+    });
   };
 
   return (
@@ -72,7 +81,7 @@ export default function ContactPage() {
                     Many common questions are answered in our FAQ section.
                 </p>
                 <Button variant="outline" asChild>
-                    <a href="/faq" target="_blank" rel="noopener noreferrer">Visit FAQ (Coming Soon)</a>
+                    <Link href="/faq">Visit FAQ</Link>
                 </Button>
             </CardContent>
           </Card>
