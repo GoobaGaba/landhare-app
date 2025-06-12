@@ -82,7 +82,7 @@ export default function AppHeader() {
           </div>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
             <Link href="/listings/new">
-                <PlusCircle className="mr-2 h-4 w-4 lg:inline-block md:hidden" /> List Your Land
+                <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
             </Link>
           </Button>
         </div>
