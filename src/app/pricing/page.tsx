@@ -3,27 +3,27 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Percent, FileText, Crown, Sparkles, Home, Search as SearchIcon, Loader2 } from 'lucide-react';
+import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/auth-context'; // Import useAuth
+import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
 
 const pricingPlans = [
   {
-    id: "free",
-    title: "Free Account",
-    price: "$0",
-    period: "Get Started",
-    description: "Perfect for browsing, occasional rentals, or listing a single property to test the waters.",
+    id: "standard",
+    title: "Standard Account",
+    price: "Free",
+    period: "to Join",
+    description: "Great for getting started, browsing, and occasional use. Clear, straightforward fees.",
     features: [
-      { text: "Unlimited browsing & account creation", icon: SearchIcon },
-      { text: "List up to 1 property (mock rule)", icon: Home }, // Mocking the limit rule for display
-      { text: "$0.99 per contract initiation fee", icon: FileText },
-      { text: "3% closing fee on landowner payouts", icon: Percent },
-      { text: "Standard listing visibility", icon: Home },
-      { text: "Basic support", icon: CheckCircle },
+      { text: "Unlimited browsing & account creation", icon: SearchIcon, category: "general" },
+      { text: "List 1 property", icon: Home, category: "landowner" },
+      { text: "$0.99 Per-Booking Fee (when you rent)", icon: DollarSign, category: "renter" },
+      { text: "2% Service Fee (on your lease earnings)", icon: Percent, category: "landowner" },
+      { text: "Standard listing visibility", icon: TrendingUp, category: "landowner" },
+      { text: "Basic support", icon: CheckCircle, category: "general" },
     ],
-    cta: "Sign Up for Free",
+    cta: "Sign Up for Standard",
     href: "/signup",
   },
   {
@@ -31,40 +31,20 @@ const pricingPlans = [
     title: "Premium Subscription",
     price: "$5",
     period: "/month",
-    description: "Unlock the full potential of LandShare Connect. Ideal for active landowners and serious renters.",
+    description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
     features: [
-      { text: "Unlimited listings with more photos", icon: Home },
-      { text: "No per-contract fees", icon: FileText },
-      { text: "Boosted exposure in search results", icon: Sparkles },
-      { text: "Access to exclusive market data & insights", icon: BarChart3 },
-      { text: "Lower 0.99% closing fee on payouts", icon: Percent },
-      { text: "Priority support", icon: Crown },
+      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, category: "renter", iconColor: "text-green-500" },
+      { text: "List unlimited properties", icon: InfinityIcon, category: "landowner" },
+      { text: "Add more photos to listings", icon: ImagePlus, category: "landowner"},
+      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, category: "landowner", iconColor: "text-green-500" },
+      { text: "Boosted exposure for your listings", icon: Sparkles, category: "landowner" },
+      { text: "Access to exclusive Market Insights", icon: BarChart3, category: "landowner" },
+      { text: "Priority support", icon: Crown, category: "general" },
     ],
     cta: "Upgrade to Premium",
-    hrefSelfIfPremium: "/profile?tab=billing", // Link to billing if already premium
+    hrefSelfIfPremium: "/profile?tab=billing", 
     highlight: true,
   },
-];
-
-const feeDetails = [
-    {
-        title: "Contract Initiation Fee",
-        description: "A one-time $0.99 fee when you start a lease using a Free Account. Premium members don't pay this!",
-    },
-    {
-        title: "Landowner Closing Fee",
-        description: "When you successfully lease your land, we take a small percentage from your payout. This keeps LandShare Connect running and improving.",
-        detailsTitle: "Fee based on your account:",
-        details: [
-            "Free Accounts: 3% of total lease value.",
-            "Premium Members: Just 0.99% (Save over 65% on fees!)",
-        ],
-        exampleTitle: "Example (on a $3,000 lease):",
-        example: [
-            "Free User Fee: $90",
-            "Premium User Fee: $29.70",
-        ]
-    }
 ];
 
 export default function PricingPage() {
@@ -72,21 +52,18 @@ export default function PricingPage() {
   const { toast } = useToast();
 
   const handlePremiumCTAClick = () => {
-    // In a real app, this would redirect to Stripe Checkout
-    // For now, it's a placeholder.
     if (!currentUser) {
         toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
-        // Potentially redirect to login: router.push('/login?redirect=/pricing');
         return;
     }
+    // Placeholder for Stripe integration
     toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here."});
   };
-
 
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        {/* Loader can be added here if desired */}
       </div>
     );
   }
@@ -95,10 +72,10 @@ export default function PricingPage() {
     <div className="container mx-auto px-4 py-12 md:py-20">
       <header className="text-center mb-12 md:mb-16">
         <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">
-          Our Pricing Plans
+          Industry Low Fees
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Choose the plan that best fits your needs. Whether you're just starting out or ready to maximize your opportunities, LandShare Connect has you covered.
+          Choose the plan that works for you. Transparent pricing designed to help you save and earn more.
         </p>
       </header>
 
@@ -106,13 +83,18 @@ export default function PricingPage() {
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
           const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
-          const ctaLink = plan.id === 'premium'
-            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : undefined) // Link to billing if premium, else undefined for action
-            : (currentUser ? "/dashboard" : plan.href); // For free, if logged in go to dash, else signup
+          let ctaLink = plan.id === 'premium'
+            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : undefined)
+            : (currentUser ? "/dashboard" : plan.href);
+          if (plan.id === 'premium' && !currentUser && !isCurrentUserPremium) ctaLink = "/signup?redirect=/pricing"; // Direct to signup then pricing for premium if not logged in
 
           const ctaText = plan.id === 'premium'
             ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
-            : (currentUser && plan.id === 'free' ? "Go to Dashboard" : plan.cta);
+            : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
+          
+          const generalFeatures = plan.features.filter(f => f.category === 'general');
+          const renterFeatures = plan.features.filter(f => f.category === 'renter');
+          const landownerFeatures = plan.features.filter(f => f.category === 'landowner');
 
           return (
             <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
@@ -125,19 +107,50 @@ export default function PricingPage() {
                 <CardTitle className="text-2xl font-semibold text-primary">{plan.title}</CardTitle>
                 <div className="flex items-baseline mt-2">
                   <span className="text-4xl font-bold">{plan.price}</span>
-                  {plan.period !== "Get Started" && <span className="text-muted-foreground ml-1">{plan.period}</span>}
+                  {plan.period !== "to Join" && <span className="text-muted-foreground ml-1">{plan.period}</span>}
                 </div>
                 <CardDescription className="mt-1 text-sm h-12">{plan.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 flex-grow">
-                <ul className="space-y-2 text-sm">
-                  {plan.features.map((feature) => (
-                    <li key={feature.text} className="flex items-start">
-                      <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${plan.highlight ? 'text-primary' : 'text-accent'}`} />
-                      <span>{feature.text}</span>
-                    </li>
-                  ))}
-                </ul>
+              <CardContent className="space-y-4 flex-grow">
+                {renterFeatures.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 text-accent">For Renters:</h4>
+                    <ul className="space-y-2 text-sm">
+                      {renterFeatures.map((feature) => (
+                        <li key={feature.text} className="flex items-start">
+                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                          <span>{feature.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {landownerFeatures.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mt-3 mb-2 text-accent">For Landowners:</h4>
+                    <ul className="space-y-2 text-sm">
+                      {landownerFeatures.map((feature) => (
+                        <li key={feature.text} className="flex items-start">
+                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                          <span>{feature.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                 {generalFeatures.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mt-3 mb-2 text-accent">General:</h4>
+                    <ul className="space-y-2 text-sm">
+                      {generalFeatures.map((feature) => (
+                        <li key={feature.text} className="flex items-start">
+                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                          <span>{feature.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="mt-auto">
                 {ctaAction ? (
@@ -146,7 +159,7 @@ export default function PricingPage() {
                     variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"}
                     className="w-full"
                     onClick={ctaAction}
-                    disabled={plan.highlight && isCurrentUserPremium} // Disable "Upgrade" if already premium
+                    disabled={plan.highlight && isCurrentUserPremium} 
                   >
                     {plan.highlight && isCurrentUserPremium ? <Crown className="mr-2 h-4 w-4" /> : null}
                     {ctaText}
@@ -167,34 +180,25 @@ export default function PricingPage() {
         })}
       </div>
 
-      <section className="max-w-3xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-bold text-center text-primary mb-8">
-          Understanding Our Fees
-        </h2>
-        <div className="space-y-6">
-            {feeDetails.map(fee => (
-                 <Card key={fee.title} className="bg-card/80">
-                    <CardHeader>
-                        <CardTitle className="text-xl">{fee.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground space-y-2">
-                        <p>{fee.description}</p>
-                        {fee.detailsTitle && <p className="font-medium text-foreground/90 mt-3">{fee.detailsTitle}</p>}
-                        {fee.details && (
-                            <ul className="list-disc list-inside pl-2 space-y-1">
-                                {fee.details.map(detail => <li key={detail}>{detail}</li>)}
-                            </ul>
-                        )}
-                        {fee.exampleTitle && <p className="font-medium text-foreground/90 mt-3">{fee.exampleTitle}</p>}
-                        {fee.example && (
-                             <ul className="list-disc list-inside pl-2 space-y-1 text-xs">
-                                {fee.example.map(ex => <li key={ex}>{ex}</li>)}
-                            </ul>
-                        )}
-                    </CardContent>
-                 </Card>
-            ))}
-        </div>
+      <section className="max-w-3xl mx-auto text-center mt-16">
+         <Card className="bg-muted/30">
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center justify-center gap-2">
+                    <Info className="h-5 w-5 text-primary"/> Additional Information
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                    The $0.99 Per-Booking fee for Standard accounts is applied to the renter at checkout. Premium renters enjoy a $0 fee on bookings they initiate.
+                </p>
+                <p>
+                    Service Fees (2% for Standard, 0.49% for Premium) are calculated on the total lease value and deducted from the landowner's payout per booking. This applies whether the lease is short-term, long-term, or paid monthly.
+                </p>
+                <p>
+                    Please note: National or regional sales taxes (typically 5-7%) may apply to transactions and are handled according to local regulations. These are separate from LandShare Connect's fees.
+                </p>
+            </CardContent>
+         </Card>
          <p className="text-center mt-8 text-sm text-muted-foreground">
             All financial transactions are processed securely. For more details, please see our <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>.
         </p>
