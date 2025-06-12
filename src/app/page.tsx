@@ -174,10 +174,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Our Solution Section */}
+      {/* Content Section (Formerly "Our Solution") */}
       <section className="w-full py-16 md:py-24 bg-secondary/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Our Solution: LandShare</h2>
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Land Seekers</h3>
