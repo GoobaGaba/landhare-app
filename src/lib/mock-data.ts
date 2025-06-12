@@ -39,9 +39,9 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   name: 'Mock Google User',
   email: 'mock.google.user@example.com',
   avatarUrl: 'https://placehold.co/100x100.png?text=GU',
-  subscriptionStatus: 'free', // Or 'premium' if you want to test that flow by default
+  subscriptionStatus: 'premium', // Changed from 'free' to 'premium'
   createdAt: new Date('2023-04-01T10:00:00Z'),
-  bio: 'I am a mock user signed in via Google for testing purposes.',
+  bio: 'I am a mock user signed in via Google for testing purposes with premium status.',
   bookmarkedListingIds: [],
 };
 
@@ -593,8 +593,10 @@ export const getListings = async (): Promise<Listing[]> => {
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] getListingsByLandownerCount (mock): Firestore not available. Counting mock listings for landowner.");
-    return mockListings.filter(l => l.landownerId === landownerId).length;
+    console.warn(`[MockData] getListingsByLandownerCount (mock): Counting mock listings for landowner ${landownerId}. Current mockListings count: ${mockListings.length}`);
+    const count = mockListings.filter(l => l.landownerId === landownerId).length;
+    console.warn(`[MockData] Found ${count} listings for landowner ${landownerId}.`);
+    return count;
   }
   try {
     const listingsCol = collection(db, "listings");
@@ -1050,3 +1052,4 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
     throw error; // Re-throw to be handled by the action
   }
 };
+
