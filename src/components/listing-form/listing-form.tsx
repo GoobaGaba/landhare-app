@@ -53,7 +53,7 @@ const listingFormSchema = z.object({
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string().min(1, "Landowner ID must be present in form data.").optional(), // Optional here as we set it manually
+  landownerId: z.string().optional(), // Optional here in client schema, as it's primarily handled by auth context
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -101,15 +101,13 @@ export function ListingForm() {
       images: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
-      landownerId: currentUser?.uid || undefined, // Initialize if available
+      landownerId: currentUser?.uid || undefined,
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
   useEffect(() => {
-    // This effect ensures the landownerId in the form's state (used by the hidden input)
-    // is kept in sync with the actual currentUser.uid from AuthContext.
     if (currentUser?.uid) {
       if (getValues('landownerId') !== currentUser.uid) {
         setValue('landownerId', currentUser.uid, { shouldValidate: false, shouldDirty: false });
@@ -295,22 +293,11 @@ export function ListingForm() {
       return;
     }
     
-    // DEBUG TOAST: Display currentUser.uid
-    toast({
-      title: "Debug: Landowner ID Check",
-      description: `Client-side currentUser.uid: '${currentUser.uid}'`,
-      variant: "default",
-      duration: 8000, 
-    });
-
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
-    // Explicitly append the confirmed currentUser.uid
     formDataToSubmit.append('landownerId', currentUser.uid);
 
-    // Destructure landownerId from RHF data to avoid sending it if it was from the hidden input
-    // and ensure we only use the directly confirmed currentUser.uid.
     const { landownerId: _rhfLandownerId, ...otherRHFData } = data;
     const submissionData = { ...otherRHFData, images: uploadedImageUrls };
 
@@ -379,7 +366,6 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Conditionally render hidden input; primary source of truth is now currentUser.uid in onSubmit */}
         {currentUser?.uid && <input type="hidden" {...register('landownerId')} value={currentUser.uid} />}
 
         <CardContent className="space-y-6">
@@ -668,7 +654,6 @@ export function ListingForm() {
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
           )}
-           {/* Display landownerId error if it exists on the client, though server action is primary check */}
            {errors.landownerId && (
               <Alert variant="destructive" className="mt-2">
                 <AlertCircle className="h-4 w-4" />

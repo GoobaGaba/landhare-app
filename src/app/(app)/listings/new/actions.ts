@@ -13,11 +13,11 @@ const ListingFormSchema = z.object({
   price: z.coerce.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive("Price must be a positive number"),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
-  amenities: z.array(z.string()).optional().default([]), // Made optional
+  amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string({ required_error: "Landowner ID is missing."}).min(1, "Landowner ID is required"),
+  landownerId: z.coerce.string({required_error: "Landowner ID is required."}).min(1, "Landowner ID is required and cannot be empty"),
 });
 
 export type ListingFormState = {
@@ -53,7 +53,7 @@ export async function createListingAction(
     price: formData.get('price'),
     pricingModel: formData.get('pricingModel'),
     leaseToOwnDetails: formData.get('leaseToOwnDetails') || undefined,
-    amenities: formData.getAll('amenities').map(String).filter(a => a), // Ensure empty strings from getAll are filtered if schema is optional
+    amenities: formData.getAll('amenities').map(String).filter(a => a),
     images: formData.getAll('images').map(String).filter(url => url),
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
@@ -73,9 +73,10 @@ export async function createListingAction(
 
   const currentUserId = validatedFields.data.landownerId;
 
-  if (!currentUserId) {
+  // This check is an extra layer, Zod validation should catch empty/null landownerId already
+  if (!currentUserId || currentUserId.trim() === '') {
     return {
-      message: "Authentication error: Could not determine landowner.",
+      message: "Authentication error: Could not determine landowner. Landowner ID is invalid or missing after validation.",
       success: false,
     };
   }
@@ -114,7 +115,7 @@ export async function createListingAction(
         price: validatedFields.data.price,
         pricingModel: validatedFields.data.pricingModel as Listing['pricingModel'],
         leaseToOwnDetails: validatedFields.data.leaseToOwnDetails,
-        amenities: validatedFields.data.amenities || [], // Ensure amenities is an array
+        amenities: validatedFields.data.amenities || [],
         images: validatedFields.data.images || [],
         leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined,
         minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ?? undefined,
