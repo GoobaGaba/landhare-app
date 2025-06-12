@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // Added useRouter
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +18,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast, toast as shadToastHook } from '@/hooks/use-toast'; // Renamed toast import to avoid conflict
+import { ToastAction } from "@/components/ui/toast"; // Added ToastAction
 import { useAuth } from '@/contexts/auth-context';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction } from '@/lib/actions/ai-actions';
 import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
 import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput } from '@/lib/types';
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const amenitiesList = [
@@ -68,7 +70,9 @@ const initialFormState: ListingFormState = { message: '', success: false };
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
-  const { toast } = useToast();
+  const { toast } = useToast(); // Using the destructured toast from our hook
+  const router = useRouter(); // Initialized useRouter
+
   const [formState, formAction] = useActionState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
 
@@ -206,7 +210,7 @@ export function ListingForm() {
     }
   };
 
-  useEffect(() => {
+ useEffect(() => {
     if (formState.message && !isPending) {
       if (formState.success) {
         if (!formSubmittedSuccessfully) {
@@ -214,6 +218,14 @@ export function ListingForm() {
             title: "Success!",
             description: formState.message,
             variant: "default",
+            action: formState.listingId ? (
+              <ToastAction
+                altText="View Listing"
+                onClick={() => router.push(`/listings/${formState.listingId}`)}
+              >
+                View
+              </ToastAction>
+            ) : undefined,
           });
           form.reset({
             title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
@@ -230,14 +242,14 @@ export function ListingForm() {
         }
       } else {
         toast({
-          title: "Error",
-          description: formState.message,
+          title: "Error Creating Listing",
+          description: formState.message || "An unknown error occurred.",
           variant: "destructive",
         });
         setFormSubmittedSuccessfully(false);
       }
     }
-  }, [formState, isPending, toast, form, formSubmittedSuccessfully]);
+  }, [formState, isPending, toast, form, formSubmittedSuccessfully, router]);
 
   useEffect(() => {
     if (formSubmittedSuccessfully && form.formState.isDirty) {
@@ -296,7 +308,7 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-     if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
+    if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
       toast({
         title: "Form Submission Blocked",
         description: `Auth Loading: ${authLoading}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
@@ -311,7 +323,9 @@ export function ListingForm() {
 
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
-    const submissionData = { ...data, images: uploadedImageUrls };
+    const { ...listingDataForDb } = data;
+    const submissionData = { ...listingDataForDb, images: uploadedImageUrls };
+
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -325,7 +339,7 @@ export function ListingForm() {
       }
     });
     
-    if(selectedFiles.length > 0){
+    if(selectedFiles.length > 0 && uploadedImageUrls.every(url => url.startsWith("blob:"))){
         toast({
             title: "Image Upload Note",
             description: "Image selection is for demonstration. Actual file uploads to cloud storage and URL generation for listings require separate backend implementation. Using preview URLs as placeholders.",
