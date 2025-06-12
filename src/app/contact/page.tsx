@@ -80,9 +80,10 @@ export default function ContactPage() {
                 <p className="text-sm text-muted-foreground mb-3">
                     Many common questions are answered in our FAQ section.
                 </p>
-                <Button variant="outline" asChild>
+                {/* <Button variant="outline" asChild>
                     <Link href="/faq">Visit FAQ</Link>
-                </Button>
+                </Button> */}
+                 <p className="text-sm text-muted-foreground">FAQ page is temporarily unavailable while we resolve a build issue.</p>
             </CardContent>
           </Card>
 
