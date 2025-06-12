@@ -8,8 +8,7 @@ import Link from "next/link";
 import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking } from '@/lib/types';
-// Updated to use Firestore-backed functions
-import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getUserById, getListingById } from '@/lib/mock-data'; // Renamed getBookings to getBookingsForUser
+import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus } from '@/lib/mock-data';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
@@ -21,19 +20,34 @@ export default function BookingsPage() {
   const { toast } = useToast();
 
   const loadBookings = useCallback(async () => {
-    if (firebaseInitializationError || !currentUser) {
+    if (firebaseInitializationError && !currentUser) { // Only fully block if no mock user is available either
       setIsLoading(false);
       setUserBookings([]);
       if (firebaseInitializationError) {
-        toast({ title: "Database Error", description: "Cannot load bookings: " + firebaseInitializationError, variant: "destructive" });
+          toast({ 
+            title: "Preview Mode Active", 
+            description: "Firebase not configured. Cannot load live bookings. Displaying sample data if available or an empty state.", 
+            variant: "default",
+            duration: 5000  
+          });
       }
       return;
     }
+    
+    if (firebaseInitializationError && currentUser) { // Firebase down, but we have a mock user
+         toast({ 
+            title: "Preview Mode Active", 
+            description: "Firebase not configured. Displaying sample bookings for preview.", 
+            variant: "default",
+            duration: 5000  
+        });
+    }
+
     setIsLoading(true);
     
     try {
-      const bookingsFromDb = await getBookingsForUser(currentUser.uid);
-      // The new getBookingsForUser already populates names and titles.
+      // getBookingsForUser will use mock data if firebaseInitializationError and currentUser.uid is mock
+      const bookingsFromDb = await getBookingsForUser(currentUser!.uid); 
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
@@ -42,7 +56,7 @@ export default function BookingsPage() {
         description: error.message || "Could not load your bookings.",
         variant: "destructive",
       });
-      setUserBookings([]);
+      setUserBookings([]); // Fallback to empty if error during fetch (even mock)
     } finally {
       setIsLoading(false);
     }
@@ -56,11 +70,26 @@ export default function BookingsPage() {
 
 
   const handleUpdateBookingStatus = async (bookingId: string, newStatus: Booking['status']) => {
-    if (firebaseInitializationError || !currentUser) {
-        toast({ title: "Authentication/Database Error", description: "Cannot update booking: " + (firebaseInitializationError || "User not logged in."), variant: "destructive"});
+    if (firebaseInitializationError) {
+        toast({ 
+            title: "Preview Mode", 
+            description: "Updating booking status is disabled in preview mode.", 
+            variant: "default"
+        });
+        // Simulate update for mock data if needed by calling dbUpdateBookingStatus which handles mock
+        if (currentUser) {
+             try {
+                await dbUpdateBookingStatus(bookingId, newStatus);
+                loadBookings(); // Re-load mock bookings
+             } catch (e) { /* ignore mock update error */ }
+        }
         return;
     }
-    // Optimistic UI update (can be removed if direct re-fetch is preferred)
+    if(!currentUser){
+         toast({ title: "Authentication Error", description: "User not logged in.", variant: "destructive"});
+        return;
+    }
+
     const originalBookings = [...userBookings];
     setUserBookings(prevBookings => 
       prevBookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
@@ -73,7 +102,7 @@ export default function BookingsPage() {
           title: "Booking Updated",
           description: `Booking status changed to ${newStatus}.`,
         });
-        await loadBookings(); // Re-fetch to ensure UI consistency
+        await loadBookings(); 
       } else {
         throw new Error("Update operation returned undefined.");
       }
@@ -95,7 +124,6 @@ export default function BookingsPage() {
   };
   
   const formatDateRange = (dateRange: { from: Date; to: Date }): string => {
-    // Ensure dates are JS Date objects
     const fromDate = dateRange.from instanceof Date ? dateRange.from : (dateRange.from as any).toDate();
     const toDate = dateRange.to instanceof Date ? dateRange.to : (dateRange.to as any).toDate();
     return `${format(fromDate, "PPP")} - ${format(toDate, "PPP")}`;
@@ -110,27 +138,7 @@ export default function BookingsPage() {
     );
   }
   
-  if (firebaseInitializationError) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-destructive" />
-            Service Unavailable
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            The booking service is temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
-          </p>
-           <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-
-  if (!currentUser) {
+  if (!currentUser && !isLoading) { // If no user (even mock) after loading.
      return (
       <Card>
         <CardHeader>
@@ -176,6 +184,7 @@ export default function BookingsPage() {
           <CardContent>
             <p className="text-muted-foreground">
              You don't have any active bookings or requests at the moment.
+            {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
             </p>
             <div className="flex gap-2 mt-4">
                 <Button asChild>
@@ -199,10 +208,10 @@ export default function BookingsPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
-                {booking.landownerId === currentUser.uid && (
+                {booking.landownerId === currentUser!.uid && (
                   <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p>
                 )}
-                {booking.renterId === currentUser.uid && (
+                {booking.renterId === currentUser!.uid && (
                   <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p>
                 )}
               </CardContent>
@@ -210,12 +219,13 @@ export default function BookingsPage() {
                 <Button variant="outline" size="sm" asChild>
                    <Link href={`/listings/${booking.listingId}`}>View Listing</Link>
                 </Button>
-                {booking.landownerId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
+                {booking.landownerId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
                   <>
                     <Button 
                       size="sm" 
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={() => handleUpdateBookingStatus(booking.id, 'Confirmed')}
+                      disabled={firebaseInitializationError !== null && !currentUser!.appProfile} // Disable if firebase error and not a mock user with appProfile
                     >
                       <CheckCircle className="mr-2 h-4 w-4" /> Approve
                     </Button>
@@ -223,16 +233,18 @@ export default function BookingsPage() {
                       variant="destructive" 
                       size="sm"
                       onClick={() => handleUpdateBookingStatus(booking.id, 'Declined')}
+                      disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
                     >
                       <XCircle className="mr-2 h-4 w-4" /> Decline
                     </Button>
                   </>
                 )}
-                 {booking.renterId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
+                 {booking.renterId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
                   <Button 
                     variant="destructive" 
                     size="sm"
                     onClick={() => handleUpdateBookingStatus(booking.id, 'Cancelled')}
+                    disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
                   >
                     <AlertTriangle className="mr-2 h-4 w-4" /> Cancel Request
                   </Button>

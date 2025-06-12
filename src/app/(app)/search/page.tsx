@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from '@/hooks/use-toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth-context'; // Import useAuth
+import { useAuth } from '@/contexts/auth-context';
 
 const ITEMS_PER_PAGE = 6; 
 const initialPriceRange: [number, number] = [0, 2000];
@@ -26,7 +26,7 @@ export default function SearchPage() {
   const [allListings, setAllListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { subscriptionStatus } = useAuth(); // Get subscription status
+  const { subscriptionStatus } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState<[number, number]>(initialPriceRange);
@@ -41,23 +41,23 @@ export default function SearchPage() {
   useEffect(() => {
     const loadInitialListings = async () => {
       if (firebaseInitializationError) {
-        toast({ title: "Database Error", description: "Cannot load listings: " + firebaseInitializationError, variant: "destructive" });
-        setIsLoading(false);
-        setAllListings([]);
-        setFilteredListings([]);
-        return;
+        toast({ 
+            title: "Preview Mode Active", 
+            description: "Firebase not configured. Displaying sample listings for preview.", 
+            variant: "default",
+            duration: 5000 
+        });
       }
       setIsLoading(true);
       try {
-        const listings = await fetchAllListings();
+        // fetchAllListings will return mock data if firebaseInitializationError is set
+        const listings = await fetchAllListings(); 
         const availableListings = listings.filter(l => l.isAvailable);
         setAllListings(availableListings);
-        setFilteredListings(availableListings); 
       } catch (error: any) {
         console.error("Error fetching listings:", error);
         toast({ title: "Loading Error", description: error.message || "Could not load listings.", variant: "destructive" });
-        setAllListings([]);
-        setFilteredListings([]);
+        setAllListings([]); // Fallback to empty if even mock fetching fails
       } finally {
         setIsLoading(false);
       }
@@ -108,29 +108,35 @@ export default function SearchPage() {
         listings = listings.filter(l => l.leaseTerm === selectedLeaseTerm);
     }
 
-    // Placeholder for "Boosted Exposure" for premium listings
-    // If listings had a 'isBoosted' flag (set if landowner is premium):
-    // listings.sort((a, b) => {
-    //   if (a.isBoosted && !b.isBoosted) return -1;
-    //   if (!a.isBoosted && b.isBoosted) return 1;
-    //   // then apply other sorting
-    // });
-
     listings = [...listings].sort((a, b) => {
+      let comparison = 0;
+      // Prioritize boosted listings if not sorting by price/size specifically
+      if (sortBy.includes('rating') || sortBy === 'default_sort_perhaps') { // Assuming default or rating sort considers boost
+          if (a.isBoosted && !b.isBoosted) comparison = -1;
+          if (!a.isBoosted && b.isBoosted) comparison = 1;
+          if (comparison !== 0) return comparison;
+      }
+      
       switch (sortBy) {
         case 'price_asc':
-          return a.pricePerMonth - b.pricePerMonth;
+          comparison = a.pricePerMonth - b.pricePerMonth;
+          break;
         case 'price_desc':
-          return b.pricePerMonth - a.pricePerMonth;
+          comparison = b.pricePerMonth - a.pricePerMonth;
+          break;
         case 'size_asc':
-          return a.sizeSqft - b.sizeSqft;
+          comparison = a.sizeSqft - b.sizeSqft;
+          break;
         case 'size_desc':
-          return b.sizeSqft - a.sizeSqft;
+          comparison = b.sizeSqft - a.sizeSqft;
+          break;
         case 'rating_desc':
-          return (b.rating || 0) - (a.rating || 0);
+          comparison = (b.rating || 0) - (a.rating || 0);
+          break;
         default:
-          return 0;
+          comparison = 0;
       }
+      return comparison;
     });
 
     setFilteredListings(listings);
@@ -159,28 +165,6 @@ export default function SearchPage() {
     );
   }
   
-  if (firebaseInitializationError && !isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-              Service Unavailable
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Land search is temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       <div className="w-full lg:w-1/3 xl:w-1/4">
@@ -225,8 +209,6 @@ export default function SearchPage() {
                 <SelectItem value="price_desc">Price (High to Low)</SelectItem>
                 <SelectItem value="size_asc">Size (Small to Large)</SelectItem>
                 <SelectItem value="size_desc">Size (Large to Small)</SelectItem>
-                {/* Add a sort option for "Boosted" if implemented */}
-                {/* <SelectItem value="boosted_first">Featured First</SelectItem> */}
               </SelectContent>
             </Select>
             <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" disabled={firebaseInitializationError !== null}>
@@ -245,18 +227,18 @@ export default function SearchPage() {
             <Sparkles className="h-4 w-4 text-primary" />
             <AlertTitle className="font-semibold">Premium Search</AlertTitle>
             <AlertDescription>
-              As a Premium member, you might see boosted listings or have access to advanced search filters in the future!
+              As a Premium member, your listings are boosted and you may see advanced search filters in the future!
             </AlertDescription>
           </Alert>
         )}
 
-
-        {filteredListings.length === 0 && !firebaseInitializationError ? (
+        {filteredListings.length === 0 && !isLoading ? (
           <Alert>
             <SearchIcon className="h-4 w-4" />
             <AlertTitle>No Listings Found</AlertTitle>
             <AlertDescription>
               Try adjusting your filters or search term.
+              {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
             </AlertDescription>
           </Alert>
         ) : (
