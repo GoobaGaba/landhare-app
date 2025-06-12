@@ -19,9 +19,9 @@ import {
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
 
-export const FREE_TIER_LISTING_LIMIT = 2; // Updated as per previous discussion if listing form allows more.
+export const FREE_TIER_LISTING_LIMIT = 1; // Free users can list 1 property.
 
-let mockUsers: User[] = [
+export let mockUsers: User[] = [
   {
     id: 'mock-user-uid-12345',
     name: 'Mock UI Tester',
@@ -905,3 +905,5 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     return undefined;
   }
 };
+
+    
