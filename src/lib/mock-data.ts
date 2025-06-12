@@ -26,7 +26,7 @@ export const FREE_TIER_BOOKMARK_LIMIT = 5;
 
 // Simple versioning for mock data to trigger re-fetches in components
 export let mockDataVersion = 0;
-console.log(`[MockData] Initial mockDataVersion: ${mockDataVersion}`);
+// console.log(`[MockData] Initial mockDataVersion: ${mockDataVersion}`);
 
 export const incrementMockDataVersion = (source: string) => {
   mockDataVersion++;
@@ -80,7 +80,7 @@ export let mockUsers: User[] = [
     bio: 'Looking for a quiet place for my tiny home.',
     bookmarkedListingIds: ['listing-2-forest-retreat'],
   },
-  MOCK_GOOGLE_USER_FOR_UI_TESTING, // Add the mock Google user to the list
+  MOCK_GOOGLE_USER_FOR_UI_TESTING,
 ];
 
 export let mockListings: Listing[] = [
@@ -113,7 +113,7 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 200,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
-    landownerId: 'mock-user-uid-12345', // Premium user listing
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
@@ -150,14 +150,14 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 400,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
-    landownerId: 'mock-user-uid-12345', // Premium user listing
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: true,
     rating: 4.9,
     numberOfRatings: 22,
     leaseTerm: 'long-term',
     minLeaseDurationMonths: 12,
     isBoosted: true,
-    createdAt: new Date('2024-07-10T10:00:00Z'), // Very recent
+    createdAt: new Date('2024-07-10T10:00:00Z'), 
   },
   {
     id: 'listing-5-cozy-rv-spot',
@@ -182,13 +182,13 @@ export let mockListings: Listing[] = [
     title: 'Mountain Homestead - Lease to Own!',
     description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm. Terms negotiable.',
     location: 'Boone, NC',
-    sizeSqft: 45000, // 1 acre+
-    amenities: ['road access', 'septic system' ], // Assume septic is available or perk test done
+    sizeSqft: 45000, 
+    amenities: ['road access', 'septic system' ], 
     pricingModel: 'lease-to-own',
     price: 650,
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
-    landownerId: 'mock-user-uid-12345', // Premium user listing
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: true,
     rating: 4.3,
     numberOfRatings: 5,
@@ -202,7 +202,7 @@ export let mockListings: Listing[] = [
     title: 'Basic Rural Plot - Affordable Monthly!',
     description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping (check local ordinances) or a very simple, self-contained setup.',
     location: 'Rural Plains, KS',
-    sizeSqft: 22000, // Roughly half acre
+    sizeSqft: 22000, 
     amenities: [],
     pricingModel: 'monthly',
     price: 75,
@@ -225,14 +225,14 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 1200,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
-    landownerId: 'mock-user-uid-12345', // Premium user listing
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: false,
     rating: 4.9,
     numberOfRatings: 35,
-    isBoosted: true, // Still boosted even if rented to show in "My Listings" for premium user
+    isBoosted: true, 
     leaseTerm: 'long-term',
     minLeaseDurationMonths: 12,
-    createdAt: new Date('2023-08-10T12:00:00Z'), // Older listing
+    createdAt: new Date('2023-08-10T12:00:00Z'), 
   }
 ];
 
@@ -282,7 +282,7 @@ export let mockBookings: Booking[] = [
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Confirmed',
-    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') }, // 5 nights
+    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') }, 
     createdAt: new Date('2024-06-01T10:00:00Z'),
   },
   {
@@ -293,20 +293,20 @@ export let mockBookings: Booking[] = [
     renterName: 'John Smith',
     landownerId: 'mock-user-uid-12345',
     landownerName: 'Mock UI Tester',
-    status: 'Pending Confirmation', // LTO inquiries also start as pending
-    dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') }, // 5 year LTO
+    status: 'Pending Confirmation', 
+    dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') }, 
     createdAt: new Date('2024-07-25T10:00:00Z'),
   },
   {
     id: 'booking-6-mockuser-pending',
     listingId: 'listing-1-sunny-meadow',
     listingTitle: 'Sunny Meadow Plot',
-    renterId: 'mock-user-uid-12345', // Mock user is the renter
+    renterId: 'mock-user-uid-12345', 
     renterName: 'Mock UI Tester',
-    landownerId: 'landowner-jane-doe', // Jane Doe is landowner
+    landownerId: 'landowner-jane-doe', 
     landownerName: 'Jane Doe',
     status: 'Pending Confirmation',
-    dateRange: { from: new Date('2024-10-01'), to: new Date('2024-10-15') }, // 15 days for monthly listing
+    dateRange: { from: new Date('2024-10-01'), to: new Date('2024-10-15') }, 
     createdAt: new Date('2024-07-28T11:00:00Z'),
   },
 ];
@@ -324,7 +324,7 @@ export let mockReviews: Review[] = [
   {
     id: 'review-2',
     listingId: 'listing-2-forest-retreat',
-    userId: 'landowner-jane-doe', // Jane reviewing Mock Tester's listing
+    userId: 'landowner-jane-doe', 
     userName: 'Jane Doe',
     rating: 4,
     comment: 'Nice and secluded, a bit rough around the edges but has potential. Mock Tester was responsive.',
@@ -342,16 +342,16 @@ export let mockReviews: Review[] = [
   {
     id: 'review-4-lto',
     listingId: 'listing-6-mountain-homestead-lto',
-    userId: 'renter-john-smith', // John Smith inquiring about LTO
+    userId: 'renter-john-smith', 
     userName: 'John Smith',
-    rating: 4, // Rating the interaction/info phase for LTO
+    rating: 4, 
     comment: 'Interesting LTO option. Land is raw but promising. Landowner (Mock Tester) was helpful with initial info.',
     createdAt: new Date('2024-05-01T10:00:00Z'),
   },
   {
     id: 'review-5-basic',
     listingId: 'listing-7-basic-rural-plot',
-    userId: 'mock-user-uid-12345', // Mock tester reviewing basic plot
+    userId: 'mock-user-uid-12345', 
     userName: 'Mock UI Tester',
     rating: 2,
     comment: 'It truly is basic, but the price was right for what it is. No surprises. Good for minimalists.',
@@ -393,17 +393,17 @@ const mapDocToListing = (docSnap: any): Listing => {
     location: data.location,
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
-    pricingModel: data.pricingModel || 'monthly',
-    price: data.price, // Unified price field, expect it to be present
+    pricingModel: data.pricingModel || 'monthly', 
+    price: data.price, 
     leaseToOwnDetails: data.leaseToOwnDetails,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`],
     landownerId: data.landownerId,
-    isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
+    isAvailable: data.isAvailable !== undefined ? data.isAvailable : true, 
     rating: data.rating,
     numberOfRatings: data.numberOfRatings,
     leaseTerm: data.leaseTerm,
     minLeaseDurationMonths: data.minLeaseDurationMonths,
-    isBoosted: data.isBoosted || false,
+    isBoosted: data.isBoosted || false, 
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
 };
@@ -451,10 +451,10 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
-    // Fallback to mock if not found in DB during potential transition or testing
+    
     const mockUser = mockUsers.find(user => user.id === id);
     if (mockUser) {
-        console.warn(`[MockData] User ${id} not found in Firestore, returning mock user.`);
+        // console.warn(`[MockData] User ${id} not found in Firestore, returning mock user.`);
         return mockUser;
     }
     return undefined;
@@ -477,7 +477,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
   };
 
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] createUserProfile (mock): Firestore not available. Adding/updating user in mock data.");
+    // console.warn("[MockData] createUserProfile (mock): Firestore not available. Adding/updating user in mock data.");
     const existingUserIndex = mockUsers.findIndex(u => u.id === userId);
     if (existingUserIndex !== -1) {
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
@@ -516,14 +516,14 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError || !db) {
-        console.warn("[MockData] updateUserProfile (mock): Firestore not available. Updating user profile in mock data for user:", userId);
+        // console.warn("[MockData] updateUserProfile (mock): Firestore not available. Updating user profile in mock data for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
             if (data.subscriptionStatus) {
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
             }
-            if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
+            if (data.bookmarkedListingIds) { 
                 mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
             incrementMockDataVersion('updateUserProfile_mock');
@@ -548,14 +548,14 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         return undefined;
     } catch (error) {
         console.error("[MockData] Error updating user profile in Firestore for user:", userId, error);
-        console.warn("[MockData] Attempting mock update as fallback for user:", userId);
+        // console.warn("[MockData] Attempting mock update as fallback for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
              if (data.subscriptionStatus) {
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
             }
-            if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
+            if (data.bookmarkedListingIds) { 
                 mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
             incrementMockDataVersion('updateUserProfile_fallback');
@@ -576,7 +576,7 @@ export const getListings = async (): Promise<Listing[]> => {
         const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
         return timeB - timeA;
     });
-    return Promise.resolve([...sortedMockListings]); // Return a new array
+    return Promise.resolve([...sortedMockListings]); 
   }
   try {
     const listingsCol = collection(db, "listings");
@@ -584,7 +584,7 @@ export const getListings = async (): Promise<Listing[]> => {
     const listingSnapshot = await getDocs(q);
     return listingSnapshot.docs.map(mapDocToListing);
   } catch (error) {
-    console.error("[MockData] Error fetching listings from Firestore, using mock data:", error);
+    console.error("[MockData] Error fetching listings from Firestore, using mock data as fallback:", error);
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -592,7 +592,7 @@ export const getListings = async (): Promise<Listing[]> => {
         const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
         return timeB - timeA;
     });
-    return Promise.resolve([...sortedMockListings]); // Return a new array
+    return Promise.resolve([...sortedMockListings]); 
   }
 };
 
@@ -609,7 +609,7 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
     const snapshot = await getCountFromServer(q);
     return snapshot.data().count;
   } catch (error) {
-    console.error("[MockData] Error fetching listings count from Firestore, counting mock listings:", error);
+    console.error("[MockData] Error fetching listings count from Firestore, counting mock listings as fallback:", error);
     return mockListings.filter(l => l.landownerId === landownerId).length;
   }
 };
@@ -625,9 +625,10 @@ export const getListingById = async (id: string): Promise<Listing | undefined> =
     if (listingSnap.exists()) {
       return mapDocToListing(listingSnap);
     }
+    // console.warn(`[MockData] Listing ${id} not found in Firestore, trying mock data.`);
     return mockListings.find(listing => listing.id === id);
   } catch (error) {
-    console.error("[MockData] Error fetching listing by ID from Firestore, using mock data:", error);
+    console.error("[MockData] Error fetching listing by ID from Firestore, using mock data as fallback:", error);
     return mockListings.find(listing => listing.id === id);
   }
 };
@@ -637,8 +638,9 @@ export const addListing = async (
   landownerId: string,
   isLandownerPremium: boolean = false
 ): Promise<Listing> => {
+  const creationTimestamp = new Date();
   const newListingData: Listing = {
-    id: `mock-listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, // ID for mock, Firestore generates its own
+    id: `mock-listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, 
     ...data,
     landownerId: landownerId,
     isAvailable: true,
@@ -646,28 +648,27 @@ export const addListing = async (
     rating: undefined,
     numberOfRatings: 0,
     isBoosted: isLandownerPremium,
-    createdAt: new Date(),
+    createdAt: creationTimestamp,
   };
 
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Full data:`, newListingData);
-    mockListings.unshift(newListingData); // Add to the beginning of the array
+    // console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Data:`, newListingData);
+    mockListings.unshift(newListingData); 
     incrementMockDataVersion('addListing_mock');
-    // console.log(`[MockData] addListing (mock): Current mockListings count: ${mockListings.length}. Titles: ${mockListings.map(l => l.title).join(', ')}`);
     return Promise.resolve(newListingData);
   }
 
   try {
     const listingsCol = collection(db, "listings");
     const firestoreReadyData = {
-      ...data,
+      ...data, 
       landownerId: landownerId,
       isAvailable: true,
-      images: newListingData.images,
-      rating: null,
+      images: newListingData.images, 
+      rating: null, 
       numberOfRatings: 0,
       isBoosted: isLandownerPremium,
-      createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
+      createdAt: Timestamp.fromDate(creationTimestamp), 
     };
 
     const docRef = await addDoc(listingsCol, firestoreReadyData);
@@ -688,7 +689,7 @@ export const addListing = async (
 
 export const deleteListing = async (listingId: string): Promise<boolean> => {
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] deleteListing (mock): Firestore not available. Deleting listing from mock data.");
+    // console.warn("[MockData] deleteListing (mock): Firestore not available. Deleting listing from mock data.");
     const initialLength = mockListings.length;
     mockListings = mockListings.filter(l => l.id !== listingId);
     mockBookings = mockBookings.filter(b => b.listingId !== listingId);
@@ -701,8 +702,14 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
   }
 
   try {
-    const batch = writeBatch(db);
+    const batch = writeBatch(db); 
     const listingDocRef = doc(db, "listings", listingId);
+
+    const listingSnap = await getDoc(listingDocRef);
+    if (!listingSnap.exists()) {
+      // console.warn(`[MockData] deleteListing (Firestore): Listing ${listingId} not found.`);
+      return false; 
+    }
     batch.delete(listingDocRef);
 
     const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
@@ -714,18 +721,11 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     reviewsSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
 
     await batch.commit();
+    // console.log(`[MockData] deleteListing (Firestore): Successfully deleted listing ${listingId} and associated data.`);
     return true;
   } catch (error) {
-    console.error("[MockData] Error deleting listing from Firestore:", error);
-    const initialLength = mockListings.length;
-    mockListings = mockListings.filter(l => l.id !== listingId);
-    mockBookings = mockBookings.filter(b => b.listingId !== listingId);
-    mockReviews = mockReviews.filter(r => r.listingId !== listingId);
-    const deleted = mockListings.length < initialLength;
-     if (deleted) {
-        incrementMockDataVersion('deleteListing_fallback');
-    }
-    return Promise.resolve(deleted);
+    console.error(`[MockData] deleteListing (Firestore): Error deleting listing ${listingId}:`, error);
+    throw error; 
   }
 };
 
@@ -754,7 +754,7 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
     }));
     return reviewsWithUserData;
   } catch (error) {
-    console.error("[MockData] Error fetching reviews from Firestore, using mock data:", error);
+    console.error("[MockData] Error fetching reviews from Firestore, using mock data as fallback:", error);
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
         .sort((a,b) => {
            const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
@@ -775,6 +775,7 @@ export const addReview = async (
   comment: string
 ): Promise<Review> => {
   const userAddingReview = await getUserById(userId);
+  const creationTimestamp = new Date();
   const newReview: Review = {
     id: `mock-review-${Date.now()}`,
     listingId,
@@ -782,11 +783,11 @@ export const addReview = async (
     userName: userAddingReview?.name || `User...${userId.slice(-4)}`,
     rating,
     comment,
-    createdAt: new Date(),
+    createdAt: creationTimestamp,
   };
 
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] addReview (mock): Firestore not available. Adding review to mock data.");
+    // console.warn("[MockData] addReview (mock): Firestore not available. Adding review to mock data.");
     mockReviews.unshift(newReview);
     const listing = mockListings.find(l => l.id === listingId);
     if (listing) {
@@ -806,7 +807,7 @@ export const addReview = async (
         userName: newReview.userName,
         rating: newReview.rating,
         comment: newReview.comment,
-        createdAt: Timestamp.fromDate(newReview.createdAt as Date),
+        createdAt: Timestamp.fromDate(creationTimestamp),
     };
 
     const docRef = await addDoc(reviewsCol, firestoreReviewData);
@@ -872,13 +873,13 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc") 
     );
     const bookingSnapshot = await getDocs(q);
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
     return Promise.all(bookings.map(populateBookingDetails));
   } catch (error) {
-    console.error("[MockData] Error fetching bookings from Firestore, using mock data:", error);
+    console.error("[MockData] Error fetching bookings from Firestore, using mock data as fallback:", error);
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
         .sort((a,b) => {
             const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
@@ -898,20 +899,21 @@ export const addBookingRequest = async (
 
   const renterInfo = await getUserById(data.renterId);
   const landownerInfo = await getUserById(listingInfo.landownerId);
+  const creationTimestamp = new Date();
 
   const newBooking: Booking = {
     id: `mock-booking-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     ...data,
     landownerId: listingInfo.landownerId,
     status: 'Pending Confirmation',
-    createdAt: new Date(),
+    createdAt: creationTimestamp,
     listingTitle: listingInfo.title,
     renterName: renterInfo?.name,
     landownerName: landownerInfo?.name,
   };
 
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] addBookingRequest (mock): Firestore not available. Adding booking request to mock data.");
+    // console.warn("[MockData] addBookingRequest (mock): Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
     incrementMockDataVersion('addBookingRequest_mock');
     return populateBookingDetails(newBooking);
@@ -931,7 +933,7 @@ export const addBookingRequest = async (
         from: Timestamp.fromDate(data.dateRange.from),
         to: Timestamp.fromDate(data.dateRange.to),
       },
-      createdAt: Timestamp.fromDate(newBooking.createdAt as Date),
+      createdAt: Timestamp.fromDate(creationTimestamp),
     };
     const docRef = await addDoc(bookingsCol, firestoreBookingData);
     const newDocSnap = await getDoc(docRef);
@@ -951,7 +953,7 @@ export const addBookingRequest = async (
 
 export const updateBookingStatus = async (bookingId: string, status: Booking['status']): Promise<Booking | undefined> => {
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] updateBookingStatus (mock): Firestore not available. Updating booking status in mock data.");
+    // console.warn("[MockData] updateBookingStatus (mock): Firestore not available. Updating booking status in mock data.");
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
@@ -971,7 +973,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     }
     return undefined;
   } catch (error) {
-    console.error("[MockData] Error updating booking status in Firestore, attempting mock update:", error);
+    console.error("[MockData] Error updating booking status in Firestore, attempting mock update as fallback:", error);
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
@@ -994,13 +996,13 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
 
   const currentBookmarks = user.bookmarkedListingIds || [];
   if (currentBookmarks.includes(listingId)) {
-    return user; // Already bookmarked
+    return user; 
   }
 
   const updatedBookmarks = [...currentBookmarks, listingId];
 
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] addBookmarkToList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
+    // console.warn("[MockData] addBookmarkToList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
@@ -1019,7 +1021,7 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
     return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
   } catch (error) {
     console.error("[MockData] Error adding bookmark in Firestore for user:", userId, error);
-    throw error; // Re-throw to be handled by the action
+    throw error; 
   }
 };
 
@@ -1029,13 +1031,13 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
 
   const currentBookmarks = user.bookmarkedListingIds || [];
   if (!currentBookmarks.includes(listingId)) {
-    return user; // Not bookmarked, nothing to remove
+    return user; 
   }
 
   const updatedBookmarks = currentBookmarks.filter(id => id !== listingId);
 
   if (firebaseInitializationError || !db) {
-    console.warn("[MockData] removeBookmarkFromList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
+    // console.warn("[MockData] removeBookmarkFromList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
@@ -1054,9 +1056,6 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
     return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
   } catch (error) {
     console.error("[MockData] Error removing bookmark in Firestore for user:", userId, error);
-    throw error; // Re-throw to be handled by the action
+    throw error; 
   }
 };
-
-
-    
