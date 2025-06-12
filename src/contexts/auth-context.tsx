@@ -95,12 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   
-    setSubscriptionStatus('loading'); 
+    // Keep subscriptionStatus 'loading' until profile is fetched or default applied
+    // setSubscriptionStatus('loading'); // Already handled by initial state or when user changes
     try {
       let userProfile: AppUserType | undefined;
       if (firebaseInitializationError && firebaseUser.uid === MOCK_USER_FOR_UI_TESTING.uid) {
           userProfile = MOCK_USER_FOR_UI_TESTING.appProfile;
-      } else if (firebaseInitializationError && firebaseUser.uid === MOCK_GOOGLE_USER_FOR_UI_TESTING.id) { // Use .id for appProfile's ID
+      } else if (firebaseInitializationError && firebaseUser.uid === MOCK_GOOGLE_USER_FOR_UI_TESTING.id) {
           userProfile = MOCK_GOOGLE_USER_FOR_UI_TESTING.appProfile;
       } else if (firebaseInitializationError) {
           userProfile = mockUsers.find(u => u.id === firebaseUser.uid);
@@ -109,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       const currentSubStatus = userProfile?.subscriptionStatus || 'free';
-      setSubscriptionStatus(currentSubStatus);
+      setSubscriptionStatus(currentSubStatus); // Set actual status once fetched
       
       const appProfileWithDefaults: AppUserType = {
         id: firebaseUser.uid,
@@ -140,21 +141,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
+    setLoading(true); // Ensure loading is true at the start of this effect
     if (firebaseInitializationError) {
       console.warn("Auth Context: Firebase not available. Initializing with NO user signed in.");
       setCurrentUser(null); 
       setSubscriptionStatus('free'); 
-      setLoading(false);
       setAuthError(firebaseInitializationError); 
+      setLoading(false);
       return; 
     }
 
     setAuthError(null); 
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, async (user) => {
-      setLoading(true); // Set loading true at the start of auth change
+      setLoading(true); 
       const userWithProfile = await fetchAndSetAppProfile(user);
       setCurrentUser(userWithProfile);
-      setLoading(false); // Set loading false after profile is fetched and user is set
+      setLoading(false); 
     }, (error) => {
       console.error("Auth State Listener Error:", error);
       setAuthError(error.message || "Error in auth state listener.");
@@ -258,7 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (firebaseInitializationError || !firebaseAuthInstance) {
       console.warn("Firebase not available. Simulating Google sign in.");
       const mockGoogleUserFirebasePart = {
-        uid: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, // Use .id for the UID part
+        uid: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, 
         email: MOCK_GOOGLE_USER_FOR_UI_TESTING.email,
         displayName: MOCK_GOOGLE_USER_FOR_UI_TESTING.name,
         photoURL: MOCK_GOOGLE_USER_FOR_UI_TESTING.avatarUrl,
@@ -329,12 +331,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       await firebaseSignOut(firebaseAuthInstance);
-      // onAuthStateChanged will handle setting currentUser to null and loading to false
+      // onAuthStateChanged will handle setting currentUser to null, loading to false, and subscriptionStatus to 'free'
     } catch (err) {
       const firebaseErr = err as AuthError;
       console.error("Firebase logout error:", firebaseErr);
       setAuthError(firebaseErr.message || "Error during logout.");
-      setLoading(false); // Ensure loading is false on error too
+      setLoading(false); 
       throw firebaseErr;
     }
   };
@@ -367,37 +369,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentUser, fetchAndSetAppProfile]);
 
   const updateCurrentAppUserProfile = async (data: Partial<AppUserType>): Promise<CurrentUser | null> => {
-    if (!currentUser) {
-        toast({ title: "Error", description: "Not logged in.", variant: "destructive"});
+    if (!currentUser?.uid) {
+        toast({ title: "Error", description: "Not logged in or user ID missing.", variant: "destructive"});
         return null;
     }
-    setAuthError(null);
     setLoading(true);
+    setAuthError(null);
     try {
-        const updatedAppProfile = await updateAppUserProfileDb(currentUser.uid, data);
-        
-        if (updatedAppProfile) {
-            if (data.name && firebaseAuthInstance && currentUser.displayName !== data.name) {
-               await updateFirebaseProfile(currentUser, { displayName: data.name });
-            }
-            if (data.avatarUrl && firebaseAuthInstance && currentUser.photoURL !== data.avatarUrl) {
-               await updateFirebaseProfile(currentUser, { photoURL: data.avatarUrl });
-            }
+        const updatedAppProfileFromDb = await updateAppUserProfileDb(currentUser.uid, data);
 
-            const refreshedUser = await fetchAndSetAppProfile(currentUser); 
-            setCurrentUser(refreshedUser); 
-            toast({ title: "Profile Updated", description: "Your profile information has been saved."});
-            setLoading(false);
-            return refreshedUser;
+        if (!updatedAppProfileFromDb) {
+            throw new Error("Failed to update user profile in the database.");
         }
+
+        // If name or avatarUrl changed in `data`, update Firebase Auth user profile
+        if (data.name && firebaseAuthInstance && currentUser.displayName !== data.name) {
+           await updateFirebaseProfile(currentUser, { displayName: data.name });
+        }
+        if (data.avatarUrl && firebaseAuthInstance && currentUser.photoURL !== data.avatarUrl) {
+           await updateFirebaseProfile(currentUser, { photoURL: data.avatarUrl });
+        }
+        
+        // Construct the new CurrentUser state with the updated appProfile
+        // Important: Create a new object for currentUser to ensure React detects the change
+        const newCurrentUserState: CurrentUser = {
+            ...(currentUser as FirebaseUserType), // Preserve the FirebaseUser part
+            appProfile: updatedAppProfileFromDb, // Use the profile directly from the DB update
+        } as CurrentUser;
+
+        setCurrentUser(newCurrentUserState); // Update the context's currentUser
+        
+        // Also update the specific subscriptionStatus state from the confirmed update
+        setSubscriptionStatus(updatedAppProfileFromDb.subscriptionStatus || 'free');
+
+        toast({ title: "Profile Updated", description: "Your profile information has been saved."});
         setLoading(false);
-        throw new Error("App profile update returned undefined.");
+        return newCurrentUserState;
+
     } catch (error: any) {
         console.error("Error updating app user profile:", error);
-        setAuthError(error.message || "Failed to update profile.");
-        toast({ title: "Update Failed", description: error.message || "Could not update profile.", variant: "destructive"});
+        const errorMessage = error.message || "Failed to update profile.";
+        setAuthError(errorMessage);
+        toast({ title: "Update Failed", description: errorMessage, variant: "destructive"});
         setLoading(false);
-        return currentUser; 
+        return null; // Return null on failure
     }
   };
 
@@ -418,5 +433,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-    

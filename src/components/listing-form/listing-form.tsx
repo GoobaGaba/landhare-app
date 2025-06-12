@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect, useState, useTransition, ChangeEvent } from 'react';
-import { useFormState } from 'react-dom';
+import { useEffect, useState, useTransition, ChangeEvent, useActionState } from 'react'; // Updated import
+// import { useFormState } from 'react-dom'; // Old import, removed
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -41,6 +41,7 @@ const amenitiesList = [
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 5;
 
+// Client-side schema no longer includes landownerId, as it's sourced directly from auth context
 const listingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, { message: "Title must be at least 3 characters." }),
   description: z.string({ required_error: "Description is required." }).min(10, { message: "Description must be at least 10 characters." }),
@@ -70,7 +71,8 @@ const initialFormState: ListingFormState = { message: '', success: false };
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const { toast } = useToast();
-  const [formState, formAction] = useFormState(createListingAction, initialFormState);
+  // Updated to use React.useActionState
+  const [formState, formAction] = useActionState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
 
   const [isPriceSuggestionLoading, setIsPriceSuggestionLoading] = useState(false);
@@ -86,6 +88,8 @@ export function ListingForm() {
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   
   const [currentSubscriptionOnMount, setCurrentSubscriptionOnMount] = useState<string | undefined>(undefined);
+  const [formSubmittedSuccessfully, setFormSubmittedSuccessfully] = useState(false);
+
 
   useEffect(() => {
     if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
@@ -208,29 +212,48 @@ export function ListingForm() {
     }
   };
 
-
+  // Effect for handling form submission feedback (toast and reset)
   useEffect(() => {
-    if (formState.message && !isPending) {
-      toast({
-        title: formState.success ? "Success!" : "Error",
-        description: formState.message,
-        variant: formState.success ? "default" : "destructive",
-      });
+    if (formState.message && !isPending) { // isPending from useTransition is true during action
       if (formState.success) {
-        form.reset({
+        if (!formSubmittedSuccessfully) { // Only process success once
+          toast({
+            title: "Success!",
+            description: formState.message,
+            variant: "default",
+          });
+          form.reset({
             title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
             leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
+          });
+          setPriceSuggestion(null);
+          setPriceSuggestionError(null);
+          setTitleSuggestion(null);
+          setTitleSuggestionError(null);
+          setSelectedFiles([]);
+          setImagePreviews([]);
+          setImageUploadError(null);
+          setFormSubmittedSuccessfully(true); // Mark as processed
+        }
+      } else {
+        // Handle error messages if not success
+        toast({
+          title: "Error",
+          description: formState.message,
+          variant: "destructive",
         });
-        setPriceSuggestion(null);
-        setPriceSuggestionError(null);
-        setTitleSuggestion(null);
-        setTitleSuggestionError(null);
-        setSelectedFiles([]);
-        setImagePreviews([]);
-        setImageUploadError(null);
+        setFormSubmittedSuccessfully(false); // Reset flag on error for next try
       }
     }
-  }, [formState, toast, isPending, form, currentUser]);
+  }, [formState, isPending, toast, form, formSubmittedSuccessfully]);
+
+  // Reset the formSubmittedSuccessfully flag if the form becomes dirty again after a successful submission
+  useEffect(() => {
+    if (formSubmittedSuccessfully && form.formState.isDirty) {
+      setFormSubmittedSuccessfully(false);
+    }
+  }, [form.formState.isDirty, formSubmittedSuccessfully]);
+
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImageUploadError(null);
@@ -282,7 +305,7 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-    if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
+     if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
       toast({
         title: "Form Submission Blocked",
         description: `Auth Loading: ${authLoading}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
@@ -295,10 +318,11 @@ export function ListingForm() {
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
+    // Explicitly add landownerId from authenticated user
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
+    // Append other form data
     const submissionData = { ...data, images: uploadedImageUrls };
-
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -320,6 +344,7 @@ export function ListingForm() {
         });
     }
 
+    setFormSubmittedSuccessfully(false); // Reset success flag before new submission
     startTransition(() => {
       formAction(formDataToSubmit);
     });
@@ -648,13 +673,18 @@ export function ListingForm() {
             </AlertDescription>
           </Alert>
 
-          {formState.message && !formState.success && (
-             <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{formState.message}</AlertDescription>
-              </Alert>
-          )}
+          {/* This debug info was removed in a previous step, but re-adding if needed */}
+          {/* 
+           <div className="mt-4 p-2 border border-dashed border-muted-foreground bg-card">
+                <h4 className="text-xs font-semibold">DEBUG FORM STATE:</h4>
+                <p className="text-xs">Auth Loading: {String(authLoading)}</p>
+                <p className="text-xs">Current User Exists: {String(!!currentUser)}</p>
+                <p className="text-xs">Current User UID: {currentUser?.uid || 'N/A'}</p>
+                <p className="text-xs">Current User Email: {currentUser?.email || 'N/A'}</p>
+                <p className="text-xs">Is Submit Button Disabled: {String(isSubmitButtonDisabled)}</p>
+           </div>
+          */}
+
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <div className="text-xs text-muted-foreground">
@@ -663,7 +693,7 @@ export function ListingForm() {
             <Button variant="outline" type="button" onClick={() => {form.reset({
               title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
               leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-              }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
+              }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false);}} disabled={isPending}>Reset Form</Button>
             <Button type="submit" disabled={isSubmitButtonDisabled}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Listing
@@ -671,7 +701,7 @@ export function ListingForm() {
           </div>
         </CardFooter>
       </form>
-      {formState.success && formState.listingId && (
+      {formState.success && formState.listingId && formSubmittedSuccessfully && (
         <div className="p-4">
           <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/30">
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />

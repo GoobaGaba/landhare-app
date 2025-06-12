@@ -41,9 +41,8 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.appProfile) { // Ensure appProfile exists
       const currentAppProfile = currentUser.appProfile;
-      // Use subscriptionStatus from AuthContext as the primary source of truth
       const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
 
       const currentProfile: ProfileDisplayData = {
@@ -58,10 +57,10 @@ export default function ProfilePage() {
       setNameInput(currentProfile.name);
       setEmailDisplay(currentProfile.email);
       setBioInput(currentProfile.bio);
-    } else {
+    } else if (!currentUser && !authLoading) { // If no current user and not loading, clear profile
       setProfileDisplayData(null);
     }
-  }, [currentUser, authLoading, subscriptionStatus]); // Depend on subscriptionStatus from AuthContext
+  }, [currentUser, authLoading, subscriptionStatus]); 
 
   const handleSave = async () => {
     if (!currentUser || !profileDisplayData) {
@@ -75,10 +74,11 @@ export default function ProfilePage() {
     if (bioInput !== profileDisplayData.bio) updateData.bio = bioInput;
 
     if (Object.keys(updateData).length > 0) {
-        const updatedUser = await updateCurrentAppUserProfile(updateData);
-        if (updatedUser && updatedUser.appProfile) {
-            // ProfileDisplayData will update via useEffect listening to currentUser & subscriptionStatus
+        const updatedUserResult = await updateCurrentAppUserProfile(updateData);
+        if (!updatedUserResult) {
+             // Error toast is already handled by updateCurrentAppUserProfile
         }
+        // ProfileDisplayData will update via useEffect listening to currentUser & subscriptionStatus
     } else {
         toast({ title: "No Changes", description: "No information was changed."});
     }
@@ -114,20 +114,25 @@ export default function ProfilePage() {
   }
 
   const handleSubscriptionToggle = async () => {
-    if (!currentUser || !profileDisplayData) return;
+    if (!currentUser || !profileDisplayData || !profileDisplayData.subscriptionTier || profileDisplayData.subscriptionTier === 'loading') {
+        toast({ title: "Action Unavailable", description: "Subscription status is still loading or user data is incomplete.", variant: "default"});
+        return;
+    }
     setIsSwitchingSubscription(true);
     const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
     try {
-      const updatedUser = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
-      if (updatedUser && updatedUser.appProfile) {
-        // The subscriptionStatus state in AuthContext will be updated by its own effect listener.
-        // The profileDisplayData state here will also update via its own useEffect.
+      const updatedUserResult = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
+      if (updatedUserResult) { // updatedUserResult can be CurrentUser | null
         toast({ title: "Subscription Updated (Simulation)", description: `Your account is now simulated as ${newStatus}.` });
+        // The profileDisplayData state here will also update via its own useEffect listening to currentUser changes from AuthContext.
       } else {
-        throw new Error("Failed to update subscription status in simulation.");
+        // Error toast is handled by updateCurrentAppUserProfile if it returns null
+        // No need for an additional toast here unless specific to this toggle action
       }
     } catch (error: any) {
-      toast({ title: "Subscription Switch Failed", description: error.message, variant: "destructive" });
+      // This catch block is unlikely to be hit if updateCurrentAppUserProfile handles its own errors and returns null.
+      // But as a fallback:
+      toast({ title: "Subscription Switch Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
     } finally {
       setIsSwitchingSubscription(false);
     }
@@ -191,7 +196,7 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-bold">{profileDisplayData.name}</h1>
           <p className="text-muted-foreground">{profileDisplayData.email}</p>
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
-          <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier}</span></p>
+          <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}</span></p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription}>
           {authLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>} Refresh Profile
@@ -294,7 +299,7 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="p-4 border rounded-lg bg-muted/30">
-                <h3 className="text-md font-semibold mb-1">Current Plan: <span className={`capitalize ${profileDisplayData.subscriptionTier === 'premium' ? 'text-primary font-bold' : ''}`}>{profileDisplayData.subscriptionTier} Tier</span></h3>
+                <h3 className="text-md font-semibold mb-1">Current Plan: <span className={`capitalize ${profileDisplayData.subscriptionTier === 'premium' ? 'text-primary font-bold' : ''}`}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.99% vs 3%).</p>
@@ -302,13 +307,15 @@ export default function ProfilePage() {
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
                   </>
-                ) : (
+                ) : profileDisplayData.subscriptionTier === 'premium' ? (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
                   <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={!!firebaseInitializationError}>
                     Manage Subscription
                   </Button>
                   </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                 )}
               </div>
 
@@ -321,7 +328,7 @@ export default function ProfilePage() {
                     <Button
                         onClick={handleSubscriptionToggle}
                         variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={isSwitchingSubscription || authLoading || profileDisplayData.subscriptionTier === 'loading' || (firebaseInitializationError !== null && !currentUser?.appProfile)}
                         className="w-full sm:w-auto"
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
