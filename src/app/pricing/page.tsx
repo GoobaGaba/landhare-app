@@ -1,5 +1,5 @@
 
-'use client'; // Required for useAuth hook
+'use client'; 
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as Searc
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const pricingPlans = [
   {
@@ -15,13 +16,16 @@ const pricingPlans = [
     price: "Free",
     period: "to Join",
     description: "Great for getting started, browsing, and listing a couple of properties.",
-    features: [
-      // For Renters
-      { text: "$0.99 Per-Booking Fee (when you rent)", icon: DollarSign, category: "renter" },
-      // For Landowners
-      { text: "List up to 2 properties", icon: Home, category: "landowner" },
-      { text: "2% Service Fee (on your lease earnings)", icon: Percent, category: "landowner" },
-      { text: "Basic support", icon: CheckCircle, category: "landowner" },
+    renterFeatures: [
+      { text: "$0.99 Per-Booking Fee (when you rent)", icon: DollarSign },
+      { text: "Standard search filters", icon: SearchIcon},
+      { text: "Direct messaging with landowners", icon: MessageSquare},
+    ],
+    landownerFeatures: [
+      { text: "List up to 2 properties", icon: Home },
+      { text: "2% Service Fee (on your lease earnings)", icon: Percent },
+      { text: "Standard listing visibility", icon: CheckCircle },
+      { text: "Basic support", icon: Users },
     ],
     cta: "Sign Up for Standard",
     href: "/signup",
@@ -32,17 +36,20 @@ const pricingPlans = [
     price: "$5",
     period: "/month",
     description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
-    features: [
-      // For Renters
-      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, category: "renter", iconColor: "text-green-500" },
-      // For Landowners
-      { text: "List unlimited properties", icon: InfinityIcon, category: "landowner" },
-      { text: "Add more photos to listings", icon: ImagePlus, category: "landowner"},
-      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, category: "landowner", iconColor: "text-green-500" },
-      { text: "Boosted exposure for your listings", icon: Sparkles, category: "landowner" },
-      // General Premium (No "General:" subtitle rendered)
-      { text: "Access to exclusive Market Insights", icon: BarChart3, category: "general" },
-      { text: "Priority support", icon: Crown, category: "general" },
+    renterFeatures: [
+      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, isBenefit: true },
+      { text: "Advanced search filters (coming soon)", icon: SearchIcon, isBenefit: true},
+      { text: "Early access to new listings (coming soon)", icon: Sparkles, isBenefit: true },
+    ],
+    landownerFeatures: [
+      { text: "List unlimited properties", icon: InfinityIcon, isBenefit: true },
+      { text: "Add more photos to listings (up to 10)", icon: ImagePlus, isBenefit: true},
+      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true },
+      { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true },
+    ],
+    generalFeatures: [
+      { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true },
+      { text: "Priority support", icon: Crown, isBenefit: true },
     ],
     cta: "Upgrade to Premium",
     hrefSelfIfPremium: "/profile?tab=billing", 
@@ -57,18 +64,14 @@ export default function PricingPage() {
   const handlePremiumCTAClick = () => {
     if (!currentUser) {
         toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
-        // Potentially redirect to login with a redirect back to pricing:
-        // router.push('/login?redirect=/pricing'); 
         return;
     }
-    // Placeholder for Stripe integration
-    toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here."});
+    toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here. Subscription simulation available on Profile page."});
   };
 
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        {/* Loader can be added here if desired */}
       </div>
     );
   }
@@ -92,18 +95,14 @@ export default function PricingPage() {
           let ctaLink = plan.id === 'premium'
             ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing"))
             : (currentUser ? "/dashboard" : plan.href);
-          if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; // Will use ctaAction
+          if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; 
           
           const ctaText = plan.id === 'premium'
             ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
             : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
           
-          const renterFeatures = plan.features.filter(f => f.category === 'renter');
-          const landownerFeatures = plan.features.filter(f => f.category === 'landowner');
-          const generalFeatures = plan.features.filter(f => f.category === 'general'); // We still filter them to render them correctly
-
           return (
-            <Card key={plan.title} className={`shadow-xl flex flex-col ${plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/50' : 'border-border'}`}>
+            <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/30' : 'border-border')}>
               {plan.highlight && (
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
                   <Crown className="h-3 w-3" /> Most Popular
@@ -118,39 +117,39 @@ export default function PricingPage() {
                 <CardDescription className="mt-1 text-sm h-12">{plan.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 flex-grow">
-                {renterFeatures.length > 0 && (
+                {plan.renterFeatures && plan.renterFeatures.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold mb-2 text-accent">For Renters:</h4>
                     <ul className="space-y-2 text-sm">
-                      {renterFeatures.map((feature) => (
+                      {plan.renterFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {landownerFeatures.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold mt-3 mb-2 text-accent">For Landowners:</h4>
+                {plan.landownerFeatures && plan.landownerFeatures.length > 0 && (
+                  <div className="mt-3">
+                    <h4 className="text-sm font-semibold mb-2 text-accent">For Landowners:</h4>
                     <ul className="space-y-2 text-sm">
-                      {landownerFeatures.map((feature) => (
+                      {plan.landownerFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                 {generalFeatures.length > 0 && plan.id === 'premium' && ( 
-                  <div className={plan.id === 'premium' ? 'mt-3' : ''}> 
-                    {/* No "General:" h4 subtitle here for Premium */}
+                 {plan.generalFeatures && plan.generalFeatures.length > 0 && ( 
+                  <div className="mt-3">
+                    <h4 className="text-sm font-semibold mb-2 text-accent">Premium Benefits:</h4>
                     <ul className="space-y-2 text-sm">
-                      {generalFeatures.map((feature) => (
+                      {plan.generalFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                          <feature.icon className={`h-5 w-5 mr-2 mt-0.5 shrink-0 ${feature.iconColor || (plan.highlight ? 'text-primary' : 'text-accent')}`} />
+                           <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
@@ -158,7 +157,7 @@ export default function PricingPage() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="mt-auto">
+              <CardFooter className="mt-auto pt-4">
                 {ctaAction ? (
                    <Button
                     size="lg"

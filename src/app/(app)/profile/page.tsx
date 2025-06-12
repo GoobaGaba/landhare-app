@@ -43,6 +43,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (currentUser) {
       const currentAppProfile = currentUser.appProfile;
+      // Use subscriptionStatus from AuthContext as the primary source of truth
       const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
 
       const currentProfile: ProfileDisplayData = {
@@ -60,7 +61,7 @@ export default function ProfilePage() {
     } else {
       setProfileDisplayData(null);
     }
-  }, [currentUser, authLoading, subscriptionStatus]);
+  }, [currentUser, authLoading, subscriptionStatus]); // Depend on subscriptionStatus from AuthContext
 
   const handleSave = async () => {
     if (!currentUser || !profileDisplayData) {
@@ -76,14 +77,7 @@ export default function ProfilePage() {
     if (Object.keys(updateData).length > 0) {
         const updatedUser = await updateCurrentAppUserProfile(updateData);
         if (updatedUser && updatedUser.appProfile) {
-            setProfileDisplayData(prev => prev ? {
-                 ...prev,
-                 name: updatedUser.appProfile!.name || prev.name,
-                 bio: updatedUser.appProfile!.bio || prev.bio,
-                 avatarUrl: updatedUser.appProfile!.avatarUrl || updatedUser.photoURL || prev.avatarUrl,
-            } : null);
-             setNameInput(updatedUser.appProfile!.name || nameInput);
-             setBioInput(updatedUser.appProfile!.bio || bioInput);
+            // ProfileDisplayData will update via useEffect listening to currentUser & subscriptionStatus
         }
     } else {
         toast({ title: "No Changes", description: "No information was changed."});
@@ -126,9 +120,8 @@ export default function ProfilePage() {
     try {
       const updatedUser = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
       if (updatedUser && updatedUser.appProfile) {
-        // The subscriptionStatus state in AuthContext will be updated by its own effect listener
-        // This local state update is for immediate UI feedback if needed, but primarily rely on AuthContext
-        setProfileDisplayData(prev => prev ? {...prev, subscriptionTier: updatedUser.appProfile!.subscriptionStatus || newStatus } : null);
+        // The subscriptionStatus state in AuthContext will be updated by its own effect listener.
+        // The profileDisplayData state here will also update via its own useEffect.
         toast({ title: "Subscription Updated (Simulation)", description: `Your account is now simulated as ${newStatus}.` });
       } else {
         throw new Error("Failed to update subscription status in simulation.");
@@ -185,7 +178,7 @@ export default function ProfilePage() {
     );
   }
 
-  const avatarFallback = profileDisplayData.name.split(' ').map(n=>n[0]).join('').toUpperCase() || profileDisplayData.email[0].toUpperCase();
+  const avatarFallback = (profileDisplayData.name || profileDisplayData.email || 'U').split(' ').map(n=>n[0]).join('').toUpperCase() || 'U';
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -200,7 +193,7 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
           <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier}</span></p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto" disabled={authLoading || isSaving || isSwitchingSubscription}>
+        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription}>
           {authLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>} Refresh Profile
         </Button>
       </div>
@@ -248,7 +241,7 @@ export default function ProfilePage() {
                <div>
                 <Label htmlFor="avatarUrl">Avatar URL (Optional)</Label>
                 <Input id="avatarUrl" value={profileDisplayData.avatarUrl || ''} disabled />
-                 <p className="text-xs text-muted-foreground mt-1">Avatar update via direct URL or file upload is not yet implemented. This field shows current avatar URL if available. You can try editing your name, as the placeholder avatar uses initials.</p>
+                 <p className="text-xs text-muted-foreground mt-1">Avatar is typically set via your authentication provider (e.g., Google profile picture) or uses a placeholder. Custom avatar uploads (via URL or file) are not yet implemented.</p>
               </div>
             </CardContent>
             {isEditing && (
@@ -322,7 +315,7 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Simulate Subscription Tier</CardTitle>
-                  <CardDescription>For testing purposes, you can switch your account's simulated subscription status.</CardDescription>
+                  <CardDescription>For testing purposes, you can switch your account's simulated subscription status. This will affect UI elements like fees and feature access across the app.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button
@@ -335,10 +328,10 @@ export default function ProfilePage() {
                         Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
                     </Button>
                     {firebaseInitializationError && !currentUser?.appProfile &&
-                        <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in Firebase preview mode.</p>
+                        <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in Firebase preview mode without a mock user.</p>
                     }
                      <p className="text-xs text-muted-foreground mt-2">
-                        This simulation affects UI elements like displayed fees and listing limits for testing. It does not involve real payments.
+                        This simulation affects UI elements like displayed fees and listing limits for testing. It does not involve real payments. A page refresh might be needed to see changes on other pages.
                     </p>
                 </CardContent>
               </Card>

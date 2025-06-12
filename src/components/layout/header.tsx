@@ -23,7 +23,7 @@ interface NavLink {
   label: string;
   icon: ComponentType<{ className?: string }>;
   action?: () => void;
-  className?: string; // Added for custom styling
+  className?: string; 
 }
 
 export default function AppHeader() {
@@ -37,7 +37,7 @@ export default function AppHeader() {
     try {
       await logoutUser();
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-      router.push('/'); // Redirect to home page after logout
+      router.push('/'); 
     } catch (error) {
       toast({ title: 'Logout Failed', description: 'Could not log you out. Please try again.', variant: 'destructive' });
     }
@@ -48,7 +48,7 @@ export default function AppHeader() {
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/my-listings', label: 'My Listings', icon: ListChecks },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
-    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon focus:bg-neon/10 focus:text-neon hover:bg-neon/10 hover:text-neon" }, // Styled "Premium" link
+    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
     { href: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -82,7 +82,7 @@ export default function AppHeader() {
           </div>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
             <Link href="/listings/new">
-                <PlusCircle className="mr-2 h-4 w-4 md:hidden lg:inline-block" /> List Your Land
+                <PlusCircle className="mr-2 h-4 w-4 lg:inline-block md:hidden" /> List Your Land
             </Link>
           </Button>
         </div>
@@ -97,21 +97,21 @@ export default function AppHeader() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || currentUser.email || 'User'} />
-                          <AvatarFallback>{currentUser.displayName ? currentUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase() : (currentUser.email ? currentUser.email[0].toUpperCase() : 'U')}</AvatarFallback>
+                           <AvatarImage src={currentUser.appProfile?.avatarUrl || currentUser.photoURL || undefined} alt={currentUser.appProfile?.name || currentUser.displayName || currentUser.email || 'User'} />
+                           <AvatarFallback>{(currentUser.appProfile?.name || currentUser.displayName || currentUser.email || 'U').split(' ').map(n=>n[0]).join('').toUpperCase() || 'U'}</AvatarFallback>
                         </Avatar>
                          <span className="sr-only">Open user menu</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>
-                        {currentUser.displayName || currentUser.email}
+                        {currentUser.appProfile?.name || currentUser.displayName || currentUser.email}
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       {userNavLinks.map((link) => (
                         <DropdownMenuItem key={link.href} asChild>
                           <Link href={link.href} className={cn("flex items-center gap-2", pathname === link.href && "bg-muted", link.className)}>
-                            <link.icon className="h-4 w-4" />
+                            <link.icon className={cn("h-4 w-4", link.className?.includes('text-neon') ? 'text-neon' : '')} />
                             <span>{link.label}</span>
                           </Link>
                         </DropdownMenuItem>
@@ -189,9 +189,12 @@ export default function AppHeader() {
                       <Button
                         variant={pathname === link.href ? 'secondary' : 'ghost'}
                         asChild
-                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon hover:text-neon hover:bg-neon/10')}
+                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon hover:text-neon focus:text-neon hover:bg-neon/10')}
                       >
-                        <Link href={link.href}><link.icon className="mr-2 h-4 w-4" />{link.label}</Link>
+                        <Link href={link.href}>
+                          <link.icon className={cn("mr-2 h-4 w-4", link.className?.includes('text-neon') ? 'text-neon' : '')} />
+                          {link.label}
+                        </Link>
                       </Button>
                     </SheetClose>
                   ))}
@@ -238,5 +241,3 @@ export default function AppHeader() {
     </header>
   );
 }
-
-    

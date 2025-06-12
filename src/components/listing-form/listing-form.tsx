@@ -27,15 +27,15 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const amenitiesList = [
-  { id: 'water', label: 'Water Hookup' },
-  { id: 'power', label: 'Power Access' },
-  { id: 'septic', label: 'Septic System' },
-  { id: 'road_access', label: 'Road Access' },
+  { id: 'water hookup', label: 'Water Hookup' }, // Keep IDs consistent for matching in FilterPanel
+  { id: 'power access', label: 'Power Access' },
+  { id: 'septic system', label: 'Septic System' },
+  { id: 'road access', label: 'Road Access' },
   { id: 'fenced', label: 'Fenced' },
-  { id: 'wifi', label: 'Wi-Fi Available' },
-  { id: 'pet_friendly', label: 'Pet Friendly'},
-  { id: 'lake_access', label: 'Lake Access'},
-  { id: 'fire_pit', label: 'Fire Pit'},
+  { id: 'wifi available', label: 'Wi-Fi Available' },
+  { id: 'pet friendly', label: 'Pet Friendly'},
+  { id: 'lake access', label: 'Lake Access'},
+  { id: 'fire pit', label: 'Fire Pit'},
 ];
 
 const MAX_IMAGES = 5;
@@ -46,11 +46,13 @@ const listingFormSchema = z.object({
   description: z.string().min(20, { message: "Description must be at least 20 characters." }),
   location: z.string().min(3, { message: "Location is required." }),
   sizeSqft: z.coerce.number().positive({ message: "Size must be a positive number." }),
-  pricePerMonth: z.coerce.number().positive({ message: "Price must be a positive number." }),
+  price: z.coerce.number().positive({ message: "Price must be a positive number." }), // Unified price field
+  pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
+  leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
-  minLeaseDurationMonths: z.coerce.number().int().positive().optional(),
+  minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   landownerId: z.string().min(1, "Landowner ID is required"),
 });
 
@@ -75,8 +77,15 @@ export function ListingForm() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  
+  const [currentSubscriptionOnMount, setCurrentSubscriptionOnMount] = useState<string | undefined>(undefined);
 
-  const isPremiumUser = subscriptionStatus === 'premium';
+  useEffect(() => {
+    if (currentUser?.appProfile?.subscriptionStatus) {
+        setCurrentSubscriptionOnMount(currentUser.appProfile.subscriptionStatus);
+    }
+  }, [currentUser]);
+
 
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
@@ -85,7 +94,9 @@ export function ListingForm() {
       description: '',
       location: '',
       sizeSqft: 1000,
-      pricePerMonth: 100,
+      price: 100,
+      pricingModel: 'monthly',
+      leaseToOwnDetails: '',
       amenities: [],
       images: [],
       leaseTerm: 'flexible',
@@ -108,6 +119,7 @@ export function ListingForm() {
   const watchedSizeSqft = watch('sizeSqft');
   const watchedAmenities = watch('amenities');
   const watchedLeaseTerm = watch('leaseTerm');
+  const watchedPricingModel = watch('pricingModel');
 
   const handleSuggestPrice = async () => {
     setIsPriceSuggestionLoading(true);
@@ -138,7 +150,7 @@ export function ListingForm() {
       setPriceSuggestion(result.data);
       toast({
         title: "Price Suggestion Ready!",
-        description: `Suggested price: $${result.data.suggestedPrice.toFixed(2)}/month.`,
+        description: `Suggested price: $${result.data.suggestedPrice.toFixed(0)}/month (adapt if nightly).`,
       });
     } else if (result.error) {
       setPriceSuggestionError(result.error);
@@ -155,7 +167,7 @@ export function ListingForm() {
     setTitleSuggestion(null);
     setTitleSuggestionError(null);
 
-    const descriptionSnippet = watchedDescription.substring(0, 200); // Use a snippet of description
+    const descriptionSnippet = watchedDescription.substring(0, 200); 
     const keywords = watchedAmenities.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
 
 
@@ -204,8 +216,11 @@ export function ListingForm() {
         variant: formState.success ? "default" : "destructive",
       });
       if (formState.success) {
-        form.reset();
-        if(currentUser) setValue('landownerId', currentUser.uid);
+        form.reset({
+            title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
+            leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
+            landownerId: currentUser?.uid || ''
+        });
         setPriceSuggestion(null);
         setPriceSuggestionError(null);
         setTitleSuggestion(null);
@@ -215,7 +230,7 @@ export function ListingForm() {
         setImageUploadError(null);
       }
     }
-  }, [formState, toast, isPending, form, currentUser, setValue]);
+  }, [formState, toast, isPending, form, currentUser]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImageUploadError(null);
@@ -277,24 +292,32 @@ export function ListingForm() {
         return;
     }
 
+    // Simulate generating URLs for selected files. In a real app, these would come from an upload service.
+    const uploadedImageUrls = imagePreviews; // Using previews as placeholders for actual URLs
+
     const formDataToSubmit = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
+    const submissionData = { ...data, images: uploadedImageUrls };
+
+    Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
         value.forEach(amenity => formDataToSubmit.append(key, amenity));
+      } else if (key === 'images' && Array.isArray(value)) {
+        value.forEach(imgUrl => formDataToSubmit.append(key, imgUrl as string));
       } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append
-      } else if (key === 'images') {
-        (data.images || []).forEach(imgUrl => formDataToSubmit.append(key, imgUrl));
+        // Don't append if not relevant or not set
       } else if (value !== undefined && value !== null) {
         formDataToSubmit.append(key, String(value));
       }
     });
+    
+    if(selectedFiles.length > 0){
+        toast({
+            title: "Image Upload Note",
+            description: "Image selection is for demonstration. Actual file uploads to cloud storage and URL generation for listings require separate backend implementation. Using preview URLs as placeholders.",
+            duration: 7000,
+        });
+    }
 
-    toast({
-        title: "Image Upload Note",
-        description: "Image upload UI is for demonstration. Actual file uploads and URL generation for listings require separate implementation.",
-        duration: 7000,
-    });
 
     startTransition(() => {
       formAction(formDataToSubmit);
@@ -328,6 +351,11 @@ export function ListingForm() {
       </Card>
     );
   }
+  
+  const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)"
+                     : watchedPricingModel === 'monthly' ? "Price per Month ($)"
+                     : "Est. Monthly Payment ($) for LTO";
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -350,7 +378,7 @@ export function ListingForm() {
                     disabled={isTitleSuggestionLoading || !watchedLocation || (!watchedDescription && watchedAmenities.length === 0)}
                     title="Suggest Title with AI"
                 >
-                    {isTitleSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+                    {isTitleSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
                 </Button>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
@@ -407,18 +435,16 @@ export function ListingForm() {
               <label
                 htmlFor="image-upload"
                 className={cn(
-                  "flex justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary",
+                  "flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors",
                   imageUploadError ? "border-destructive" : "border-border"
                 )}
               >
-                <div className="space-y-1 text-center">
-                  <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground" />
-                  <div className="flex text-sm text-muted-foreground">
-                    <span className="text-primary font-medium">Upload files</span>
-                    <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={selectedFiles.length >= MAX_IMAGES} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
-                </div>
+                <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                <span className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                </span>
+                <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
+                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={selectedFiles.length >= MAX_IMAGES} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
@@ -431,7 +457,7 @@ export function ListingForm() {
                       type="button"
                       variant="destructive"
                       size="icon"
-                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       onClick={() => handleRemoveImage(index)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -440,24 +466,140 @@ export function ListingForm() {
                   </div>
                 ))}
                 {selectedFiles.length < MAX_IMAGES && (
-                  <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary">
+                  <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors">
                     <FileImage className="h-8 w-8"/>
                     <span className="text-xs mt-1">Add more</span>
                   </label>
                 )}
               </div>
             )}
-            <Alert variant="default" className="mt-2">
-              <Info className="h-4 w-4" />
-              <AlertTitle className="text-sm">Image Handling Note</AlertTitle>
-              <AlertDescription className="text-xs">
-                This form demonstrates image selection. Actual image uploads to cloud storage (like Firebase Storage) and saving their URLs would need to be implemented. The server action currently expects an array of image URLs.
-              </AlertDescription>
-            </Alert>
-            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
 
           <div>
+            <Label className="mb-2 block">Pricing Model</Label>
+            <Controller
+                name="pricingModel"
+                control={control}
+                render={({ field }) => (
+                    <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md"
+                    >
+                        {(['nightly', 'monthly', 'lease-to-own'] as const).map(model => (
+                             <Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}>
+                                <RadioGroupItem value={model} id={`pricing-${model}`} />
+                                <span className="capitalize">{model.replace('-', ' ')}</span>
+                            </Label>
+                        ))}
+                    </RadioGroup>
+                )}
+            />
+             {errors.pricingModel && <p className="text-sm text-destructive mt-1">{errors.pricingModel.message}</p>}
+          </div>
+          
+          {watchedPricingModel === 'lease-to-own' && (
+            <div>
+                <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
+                <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." />
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="price">{priceLabel}</Label>
+            <div className="flex items-center gap-2">
+                <Input id="price" type="number" {...register('price')} aria-invalid={errors.price ? "true" : "false"} className="flex-grow" />
+                {watchedPricingModel !== 'lease-to-own' && (
+                  <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSuggestPrice}
+                      disabled={isPriceSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
+                      title="Suggest Price with AI (for monthly rates)"
+                  >
+                      {isPriceSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-accent" />}
+                  </Button>
+                )}
+            </div>
+            {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
+            {priceSuggestion && watchedPricingModel !== 'lease-to-own' && (
+                <Alert className="mt-2">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Suggested Monthly Price: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle>
+                  <AlertDescription>
+                    <p className="font-medium text-xs">Reasoning:</p>
+                    <p className="text-xs">{priceSuggestion.reasoning}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="p-0 h-auto mt-1 text-accent text-xs"
+                      onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)))}
+                    >
+                      Use this price
+                    </Button>
+                     {watchedPricingModel === 'nightly' && <p className="text-xs mt-1">Adjust as needed for a nightly rate.</p>}
+                  </AlertDescription>
+                </Alert>
+            )}
+            {priceSuggestionError && watchedPricingModel !== 'lease-to-own' && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle className="text-sm">Price Suggestion Error</AlertTitle>
+                  <AlertDescription className="text-xs">{priceSuggestionError}</AlertDescription>
+                </Alert>
+            )}
+          </div>
+
+
+          <div>
+            <Label className="flex items-center mb-2">
+                <CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options
+            </Label>
+            <Controller
+                name="leaseTerm"
+                control={control}
+                render={({ field }) => (
+                    <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || 'flexible'}
+                        className="space-y-1 p-2 border rounded-md"
+                    >
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="short-term" id="term-short" />
+                            <Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 months)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="long-term" id="term-long" />
+                            <Label htmlFor="term-long" className="font-normal">Long Term (6+ months)</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="flexible" id="term-flexible" />
+                            <Label htmlFor="term-flexible" className="font-normal">Flexible (No min/max)</Label>
+                        </div>
+                    </RadioGroup>
+                )}
+            />
+            {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
+          </div>
+
+          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
+            <div>
+              <Label htmlFor="minLeaseDurationMonths">Minimum Lease Duration (Months)</Label>
+              <Input
+                id="minLeaseDurationMonths"
+                type="number"
+                placeholder="e.g., 1, 6, 12"
+                {...register('minLeaseDurationMonths')}
+                aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"}
+              />
+              {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
+            </div>
+          )}
+          
+           <div>
             <Label>Amenities</Label>
             <Controller
               name="amenities"
@@ -488,102 +630,15 @@ export function ListingForm() {
             {errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
           </div>
 
-           <div>
-            <Label className="flex items-center mb-2">
-                <CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term
-            </Label>
-            <Controller
-                name="leaseTerm"
-                control={control}
-                render={({ field }) => (
-                    <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="space-y-1 p-2 border rounded-md"
-                    >
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="short-term" id="term-short" />
-                            <Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 months)</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="long-term" id="term-long" />
-                            <Label htmlFor="term-long" className="font-normal">Long Term (6+ months)</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="flexible" id="term-flexible" />
-                            <Label htmlFor="term-flexible" className="font-normal">Flexible (No min/max)</Label>
-                        </div>
-                    </RadioGroup>
-                )}
-            />
-            {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
-          </div>
-
-          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
-            <div>
-              <Label htmlFor="minLeaseDurationMonths">Minimum Lease Duration (Months)</Label>
-              <Input
-                id="minLeaseDurationMonths"
-                type="number"
-                {...register('minLeaseDurationMonths')}
-                aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"}
-              />
-              {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="pricePerMonth">Price per Month ($)</Label>
-            <div className="flex items-center gap-2">
-                <Input id="pricePerMonth" type="number" {...register('pricePerMonth')} aria-invalid={errors.pricePerMonth ? "true" : "false"} className="flex-grow" />
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={handleSuggestPrice}
-                    disabled={isPriceSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
-                    title="Suggest Price with AI"
-                >
-                    {isPriceSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                </Button>
-            </div>
-            {errors.pricePerMonth && <p className="text-sm text-destructive mt-1">{errors.pricePerMonth.message}</p>}
-            {priceSuggestion && (
-                <Alert className="mt-2">
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Suggested Price: ${priceSuggestion.suggestedPrice.toFixed(2)}/month</AlertTitle>
-                  <AlertDescription>
-                    <p className="font-medium text-xs">Reasoning:</p>
-                    <p className="text-xs">{priceSuggestion.reasoning}</p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="link"
-                      className="p-0 h-auto mt-1 text-accent text-xs"
-                      onClick={() => setValue('pricePerMonth', priceSuggestion.suggestedPrice)}
-                    >
-                      Use this price
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-            )}
-            {priceSuggestionError && (
-                <Alert variant="destructive" className="mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle className="text-sm">Price Suggestion Error</AlertTitle>
-                  <AlertDescription className="text-xs">{priceSuggestionError}</AlertDescription>
-                </Alert>
-            )}
-          </div>
 
           <Alert variant="default" className="mt-4 bg-muted/40">
             <Percent className="h-4 w-4" />
             <AlertTitle className="text-sm font-medium">Service Fee Information</AlertTitle>
             <AlertDescription className="text-xs">
                 LandShare applies a service fee to successful bookings.
-                {subscriptionStatus === 'premium' ?
-                " As a Premium member, you benefit from a reduced closing fee of 0.99% on your payouts." :
-                " Free accounts are subject to a 3% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!"
+                {currentSubscriptionOnMount === 'premium' ?
+                " As a Premium member, you benefit from a reduced closing fee of 0.49% on your payouts." :
+                " Free accounts are subject to a 2% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!"
                 }
                 <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link>
             </AlertDescription>
@@ -599,7 +654,11 @@ export function ListingForm() {
            {errors.landownerId && <p className="text-sm text-destructive mt-1">{errors.landownerId.message}</p>}
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
-          <Button variant="outline" type="button" onClick={() => {form.reset(); if(currentUser)setValue('landownerId', currentUser.uid); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
+          <Button variant="outline" type="button" onClick={() => {form.reset({
+            title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
+            leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
+            landownerId: currentUser?.uid || ''
+            }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
           <Button type="submit" disabled={isPending || !currentUser}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
