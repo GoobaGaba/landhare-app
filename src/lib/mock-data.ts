@@ -606,7 +606,8 @@ export const addListing = async (
   try {
     const listingsCol = collection(db, "listings");
     const firestoreData: any = {
-        ...newListingData,
+        ...newListingData, // Use all fields from newListingData
+        pricePerMonth: data.price, // Ensure pricePerMonth is set for compatibility if needed, though unified 'price' is primary
         createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
     };
     delete firestoreData.id; // Firestore generates its own ID
@@ -905,7 +906,3 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     return undefined;
   }
 };
-
-    
-
-    

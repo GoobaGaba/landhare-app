@@ -6,7 +6,7 @@ import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
 import type { Listing, LeaseTerm } from "@/lib/types";
-import { getListings as fetchAllListings } from '@/lib/mock-data'; 
+import { getListings as fetchAllListings } from '@/lib/mock-data';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 
-const ITEMS_PER_PAGE = 6; 
+const ITEMS_PER_PAGE = 6;
 const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
 
@@ -41,17 +41,17 @@ export default function SearchPage() {
   useEffect(() => {
     const loadInitialListings = async () => {
       if (firebaseInitializationError) {
-        toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Displaying sample listings for preview.", 
+        toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Displaying sample listings for preview.",
             variant: "default",
-            duration: 5000 
+            duration: 5000
         });
       }
       setIsLoading(true);
       try {
         // fetchAllListings will return mock data if firebaseInitializationError is set
-        const listings = await fetchAllListings(); 
+        const listings = await fetchAllListings();
         const availableListings = listings.filter(l => l.isAvailable);
         setAllListings(availableListings);
       } catch (error: any) {
@@ -76,9 +76,9 @@ export default function SearchPage() {
   };
 
   useEffect(() => {
-    if (isLoading) return; 
+    if (isLoading) return;
 
-    let listings = [...allListings]; 
+    let listings = [...allListings];
 
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -91,7 +91,7 @@ export default function SearchPage() {
     }
 
     listings = listings.filter(
-      l => l.pricePerMonth >= priceRange[0] && l.pricePerMonth <= priceRange[1]
+      l => (l.price ?? l.pricePerMonth) >= priceRange[0] && (l.price ?? l.pricePerMonth) <= priceRange[1]
     );
 
     listings = listings.filter(
@@ -103,7 +103,7 @@ export default function SearchPage() {
         selectedAmenities.every(amenity => l.amenities.map(a => a.toLowerCase()).includes(amenity.toLowerCase()))
       );
     }
-    
+
     if (selectedLeaseTerm !== 'any') {
         listings = listings.filter(l => l.leaseTerm === selectedLeaseTerm);
     }
@@ -116,13 +116,16 @@ export default function SearchPage() {
           if (!a.isBoosted && b.isBoosted) comparison = 1;
           if (comparison !== 0) return comparison;
       }
-      
+
+      const priceA = a.price ?? a.pricePerMonth;
+      const priceB = b.price ?? b.pricePerMonth;
+
       switch (sortBy) {
         case 'price_asc':
-          comparison = a.pricePerMonth - b.pricePerMonth;
+          comparison = priceA - priceB;
           break;
         case 'price_desc':
-          comparison = b.pricePerMonth - a.pricePerMonth;
+          comparison = priceB - priceA;
           break;
         case 'size_asc':
           comparison = a.sizeSqft - b.sizeSqft;
@@ -140,7 +143,7 @@ export default function SearchPage() {
     });
 
     setFilteredListings(listings);
-    setCurrentPage(1); 
+    setCurrentPage(1);
   }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allListings, isLoading]);
 
   const paginatedListings = useMemo(() => {
@@ -164,7 +167,7 @@ export default function SearchPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       <div className="w-full lg:w-1/3 xl:w-1/4">
@@ -178,14 +181,14 @@ export default function SearchPage() {
           selectedLeaseTerm={selectedLeaseTerm}
           setSelectedLeaseTerm={setSelectedLeaseTerm}
           resetFilters={resetFilters}
-          disabled={firebaseInitializationError !== null}
+          // disabled prop removed
         />
       </div>
       <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6">
-        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"> 
+        <div className="lg:hidden sticky top-16 bg-background py-2 z-10">
           <MapView />
         </div>
-        
+
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
           <div className="relative w-full sm:max-w-xs">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -195,11 +198,11 @@ export default function SearchPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
-              disabled={firebaseInitializationError !== null}
+              // disabled prop removed
             />
           </div>
           <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={setSortBy} disabled={firebaseInitializationError !== null}>
+            <Select value={sortBy} onValueChange={setSortBy} /* disabled prop removed */>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
@@ -211,17 +214,17 @@ export default function SearchPage() {
                 <SelectItem value="size_desc">Size (Large to Small)</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" disabled={firebaseInitializationError !== null}>
+            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" /* disabled prop removed */>
               <LayoutGrid className="h-4 w-4"/>
             </Button>
-            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View" disabled={firebaseInitializationError !== null}>
+            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View" /* disabled prop removed */>
               <List className="h-4 w-4"/>
             </Button>
           </div>
         </div>
-        
+
         <h2 className="text-2xl font-semibold">Available Land ({filteredListings.length} results)</h2>
-        
+
         {subscriptionStatus === 'premium' && (
           <Alert variant="default" className="border-primary/50 bg-primary/5 text-primary">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -248,7 +251,7 @@ export default function SearchPage() {
             ))}
           </div>
         )}
-        
+
         {totalPages > 1 && (
           <Pagination className="mt-8">
             <PaginationContent>
@@ -257,8 +260,8 @@ export default function SearchPage() {
               </PaginationItem>
               {[...Array(totalPages)].map((_, i) => (
                 <PaginationItem key={i}>
-                  <PaginationLink 
-                    href="#" 
+                  <PaginationLink
+                    href="#"
                     isActive={currentPage === i + 1}
                     onClick={(e) => { e.preventDefault(); handlePageChange(i + 1);}}
                   >
