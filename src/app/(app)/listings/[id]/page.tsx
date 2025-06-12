@@ -27,8 +27,9 @@ import { buttonVariants } from '@/components/ui/button';
 
 
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(paramsPromise);
+  const resolvedParams = use(paramsPromise); // Resolve the promise for params
   const { id } = resolvedParams;
+  console.log(`[ListingDetailPage] Page loaded for ID: ${id}`);
 
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -45,6 +46,15 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   useEffect(() => {
     async function fetchData() {
+      console.log(`[ListingDetailPage] fetchData triggered for ID: ${id}`);
+      if (!id) {
+        console.error("[ListingDetailPage] No ID provided to fetchData.");
+        toast({ title: "Error", description: "Listing ID is missing.", variant: "destructive" });
+        setIsLoading(false);
+        setListing(null); // Explicitly set to null if no ID
+        return;
+      }
+      
       if (firebaseInitializationError) {
         toast({
             title: "Preview Mode Active",
@@ -55,24 +65,39 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       }
       setIsLoading(true);
       try {
+        console.log(`[ListingDetailPage] Calling getListingById with ID: ${id}`);
         const listingData = await getListingById(id);
+        console.log(`[ListingDetailPage] getListingById returned:`, listingData);
         setListing(listingData || null);
 
         if (listingData) {
+          console.log(`[ListingDetailPage] Fetching landowner for ID: ${listingData.landownerId}`);
           const landownerData = await getUserById(listingData.landownerId);
           setLandowner(landownerData || null);
+          console.log(`[ListingDetailPage] Fetched landowner:`, landownerData);
+
+          console.log(`[ListingDetailPage] Fetching reviews for listing ID: ${listingData.id}`);
           const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
+          console.log(`[ListingDetailPage] Fetched reviews:`, reviewsData);
+        } else {
+          console.warn(`[ListingDetailPage] No listing data found for ID: ${id} after fetch.`);
         }
       } catch (error: any) {
-        console.error("Error fetching listing data:", error);
+        console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
+        setListing(null); // Ensure listing is null on error
       } finally {
+        console.log(`[ListingDetailPage] fetchData finished for ID: ${id}. isLoading set to false.`);
         setIsLoading(false);
       }
     }
-    if (id) {
+    if (id) { // Only fetch if ID is present
         fetchData();
+    } else {
+        console.log("[ListingDetailPage] ID is missing in useEffect, skipping fetch.");
+        setIsLoading(false);
+        setListing(null);
     }
   }, [id, toast]);
 
@@ -216,6 +241,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     }
   };
 
+  console.log(`[ListingDetailPage] Rendering. isLoading: ${isLoading}, authLoading: ${authLoading}, listing found: ${!!listing}`);
+
   if (isLoading || authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-var(--header-height,8rem)-var(--footer-height,4rem))]">
@@ -225,7 +252,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     );
   }
 
-  if (!listing && !isLoading) {
+  if (!listing) { // Check if listing is null after loading has completed
+    console.warn(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>

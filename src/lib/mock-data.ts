@@ -24,16 +24,25 @@ import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel }
 export const FREE_TIER_LISTING_LIMIT = 1; // Free users can list 1 property.
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 
-// Simple versioning for mock data to trigger re-fetches in components
 export let mockDataVersion = 0;
-// console.log(`[MockData] Initial mockDataVersion: ${mockDataVersion}`);
 
 export const incrementMockDataVersion = (source: string) => {
   mockDataVersion++;
   // console.log(`[MockData] mockDataVersion incremented by ${source}. New version: ${mockDataVersion}`);
 };
 
-// Predefined mock Google user for testing UI flows when Firebase is not available
+
+export const MOCK_USER_FOR_UI_TESTING: User = {
+  id: 'mock-user-uid-12345',
+  name: 'Mock UI Tester',
+  email: 'mocktester@example.com',
+  avatarUrl: 'https://placehold.co/100x100.png?text=MT',
+  subscriptionStatus: 'premium', // Changed to premium to allow more listings
+  createdAt: new Date('2023-01-01T10:00:00Z'),
+  bio: 'I am the main mock user for testing purposes with premium status.',
+  bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
+};
+
 export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   id: 'mock-google-user-uid-67890',
   name: 'Mock Google User',
@@ -43,18 +52,6 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   createdAt: new Date('2023-04-01T10:00:00Z'),
   bio: 'I am a mock user signed in via Google for testing purposes with premium status.',
   bookmarkedListingIds: [],
-};
-
-// Predefined main mock user for email/password testing
-export const MOCK_USER_FOR_UI_TESTING: User = {
-  id: 'mock-user-uid-12345',
-  name: 'Mock UI Tester',
-  email: 'mocktester@example.com',
-  avatarUrl: 'https://placehold.co/100x100.png?text=MT',
-  subscriptionStatus: 'premium',
-  createdAt: new Date('2023-01-01T10:00:00Z'),
-  bio: 'I am the main mock user for testing purposes with premium status.',
-  bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
 };
 
 
@@ -388,16 +385,16 @@ const mapDocToListing = (docSnap: any): Listing => {
   const data = docSnap.data();
   return {
     id: docSnap.id,
-    title: data.title,
-    description: data.description,
-    location: data.location,
-    sizeSqft: data.sizeSqft,
+    title: data.title || 'Untitled Listing',
+    description: data.description || 'No description available.',
+    location: data.location || 'Unknown location',
+    sizeSqft: data.sizeSqft || 0,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly', 
-    price: data.price, 
+    price: data.price || 0, 
     leaseToOwnDetails: data.leaseToOwnDetails,
-    images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`],
-    landownerId: data.landownerId,
+    images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent((data.title || 'Listing').substring(0,15))}`],
+    landownerId: data.landownerId || 'unknown_owner',
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true, 
     rating: data.rating,
     numberOfRatings: data.numberOfRatings,
@@ -442,7 +439,6 @@ const mapDocToReview = (docSnap: any): Review => {
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] getUserById (mock): Searching for user ${id}.`);
     return mockUsers.find(user => user.id === id);
   }
   try {
@@ -454,7 +450,6 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     
     const mockUser = mockUsers.find(user => user.id === id);
     if (mockUser) {
-        // console.warn(`[MockData] User ${id} not found in Firestore, returning mock user.`);
         return mockUser;
     }
     return undefined;
@@ -477,7 +472,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
   };
 
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] createUserProfile (mock): Firestore not available. Adding/updating user in mock data.");
     const existingUserIndex = mockUsers.findIndex(u => u.id === userId);
     if (existingUserIndex !== -1) {
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
@@ -516,7 +510,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError || !db) {
-        // console.warn("[MockData] updateUserProfile (mock): Firestore not available. Updating user profile in mock data for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
@@ -548,7 +541,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         return undefined;
     } catch (error) {
         console.error("[MockData] Error updating user profile in Firestore for user:", userId, error);
-        // console.warn("[MockData] Attempting mock update as fallback for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
@@ -567,8 +559,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] getListings (mock): Firestore not available. Using mock data. Current mockDataVersion: ${mockDataVersion}`);
-    // console.log(`[MockData] getListings (mock): Current mockListings array (first 3 titles): ${mockListings.slice(0, 3).map(l => `${l.title} (Owner: ${l.landownerId})`).join(', ')}`);
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -598,9 +588,7 @@ export const getListings = async (): Promise<Listing[]> => {
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
   if (firebaseInitializationError || !db) {
-    // console.warn(`[MockData] getListingsByLandownerCount (mock): Counting mock listings for landowner ${landownerId}. Current mockListings count: ${mockListings.length}`);
     const count = mockListings.filter(l => l.landownerId === landownerId).length;
-    // console.warn(`[MockData] Found ${count} listings for landowner ${landownerId}.`);
     return count;
   }
   try {
@@ -615,21 +603,44 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
+  console.log(`[MockData] getListingById: Attempting to fetch listing with ID: ${id}`);
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] getListingById (mock): Searching for listing ${id}.`);
-    return mockListings.find(listing => listing.id === id);
+    console.log(`[MockData] getListingById (mock): Firestore not available. Searching for listing ID ${id} in mock data.`);
+    const mockListing = mockListings.find(listing => listing.id === id);
+    if (mockListing) {
+      console.log(`[MockData] getListingById (mock): Found mock listing:`, mockListing.title);
+    } else {
+      console.log(`[MockData] getListingById (mock): Listing ID ${id} NOT FOUND in mock data.`);
+    }
+    return mockListing;
   }
   try {
+    console.log(`[MockData] getListingById (Firestore): Fetching listing ID ${id} from Firestore.`);
     const listingDocRef = doc(db, "listings", id);
     const listingSnap = await getDoc(listingDocRef);
     if (listingSnap.exists()) {
+      console.log(`[MockData] getListingById (Firestore): Listing ID ${id} found. Data:`, listingSnap.data());
       return mapDocToListing(listingSnap);
+    } else {
+      console.warn(`[MockData] getListingById (Firestore): Listing ID ${id} NOT FOUND in Firestore. Attempting to find in mock data as fallback.`);
+      const mockListing = mockListings.find(listing => listing.id === id);
+      if (mockListing) {
+        console.log(`[MockData] getListingById (mock fallback): Found mock listing:`, mockListing.title);
+      } else {
+        console.log(`[MockData] getListingById (mock fallback): Listing ID ${id} NOT FOUND in mock data either.`);
+      }
+      return mockListing;
     }
-    // console.warn(`[MockData] Listing ${id} not found in Firestore, trying mock data.`);
-    return mockListings.find(listing => listing.id === id);
   } catch (error) {
-    console.error("[MockData] Error fetching listing by ID from Firestore, using mock data as fallback:", error);
-    return mockListings.find(listing => listing.id === id);
+    console.error(`[MockData] getListingById (Firestore): Error fetching listing ID ${id}. Error:`, error);
+    console.warn(`[MockData] getListingById (Firestore Error Fallback): Attempting to find ID ${id} in mock data.`);
+    const mockListing = mockListings.find(listing => listing.id === id);
+     if (mockListing) {
+        console.log(`[MockData] getListingById (mock fallback after error): Found mock listing:`, mockListing.title);
+      } else {
+        console.log(`[MockData] getListingById (mock fallback after error): Listing ID ${id} NOT FOUND in mock data.`);
+      }
+    return mockListing;
   }
 };
 
@@ -640,7 +651,7 @@ export const addListing = async (
 ): Promise<Listing> => {
   const creationTimestamp = new Date();
   const newListingData: Listing = {
-    id: `mock-listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, 
+    id: `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, 
     ...data,
     landownerId: landownerId,
     isAvailable: true,
@@ -652,7 +663,6 @@ export const addListing = async (
   };
 
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Data:`, newListingData);
     mockListings.unshift(newListingData); 
     incrementMockDataVersion('addListing_mock');
     return Promise.resolve(newListingData);
@@ -671,25 +681,26 @@ export const addListing = async (
       createdAt: Timestamp.fromDate(creationTimestamp), 
     };
 
+    // Firestore generates its own ID, so we don't pass newListingData.id
     const docRef = await addDoc(listingsCol, firestoreReadyData);
-    const newDocSnap = await getDoc(docRef);
+    const newDocSnap = await getDoc(docRef); // Fetch the document to get the Firestore-generated ID
     if (newDocSnap.exists()){
-         return mapDocToListing(newDocSnap);
+         incrementMockDataVersion('addListing_firestore_success');
+         return mapDocToListing(newDocSnap); // This will include the Firestore ID
     } else {
         throw new Error("Failed to retrieve newly created listing from Firestore.");
     }
   } catch (error) {
     console.error("[MockData] Error adding listing to Firestore, adding to mock data as fallback:", error);
+    newListingData.id = `mock-fallback-${newListingData.id}`; // Ensure it's clear this is a fallback ID
     mockListings.unshift(newListingData);
-    incrementMockDataVersion('addListing_fallback');
-    // console.log(`[MockData] addListing (fallback): New listing '${newListingData.title}' added. mockListings count: ${mockListings.length}`);
+    incrementMockDataVersion('addListing_firestore_fallback');
     return Promise.resolve(newListingData);
   }
 };
 
 export const deleteListing = async (listingId: string): Promise<boolean> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] deleteListing (mock): Firestore not available. Deleting listing from mock data.");
     const initialLength = mockListings.length;
     mockListings = mockListings.filter(l => l.id !== listingId);
     mockBookings = mockBookings.filter(b => b.listingId !== listingId);
@@ -707,21 +718,22 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
 
     const listingSnap = await getDoc(listingDocRef);
     if (!listingSnap.exists()) {
-      // console.warn(`[MockData] deleteListing (Firestore): Listing ${listingId} not found.`);
       return false; 
     }
     batch.delete(listingDocRef);
 
-    const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
-    const bookingsSnapshot = await getDocs(bookingsQuery);
-    bookingsSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
+    // Optional: Clean up related mock bookings/reviews if switching from mock to live
+    // For now, primarily focusing on Firestore deletion logic
+    // const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
+    // const bookingsSnapshot = await getDocs(bookingsQuery);
+    // bookingsSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
 
-    const reviewsQuery = query(collection(db, "reviews"), where("listingId", "==", listingId));
-    const reviewsSnapshot = await getDocs(reviewsQuery);
-    reviewsSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
+    // const reviewsQuery = query(collection(db, "reviews"), where("listingId", "==", listingId));
+    // const reviewsSnapshot = await getDocs(reviewsQuery);
+    // reviewsSnapshot.docs.forEach(docSnap => batch.delete(docSnap.ref));
 
     await batch.commit();
-    // console.log(`[MockData] deleteListing (Firestore): Successfully deleted listing ${listingId} and associated data.`);
+    incrementMockDataVersion('deleteListing_firestore_success');
     return true;
   } catch (error) {
     console.error(`[MockData] deleteListing (Firestore): Error deleting listing ${listingId}:`, error);
@@ -731,7 +743,6 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
 
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] getReviewsForListing (mock): Fetching for listing ${listingId}.`);
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
         .sort((a, b) => {
           const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
@@ -787,7 +798,6 @@ export const addReview = async (
   };
 
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] addReview (mock): Firestore not available. Adding review to mock data.");
     mockReviews.unshift(newReview);
     const listing = mockListings.find(l => l.id === listingId);
     if (listing) {
@@ -826,7 +836,7 @@ export const addReview = async (
             numberOfRatings: newNumRatings,
         });
     }
-
+    incrementMockDataVersion('addReview_firestore_success');
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
         return mapDocToReview(newDocSnap);
@@ -855,7 +865,6 @@ const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
 
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
   if (firebaseInitializationError || !db) {
-    // console.log(`[MockData] getBookingsForUser (mock): Fetching for user ${userId}.`);
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
         .sort((a,b) => {
           const timeA = a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0;
@@ -913,7 +922,6 @@ export const addBookingRequest = async (
   };
 
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] addBookingRequest (mock): Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
     incrementMockDataVersion('addBookingRequest_mock');
     return populateBookingDetails(newBooking);
@@ -936,6 +944,7 @@ export const addBookingRequest = async (
       createdAt: Timestamp.fromDate(creationTimestamp),
     };
     const docRef = await addDoc(bookingsCol, firestoreBookingData);
+    incrementMockDataVersion('addBookingRequest_firestore_success');
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
         const mappedBooking = mapDocToBooking(newDocSnap);
@@ -953,7 +962,6 @@ export const addBookingRequest = async (
 
 export const updateBookingStatus = async (bookingId: string, status: Booking['status']): Promise<Booking | undefined> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] updateBookingStatus (mock): Firestore not available. Updating booking status in mock data.");
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
@@ -966,6 +974,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   try {
     const bookingDocRef = doc(db, "bookings", bookingId);
     await updateDoc(bookingDocRef, { status: status });
+    incrementMockDataVersion('updateBookingStatus_firestore_success');
     const updatedSnap = await getDoc(bookingDocRef);
     if (updatedSnap.exists()) {
       const updatedBooking = mapDocToBooking(updatedSnap);
@@ -1002,7 +1011,6 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
   const updatedBookmarks = [...currentBookmarks, listingId];
 
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] addBookmarkToList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
@@ -1037,7 +1045,6 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
   const updatedBookmarks = currentBookmarks.filter(id => id !== listingId);
 
   if (firebaseInitializationError || !db) {
-    // console.warn("[MockData] removeBookmarkFromList (mock): Firestore not available. Updating bookmarks in mock data for user:", userId);
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
