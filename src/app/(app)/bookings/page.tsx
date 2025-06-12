@@ -9,7 +9,7 @@ import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2,
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
 import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById } from '@/lib/mock-data';
-import { format, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { getGeneratedLeaseTermsAction } from '@/lib/actions/ai-actions';
@@ -35,33 +35,33 @@ export default function BookingsPage() {
   const { toast } = useToast();
 
   const loadBookings = useCallback(async () => {
-    if (firebaseInitializationError && !currentUser?.appProfile) { 
+    if (firebaseInitializationError && !currentUser?.appProfile) {
       setIsLoading(false);
       setUserBookings([]);
       if (firebaseInitializationError) {
-          toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Cannot load live bookings.", 
+          toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Cannot load live bookings.",
             variant: "default",
-            duration: 5000  
+            duration: 5000
           });
       }
       return;
     }
-    
-    if (firebaseInitializationError && currentUser?.appProfile) { 
-         toast({ 
-            title: "Preview Mode Active", 
-            description: "Firebase not configured. Displaying sample bookings for preview.", 
+
+    if (firebaseInitializationError && currentUser?.appProfile) {
+         toast({
+            title: "Preview Mode Active",
+            description: "Firebase not configured. Displaying sample bookings for preview.",
             variant: "default",
-            duration: 5000  
+            duration: 5000
         });
     }
 
     setIsLoading(true);
-    
+
     try {
-      const bookingsFromDb = await getBookingsForUser(currentUser!.uid); 
+      const bookingsFromDb = await getBookingsForUser(currentUser!.uid);
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
@@ -70,7 +70,7 @@ export default function BookingsPage() {
         description: error.message || "Could not load your bookings.",
         variant: "destructive",
       });
-      setUserBookings([]); 
+      setUserBookings([]);
     } finally {
       setIsLoading(false);
     }
@@ -100,31 +100,42 @@ export default function BookingsPage() {
 
     const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
-    
-    let durationMonths = 0;
-    if (listingDetails.pricingModel === 'monthly' || listingDetails.pricingModel === 'lease-to-own') {
-        durationMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-    } else if (listingDetails.pricingModel === 'nightly') {
-        // For nightly, we might not generate a full lease, or we generate a "short-term rental agreement"
-        // For this example, let's assume even nightly might want some terms, and use 1 month as a placeholder duration.
-        // Or, better, we can adjust the prompt. For now, let's estimate.
-        const days = differenceInDays(toDate, fromDate) + 1;
-        durationMonths = Math.max(1, Math.ceil(days / 30)); // Approximate months
-    }
-    
-    if (durationMonths <= 0) durationMonths = 1;
 
+    let durationDesc = "";
+    let priceForLease = listingDetails.price;
+
+    if (listingDetails.pricingModel === 'nightly') {
+        const days = differenceInDays(toDate, fromDate) + 1;
+        durationDesc = `${days} day(s)`;
+        priceForLease = listingDetails.price * days; // Total for term, AI prompt asks for monthly equivalent, adjust if needed
+    } else if (listingDetails.pricingModel === 'monthly') {
+        const days = differenceInDays(toDate, fromDate) + 1;
+        const approxMonths = parseFloat((days / 30.4375).toFixed(2)); // Average days in month
+        if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) { // If less than a month but monthly listing
+            durationDesc = `${days} day(s) (Note: This is a short-term rental of a monthly-priced plot)`;
+             priceForLease = (listingDetails.price / 30) * days; // Prorated
+        } else {
+             const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+             durationDesc = `${fullMonths} month(s)`;
+             priceForLease = listingDetails.price; // The monthly rate
+        }
+
+    } else if (listingDetails.pricingModel === 'lease-to-own') {
+        const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+        durationDesc = `${fullMonths} month(s) (Lease-to-Own)`;
+        priceForLease = listingDetails.price;
+    }
 
     const input: GenerateLeaseTermsInput = {
-        listingType: listingDetails.pricingModel === 'nightly' ? `Short-term rental for ${listingDetails.title}` : `Plot for ${listingDetails.title}`,
-        durationMonths: durationMonths,
-        monthlyPrice: listingDetails.price, // Use the unified price field
+        listingType: listingDetails.pricingModel === 'nightly' ? `Short-term rental for ${listingDetails.title}` : `Plot for ${listingDetails.title} (${listingDetails.pricingModel})`,
+        durationDescription: durationDesc,
+        pricePerMonthEquivalent: priceForLease,
         landownerName: booking.landownerName,
         renterName: booking.renterName,
         listingAddress: listingDetails.location,
-        additionalRules: listingDetails.leaseToOwnDetails || "No permanent structures without written consent. Maintain cleanliness of the plot." // Example, could be fetched from listing
+        additionalRules: listingDetails.leaseToOwnDetails || "No permanent structures without written consent. Maintain cleanliness of the plot."
     };
-    
+
     const result = await getGeneratedLeaseTermsAction(input);
     setIsLeaseTermsLoading(false);
 
@@ -140,9 +151,9 @@ export default function BookingsPage() {
 
   const handleUpdateBookingStatus = async (booking: Booking, newStatus: Booking['status']) => {
     if (firebaseInitializationError && !currentUser?.appProfile) {
-        toast({ 
-            title: "Preview Mode", 
-            description: "Updating booking status is disabled in full preview mode.", 
+        toast({
+            title: "Preview Mode",
+            description: "Updating booking status is disabled in full preview mode.",
             variant: "default"
         });
         return;
@@ -153,7 +164,7 @@ export default function BookingsPage() {
     }
 
     const originalBookings = [...userBookings];
-    setUserBookings(prevBookings => 
+    setUserBookings(prevBookings =>
       prevBookings.map(b => b.id === booking.id ? { ...b, status: newStatus } : b)
     );
 
@@ -164,7 +175,7 @@ export default function BookingsPage() {
           title: "Booking Updated",
           description: `Booking status changed to ${newStatus}.`,
         });
-        await loadBookings(); 
+        await loadBookings();
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
             await handleGenerateAndShowLeaseTerms(updatedBooking);
         }
@@ -177,7 +188,7 @@ export default function BookingsPage() {
         description: error.message || "Could not update booking status.",
         variant: "destructive",
       });
-      setUserBookings(originalBookings); 
+      setUserBookings(originalBookings);
     }
   };
 
@@ -187,7 +198,7 @@ export default function BookingsPage() {
     if (status.includes('Declined') || status.includes('Cancelled')) return 'text-destructive';
     return 'text-muted-foreground';
   };
-  
+
   const formatDateRange = (dateRange: { from: Date | { toDate: () => Date }; to: Date | { toDate: () => Date } }): string => {
     const fromDate = dateRange.from instanceof Date ? dateRange.from : (dateRange.from as any).toDate();
     const toDate = dateRange.to instanceof Date ? dateRange.to : (dateRange.to as any).toDate();
@@ -202,8 +213,8 @@ export default function BookingsPage() {
       </div>
     );
   }
-  
-  if (!currentUser && !isLoading) { 
+
+  if (!currentUser && !isLoading) {
      return (
       <Card>
         <CardHeader>
@@ -286,8 +297,8 @@ export default function BookingsPage() {
                 </Button>
                 {booking.landownerId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
                   <>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
                       disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isLeaseTermsLoading}
@@ -295,8 +306,8 @@ export default function BookingsPage() {
                       {isLeaseTermsLoading && booking.status === 'Pending Confirmation' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                        Approve
                     </Button>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleUpdateBookingStatus(booking, 'Declined')}
                       disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
@@ -306,8 +317,8 @@ export default function BookingsPage() {
                   </>
                 )}
                  {booking.renterId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     size="sm"
                     onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')}
                     disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
@@ -326,14 +337,14 @@ export default function BookingsPage() {
           ))}
         </div>
       )}
-      
+
       <AlertDialog open={leaseTermsModalOpen} onOpenChange={setLeaseTermsModalOpen}>
         <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>AI Suggested Lease Terms</AlertDialogTitle>
             <AlertDialogDescription>
               This is an AI-generated lease suggestion based on the booking details.
-              <strong> It is for informational purposes only and should be reviewed by legal counsel before use.</strong>
+              <strong> It is for informational purposes only and should be reviewed by legal counsel before use. Ensure compliance with all local and state laws.</strong>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 custom-scrollbar text-sm space-y-4">

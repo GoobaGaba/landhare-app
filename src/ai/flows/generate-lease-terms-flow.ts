@@ -13,8 +13,8 @@ import {z} from 'genkit';
 
 const GenerateLeaseTermsInputSchema = z.object({
   listingType: z.string().describe('The type of land being leased (e.g., "RV Pad", "Tiny Home Lot", "Agricultural Land", "General Use Plot").'),
-  durationMonths: z.number().positive().describe('The duration of the lease in months.'),
-  monthlyPrice: z.number().positive().describe('The agreed monthly rental price in USD.'),
+  durationDescription: z.string().describe('A textual description of the lease duration (e.g., "3 months", "14 days (approx 0.46 months)", "1 year"). This helps the AI formulate the term clause accurately.'),
+  pricePerMonthEquivalent: z.number().positive().describe('The agreed monthly rental price in USD. If the original booking was nightly, this should be an estimated monthly equivalent or the nightly rate clearly stated as such.'),
   landownerName: z.string().describe('The full name of the landowner.'),
   renterName: z.string().describe('The full name of the renter.'),
   listingAddress: z.string().describe('The full address or specific location description of the land being leased.'),
@@ -24,7 +24,7 @@ export type GenerateLeaseTermsInput = z.infer<typeof GenerateLeaseTermsInputSche
 
 const GenerateLeaseTermsOutputSchema = z.object({
   leaseAgreementText: z.string().describe('A comprehensive suggested lease agreement text. This should be a structured document including standard clauses like parties, property description, term, rent, use of premises, maintenance, default, governing law, etc. It should incorporate the specific details provided in the input. This text is a DRAFT suggestion and should be reviewed by legal counsel and checked against local regulations.'),
-  summaryPoints: z.array(z.string()).describe('A few key bullet points summarizing the most important terms of the lease (e.g., "Lease Duration: X months", "Monthly Rent: $Y", "Primary Use: Z").')
+  summaryPoints: z.array(z.string()).describe('A few key bullet points summarizing the most important terms of the lease (e.g., "Lease Duration: As per durationDescription", "Monthly Rent: $Y", "Primary Use: Z").')
 });
 export type GenerateLeaseTermsOutput = z.infer<typeof GenerateLeaseTermsOutputSchema>;
 
@@ -48,8 +48,8 @@ Landowner: {{{landownerName}}}
 Renter: {{{renterName}}}
 Property Type/Use: {{{listingType}}}
 Property Location: {{{listingAddress}}}
-Lease Duration: {{{durationMonths}}} months
-Monthly Rent: \${{{monthlyPrice}}}
+Lease Duration: {{{durationDescription}}}
+Rent (based on monthly equivalent): \${{{pricePerMonthEquivalent}}} per month (if duration is less than a month, payment structure should reflect actual term)
 
 {{#if additionalRules}}
 Specific Additional Rules from Landowner:
@@ -57,22 +57,22 @@ Specific Additional Rules from Landowner:
 {{/if}}
 
 Generate a suggested lease agreement text covering standard clauses:
-1.  Parties: Clearly state Landowner and Renter names.
-2.  Property: Describe the property being leased (type and location).
-3.  Term: State the lease duration in months and start/end dates (assume start is "Effective Date of Agreement").
-4.  Rent: Specify the monthly rent amount, due date (e.g., 1st of each month), and acceptable payment methods (suggest "mutually agreed method").
-5.  Use of Premises: Define the allowed use (based on listingType).
-6.  Condition of Premises: Renter accepts property "as-is".
-7.  Maintenance & Repairs: Typically Renter's responsibility for their structures/belongings; Landowner for general land upkeep unless specified. Consider specific rules provided.
-8.  Utilities: Clarify responsibility (e.g., "Renter responsible for utilities they connect/use").
-9.  Access: Landowner right to access with reasonable notice.
-10. Default: Briefly outline consequences of non-payment or breach.
-11. {{#if additionalRules}}Landowner's Additional Rules: Incorporate these clearly.{{/if}}
-12. Governing Law: State "This agreement shall be governed by the laws of the jurisdiction where the property is located."
-13. Entire Agreement: This document constitutes the entire agreement.
-14. Disclaimer: Reiterate that this is a template and legal review is advised.
+1.  **Parties**: Clearly state Landowner and Renter names.
+2.  **Property**: Describe the property being leased (type and location).
+3.  **Term**: State the lease duration precisely using the '{{{durationDescription}}}' and start/end dates (assume start is "Effective Date of Agreement").
+4.  **Rent**: Specify the rent amount. If the duration is less than a full month, specify the total rent for the term based on the {{{durationDescription}}} and {{{pricePerMonthEquivalent}}} (prorated if necessary). If monthly, state monthly amount and due date (e.g., 1st of each month). Suggest "mutually agreed method" for payment.
+5.  **Use of Premises**: Define the allowed use (based on listingType).
+6.  **Condition of Premises**: Renter accepts property "as-is".
+7.  **Maintenance & Repairs**: Typically Renter's responsibility for their structures/belongings; Landowner for general land upkeep unless specified. Consider specific rules provided.
+8.  **Utilities**: Clarify responsibility (e.g., "Renter responsible for utilities they connect/use").
+9.  **Access**: Landowner right to access with reasonable notice.
+10. **Default**: Briefly outline consequences of non-payment or breach.
+11. {{#if additionalRules}}**Landowner's Additional Rules**: Incorporate these clearly.{{/if}}
+12. **Governing Law**: State "This agreement shall be governed by the laws of the jurisdiction where the property is located."
+13. **Entire Agreement**: This document constitutes the entire agreement.
+14. **Disclaimer**: Reiterate that this is a template and legal review is advised, and all local/state laws and zoning must be checked and complied with.
 
-Also, provide a short list of key summary points.
+Also, provide a short list of key summary points reflecting the actual term and payment.
 The leaseAgreementText should be formatted with clear headings for each section.
 Example for a clause:
 "**5. Use of Premises**
@@ -91,7 +91,6 @@ const generateLeaseTermsFlow = ai.defineFlow(
     if (!output) {
         throw new Error("The AI failed to generate lease terms based on the provided input.");
     }
-    // Ensure the output conforms, even if simple.
     return {
         leaseAgreementText: output.leaseAgreementText || "Error generating lease text. Please ensure all inputs are valid and try again. Remember, this is a template and requires legal review.",
         summaryPoints: output.summaryPoints || ["Error generating summary. Legal review of any terms is essential."],

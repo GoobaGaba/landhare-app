@@ -51,10 +51,10 @@ export async function getGeneratedLeaseTermsAction(
 ): Promise<{ data?: GenerateLeaseTermsOutput; error?: string }> {
   try {
     // Basic validation
-    if (!input.listingType || input.durationMonths <= 0 || input.monthlyPrice <= 0 || !input.landownerName || !input.renterName || !input.listingAddress) {
-      return { error: "Missing required fields for lease term generation (type, duration, price, names, address)." };
+    if (!input.listingType || !input.durationDescription || input.pricePerMonthEquivalent <= 0 || !input.landownerName || !input.renterName || !input.listingAddress) {
+      return { error: "Missing required fields for lease term generation (type, duration description, price, names, address)." };
     }
-    
+
     const result = await generateLeaseTerms(input);
     return { data: result };
   } catch (error) {

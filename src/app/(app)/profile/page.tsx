@@ -41,7 +41,7 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
-    if (currentUser) { // Covers both live and mock user scenarios
+    if (currentUser) {
       const currentAppProfile = currentUser.appProfile;
       const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
 
@@ -74,7 +74,7 @@ export default function ProfilePage() {
     if (bioInput !== profileDisplayData.bio) updateData.bio = bioInput;
 
     if (Object.keys(updateData).length > 0) {
-        const updatedUser = await updateCurrentAppUserProfile(updateData); // This handles both FirebaseUser displayname/photoURL and AppUserType
+        const updatedUser = await updateCurrentAppUserProfile(updateData);
         if (updatedUser && updatedUser.appProfile) {
             setProfileDisplayData(prev => prev ? {
                  ...prev,
@@ -126,8 +126,10 @@ export default function ProfilePage() {
     try {
       const updatedUser = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
       if (updatedUser && updatedUser.appProfile) {
+        // The subscriptionStatus state in AuthContext will be updated by its own effect listener
+        // This local state update is for immediate UI feedback if needed, but primarily rely on AuthContext
         setProfileDisplayData(prev => prev ? {...prev, subscriptionTier: updatedUser.appProfile!.subscriptionStatus || newStatus } : null);
-        toast({ title: "Subscription Updated (Mock)", description: `Your account is now simulated as ${newStatus}.` });
+        toast({ title: "Subscription Updated (Simulation)", description: `Your account is now simulated as ${newStatus}.` });
       } else {
         throw new Error("Failed to update subscription status in simulation.");
       }
@@ -148,7 +150,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (firebaseInitializationError && !currentUser) { // currentUser might be mockUser
+  if (firebaseInitializationError && !currentUser) {
      return (
       <Card>
         <CardHeader>
@@ -287,7 +289,6 @@ export default function ProfilePage() {
                 <Label htmlFor="promo-emails" className="cursor-pointer">Promotional Emails & Updates</Label>
                 <Switch id="promo-emails" onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `Promotional emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} />
               </div>
-              {/* Removed general save button as individual switches give instant feedback */}
             </CardContent>
           </Card>
         </TabsContent>
@@ -318,25 +319,29 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="p-4 border rounded-lg">
-                 <div className="flex items-center justify-between">
-                    <div>
-                        <h4 className="font-medium">Simulate Subscription Tier</h4>
-                        <p className="text-xs text-muted-foreground">For testing purposes, toggle between Free and Premium.</p>
-                    </div>
-                    <Button 
-                        onClick={handleSubscriptionToggle} 
-                        variant="outline" 
-                        size="sm"
-                        disabled={isSwitchingSubscription || authLoading}
-                        className="w-36"
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Simulate Subscription Tier</CardTitle>
+                  <CardDescription>For testing purposes, you can switch your account's simulated subscription status.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button
+                        onClick={handleSubscriptionToggle}
+                        variant="outline"
+                        disabled={isSwitchingSubscription || authLoading || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        className="w-full sm:w-auto"
                     >
-                        {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>} 
+                        {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
                         Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
                     </Button>
-                 </div>
-                 {firebaseInitializationError && <p className="text-xs text-destructive mt-2">Note: Subscription simulation primarily affects UI. Backend enforcement may differ in full preview.</p>}
-              </div>
+                    {firebaseInitializationError && !currentUser?.appProfile &&
+                        <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in Firebase preview mode.</p>
+                    }
+                     <p className="text-xs text-muted-foreground mt-2">
+                        This simulation affects UI elements like displayed fees and listing limits for testing. It does not involve real payments.
+                    </p>
+                </CardContent>
+              </Card>
 
               <div>
                 <h4 className="font-medium mb-2">Payment Methods</h4>
@@ -353,4 +358,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

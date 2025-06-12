@@ -11,7 +11,7 @@ export interface Listing {
   location: string;
   sizeSqft: number;
   amenities: string[];
-  price: number; // Unified price field
+  price: number; // Unified price field (per night, per month, or indicative LTO)
   pricingModel: PricingModel;
   leaseToOwnDetails?: string;
   images: string[];
@@ -19,9 +19,9 @@ export interface Listing {
   isAvailable: boolean;
   rating?: number;
   numberOfRatings?: number;
-  leaseTerm?: LeaseTerm;
-  minLeaseDurationMonths?: number;
-  isBoosted?: boolean; 
+  leaseTerm?: LeaseTerm; // Primarily for monthly/LTO for longer terms
+  minLeaseDurationMonths?: number; // Min full months for 'monthly' or 'LTO'
+  isBoosted?: boolean;
   createdAt?: Date | Timestamp;
 }
 
@@ -45,7 +45,7 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date | Timestamp;
-  userName?: string; 
+  userName?: string;
 }
 
 export interface Booking {
@@ -109,8 +109,8 @@ export type SuggestListingTitleOutput = {
 // Input for the AI lease generation flow
 export type GenerateLeaseTermsInput = {
   listingType: string; // e.g., "RV Pad", "Tiny Home Lot", "Agricultural Land"
-  durationMonths: number;
-  monthlyPrice: number;
+  durationDescription: string; // e.g. "3 months", "14 days (approx 0.5 months)"
+  pricePerMonthEquivalent: number; // The monthly rate, even if booking is shorter
   landownerName: string;
   renterName: string;
   listingAddress: string;
@@ -130,7 +130,8 @@ export interface PriceDetails {
   subtotal: number;
   estimatedTax: number;
   totalPrice: number;
-  duration: number;
-  durationUnit: 'night' | 'month' | 'nights' | 'months';
+  duration: number; // Number of nights or days
+  durationUnit: 'night' | 'day' | 'nights' | 'days' | 'month' | 'months'; // unit for duration
   pricingModelUsed: PricingModel;
+  displayRate: string; // e.g., "$50/night", "$100/month (prorated for X days)"
 }

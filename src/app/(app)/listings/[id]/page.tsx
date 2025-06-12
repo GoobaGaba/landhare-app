@@ -18,7 +18,7 @@ import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } 
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
-import { addDays, format, differenceInCalendarMonths, differenceInDays, startOfMonth, endOfMonth, isBefore } from 'date-fns';
+import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -91,11 +91,14 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   today.setHours(0,0,0,0);
 
   const priceDetails: PriceDetails | null = useMemo(() => {
-    if (!listing || (listing.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from || !dateRange.to))) return null;
+    if (!listing || (listing.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from || !dateRange.to))) {
+      return null;
+    }
 
-    let durationValue = 0;
-    let durationUnitText: PriceDetails['durationUnit'] = 'nights';
     let baseRate = 0;
+    let durationValue = 0;
+    let durationUnitText: PriceDetails['durationUnit'] = 'days';
+    let displayRateString = "";
     const taxRate = 0.05; // 5% tax
 
     if (listing.pricingModel === 'nightly' && dateRange?.from && dateRange?.to) {
@@ -103,18 +106,20 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = (listing.price || 0) * durationValue;
+      displayRateString = `$${listing.price.toFixed(0)}/${listing.pricingModel}`;
     } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
-      durationValue = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
+      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; // Duration in days
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-      durationUnitText = durationValue === 1 ? 'month' : 'months';
-      baseRate = (listing.price || 0) * durationValue;
+      baseRate = (listing.price / 30) * durationValue; // Prorate monthly price to daily
+      durationUnitText = durationValue === 1 ? 'day' : 'days';
+      displayRateString = `$${listing.price.toFixed(0)}/month (prorated for ${durationValue} ${durationUnitText})`;
     } else if (listing.pricingModel === 'lease-to-own') {
-      // For LTO, base rate is the monthly indicative price, duration often 1 for display.
-      durationValue = 1; 
+      // LTO shows indicative monthly, fixed duration for display
+      durationValue = 1;
       durationUnitText = 'month';
       baseRate = listing.price || 0;
+      displayRateString = `Est. $${listing.price.toFixed(0)}/month (LTO)`;
     } else {
-      // Fallback or if dates not set for nightly/monthly yet
       return null;
     }
     
@@ -136,6 +141,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       duration: durationValue,
       durationUnit: durationUnitText,
       pricingModelUsed: listing.pricingModel,
+      displayRate: displayRateString,
     };
   }, [dateRange, listing, subscriptionStatus]);
 
@@ -154,13 +160,17 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       toast({ title: "Select Dates", description: "Please select a check-in and check-out date.", variant: "destructive" });
       return;
     }
-     if (listing?.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && priceDetails.duration < listing.minLeaseDurationMonths) {
-        toast({
-            title: "Minimum Lease Duration",
-            description: `This listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. You selected ${priceDetails.duration} month(s).`,
-            variant: "destructive",
-        });
-        return;
+     if (listing?.pricingModel === 'monthly' && listing.minLeaseDurationMonths && dateRange?.from && dateRange?.to) {
+        // For monthly, check if selected range (in days) meets min months * approx 30 days.
+        const selectedDays = differenceInDays(dateRange.to, dateRange.from) + 1;
+        if (selectedDays < listing.minLeaseDurationMonths * 28) { // Use 28 for a slightly lenient check
+             toast({
+                title: "Minimum Lease Duration",
+                description: `This monthly listing requires a minimum lease of ${listing.minLeaseDurationMonths} months.`,
+                variant: "destructive",
+            });
+            return;
+        }
     }
     setShowBookingDialog(true);
   };
@@ -182,10 +192,10 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
        const bookingData = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId, 
+        landownerId: listing.landownerId,
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
-                     : { from: new Date(), to: addDays(new Date(), 1) }, 
+                     : { from: new Date(), to: addDays(new Date(), 1) }, // LTO placeholder dates
       };
       await addBookingRequest(bookingData);
 
@@ -195,7 +205,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         title: listing.pricingModel === 'lease-to-own' ? "Inquiry Sent!" : "Booking Request Submitted!",
         description: listing.pricingModel === 'lease-to-own'
             ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
-            : `Your request for "${listing.title}" from ${format(dateRange!.from!, "PPP")} to ${format(dateRange!.to!, "PPP")} has been sent.`,
+            : `Your request for "${listing.title}" for ${priceDetails?.duration || ''} ${priceDetails?.durationUnit || ''} has been sent.`,
       });
     } catch (error: any) {
       toast({
@@ -249,7 +259,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       default: return { amount: priceAmount, unit: "month", model: 'monthly' as PricingModel };
     }
   };
-  const displayPrice = getPriceDisplay();
+  const displayPriceInfo = getPriceDisplay();
 
 
   return (
@@ -286,7 +296,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
                 <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" />
-                    Price: {listing.pricingModel === 'lease-to-own' ? displayPrice.amount : `$${displayPrice.amount}`} / {displayPrice.unit}
+                    Price: {displayPriceInfo.model === 'lease-to-own' ? displayPriceInfo.amount : `$${displayPriceInfo.amount}`} / {displayPriceInfo.unit}
                 </div>
                 <div className="flex items-center col-span-1 sm:col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
                 {listing.leaseTerm && listing.pricingModel !== 'nightly' && (
@@ -373,10 +383,10 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           <Card className="shadow-xl border-primary ring-1 ring-primary/30">
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
-                     <span className={cn("text-3xl font-bold font-sans", displayPrice.model === 'lease-to-own' ? "text-2xl" : "text-primary")}>
-                        {displayPrice.model === 'lease-to-own' ? displayPrice.amount : `$${displayPrice.amount}`}
+                     <span className={cn("text-3xl font-bold font-sans", displayPriceInfo.model === 'lease-to-own' ? "text-2xl" : "text-primary")}>
+                        {displayPriceInfo.model === 'lease-to-own' ? displayPriceInfo.amount : `$${displayPriceInfo.amount}`}
                     </span>
-                    <span className="text-sm text-muted-foreground self-end pb-1">/ {displayPrice.unit}</span>
+                    <span className="text-sm text-muted-foreground self-end pb-1">/ {displayPriceInfo.unit}</span>
                 </div>
                 {listing.pricingModel === 'lease-to-own' && (
                     <p className="text-xs text-muted-foreground -mt-2">Lease-to-Own Inquiry</p>
@@ -398,7 +408,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         />
                         {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
                             <p className="text-xs text-accent flex items-center pt-1">
-                                <AlertTriangle className="h-4 w-4 mr-1" /> Min. {listing.minLeaseDurationMonths}-month lease.
+                                <AlertTriangle className="h-4 w-4 mr-1" /> Min. {listing.minLeaseDurationMonths}-month lease required for monthly rate. Shorter stays priced daily.
                             </p>
                         )}
                     </div>
@@ -415,9 +425,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {priceDetails && listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange?.to && (
                   <div className="space-y-1 text-sm pt-2 border-t">
                     <div className="flex justify-between">
-                        <span>
-                            ${listing.price?.toFixed(0)} x {priceDetails.duration} {priceDetails.durationUnit}
-                        </span>
+                        <span>{priceDetails.displayRate} ({priceDetails.duration} {priceDetails.durationUnit})</span>
                         <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
                     </div>
                     {priceDetails.renterFee > 0 && (
@@ -428,8 +436,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     )}
                     {subscriptionStatus === 'premium' && listing.pricingModel !== 'lease-to-own' && (
                         <div className="flex justify-between text-primary">
-                            <span>Renter Service Fee:</span>
-                            <span>$0.00 (Premium!)</span>
+                            <span>Renter Service Fee (Premium Benefit!):</span>
+                            <span>$0.00</span>
                         </div>
                     )}
                     <div className="flex justify-between">
@@ -540,18 +548,18 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <p><strong>Duration:</strong> {priceDetails.duration} {priceDetails.durationUnit}</p>
               <Separator className="my-2"/>
               <div className="flex justify-between">
-                <span>Base ({priceDetails.duration} {priceDetails.durationUnit} at ${listing.price?.toFixed(0)}/{priceDetails.pricingModelUsed === 'nightly' ? 'night' : 'month'}):</span>
+                <span>{priceDetails.displayRate}:</span>
                 <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
               </div>
               {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
-              {subscriptionStatus === 'premium' && <div className="flex justify-between text-primary"><span>Renter Service Fee:</span> <span>$0.00 (Premium Benefit!)</span></div>}
+              {subscriptionStatus === 'premium' && <div className="flex justify-between text-primary"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
               <div className="flex justify-between"><span>Subtotal:</span> <span>${(typeof priceDetails.subtotal === 'number' && !isNaN(priceDetails.subtotal)) ? priceDetails.subtotal.toFixed(2) : '--'}</span></div>
               <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${(typeof priceDetails.estimatedTax === 'number' && !isNaN(priceDetails.estimatedTax)) ? priceDetails.estimatedTax.toFixed(2) : '--'}</span></div>
               <Separator className="my-2"/>
               <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${(typeof priceDetails.totalPrice === 'number' && !isNaN(priceDetails.totalPrice)) ? priceDetails.totalPrice.toFixed(2) : '--'}</span></p>
-              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration < listing.minLeaseDurationMonths && (
+              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && (
                     <p className="text-sm text-destructive flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months.
+                        <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate.
                     </p>
               )}
             </div>
@@ -570,7 +578,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
             <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
                 !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile) ||
-                (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && priceDetails.duration < listing.minLeaseDurationMonths)
+                (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && priceDetails.duration < (listing.minLeaseDurationMonths * 28))
             }>
                 {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Submit Request"}
             </Button>

@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
 
-export const FREE_TIER_LISTING_LIMIT = 1; 
+export const FREE_TIER_LISTING_LIMIT = 1;
 
 let mockUsers: User[] = [
   {
@@ -27,7 +27,7 @@ let mockUsers: User[] = [
     name: 'Mock UI Tester',
     email: 'mocktester@example.com',
     avatarUrl: 'https://placehold.co/100x100.png?text=MT',
-    subscriptionStatus: 'premium',
+    subscriptionStatus: 'premium', // Mock user starts as premium for testing
     createdAt: new Date('2023-01-01T10:00:00Z'),
     bio: 'I am the main mock user for testing purposes with premium status.',
   },
@@ -73,7 +73,7 @@ let mockListings: Listing[] = [
   },
   {
     id: 'listing-2-forest-retreat',
-    title: 'Forest Retreat Lot',
+    title: 'Forest Retreat Lot (Monthly)',
     description: 'Secluded lot in a dense forest. Ideal for off-grid enthusiasts. Some clearing needed.',
     location: 'Asheville, NC',
     sizeSqft: 12000,
@@ -81,7 +81,7 @@ let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 200,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
-    landownerId: 'mock-user-uid-12345', 
+    landownerId: 'mock-user-uid-12345',
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
@@ -91,20 +91,20 @@ let mockListings: Listing[] = [
   },
   {
     id: 'listing-3-desert-oasis',
-    title: 'Desert Oasis Spot',
+    title: 'Desert Oasis Spot (Short-term Monthly)',
     description: 'Expansive desert views with stunning sunsets. Requires water hauling. Power access nearby.',
     location: 'Sedona, AZ',
     sizeSqft: 25000,
     amenities: ['power access', 'road access'],
-    pricingModel: 'monthly',
+    pricingModel: 'monthly', // Still monthly, but implies shorter term flexibility
     price: 150,
     images: ['https://placehold.co/800x600.png?text=Desert+Oasis'],
     landownerId: 'landowner-jane-doe',
-    isAvailable: true, 
+    isAvailable: true,
     rating: 4.5,
     numberOfRatings: 10,
-    leaseTerm: 'short-term',
-    minLeaseDurationMonths: 1,
+    leaseTerm: 'short-term', // Indicates preference for shorter
+    minLeaseDurationMonths: 1, // Explicit min for monthly rate
     isBoosted: false,
     createdAt: new Date('2023-09-01T10:00:00Z'),
   },
@@ -118,7 +118,7 @@ let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 400,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
-    landownerId: 'mock-user-uid-12345', 
+    landownerId: 'mock-user-uid-12345',
     isAvailable: true,
     rating: 4.9,
     numberOfRatings: 22,
@@ -135,14 +135,14 @@ let mockListings: Listing[] = [
     sizeSqft: 1500,
     amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access'],
     pricingModel: 'nightly',
-    price: 45, 
+    price: 45,
     images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
     rating: 4.7,
     numberOfRatings: 12,
     isBoosted: false,
-    leaseTerm: 'short-term', 
+    leaseTerm: 'short-term',
     createdAt: new Date('2024-02-01T09:00:00Z'),
   },
   {
@@ -150,10 +150,10 @@ let mockListings: Listing[] = [
     title: 'Mountain Homestead - Lease to Own!',
     description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm.',
     location: 'Boone, NC',
-    sizeSqft: 45000, 
+    sizeSqft: 45000,
     amenities: ['road access', 'septic system' ],
     pricingModel: 'lease-to-own',
-    price: 650, 
+    price: 650, // Indicative monthly LTO payment
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (includes principal, interest, taxes, insurance estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby'],
     landownerId: 'mock-user-uid-12345',
@@ -161,23 +161,23 @@ let mockListings: Listing[] = [
     rating: 4.3,
     numberOfRatings: 5,
     isBoosted: true,
-    leaseTerm: 'long-term', 
-    minLeaseDurationMonths: 60, 
+    leaseTerm: 'long-term', // LTO is inherently long-term
+    minLeaseDurationMonths: 60, // 5 years
     createdAt: new Date('2024-03-15T11:00:00Z'),
   },
   {
     id: 'listing-7-basic-rural-plot',
-    title: 'Basic Rural Plot - Affordable!',
+    title: 'Basic Rural Plot - Affordable Monthly!',
     description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping or a very simple setup. Check local ordinances.',
     location: 'Rural Plains, KS',
-    sizeSqft: 22000, 
-    amenities: [], 
+    sizeSqft: 22000,
+    amenities: [], // No listed amenities
     pricingModel: 'monthly',
     price: 75,
     images: ['https://placehold.co/800x600.png?text=Basic+Plot'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
-    rating: 2.5,
+    rating: 2.5, // Lower rating
     numberOfRatings: 2,
     isBoosted: false,
     leaseTerm: 'flexible',
@@ -191,10 +191,10 @@ let mockListings: Listing[] = [
     sizeSqft: 10000,
     amenities: ['power access', 'water hookup', 'fenced', 'wifi available'],
     pricingModel: 'monthly',
-    price: 550,
+    price: 1200, // Higher price
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
     landownerId: 'mock-user-uid-12345',
-    isAvailable: false, 
+    isAvailable: false, // Not available
     rating: 4.9,
     numberOfRatings: 35,
     isBoosted: true,
@@ -220,7 +220,7 @@ let mockBookings: Booking[] = [
   {
     id: 'booking-2',
     listingId: 'listing-2-forest-retreat',
-    listingTitle: 'Forest Retreat Lot',
+    listingTitle: 'Forest Retreat Lot (Monthly)',
     renterId: 'renter-john-smith',
     renterName: 'John Smith',
     landownerId: 'mock-user-uid-12345',
@@ -250,7 +250,7 @@ let mockBookings: Booking[] = [
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Confirmed',
-    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') }, 
+    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') },
     createdAt: new Date('2024-06-01T10:00:00Z'),
   },
   {
@@ -292,7 +292,7 @@ let mockReviews: Review[] = [
   {
     id: 'review-2',
     listingId: 'listing-2-forest-retreat',
-    userId: 'landowner-jane-doe', // Simulating landowner reviewing (less common, but for data)
+    userId: 'landowner-jane-doe',
     userName: 'Jane Doe',
     rating: 4,
     comment: 'Nice and secluded, a bit rough around the edges but has potential.',
@@ -352,7 +352,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
-    price: data.price || data.pricePerMonth || 0, 
+    price: data.price || data.pricePerMonth || 0, // Ensure price is primary
     leaseToOwnDetails: data.leaseToOwnDetails,
     images: data.images && data.images.length > 0 ? data.images : ["https://placehold.co/800x600.png?text=Land"],
     landownerId: data.landownerId,
@@ -379,9 +379,9 @@ const mapDocToBooking = (docSnap: any): Booking => {
       to: data.dateRange.to.toDate ? data.dateRange.to.toDate() : new Date(data.dateRange.to),
     },
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-    listingTitle: data.listingTitle,
-    renterName: data.renterName,
-    landownerName: data.landownerName,
+    listingTitle: data.listingTitle, // Will be populated by populateBookingDetails
+    renterName: data.renterName,     // Will be populated by populateBookingDetails
+    landownerName: data.landownerName, // Will be populated by populateBookingDetails
   };
 };
 
@@ -408,8 +408,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
-    // Fallback to mock if not found in Firestore during initial dev/testing
-    return mockUsers.find(user => user.id === id);
+    return mockUsers.find(user => user.id === id); // Fallback for dev if not found
   } catch (error) {
     console.error("Error fetching user by ID from Firestore, using mock data:", error);
     return mockUsers.find(user => user.id === id);
@@ -469,6 +468,10 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
+            // Special handling for subscriptionStatus if it's in data
+            if (data.subscriptionStatus) {
+                mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
+            }
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -479,9 +482,8 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         if (firestoreData.createdAt && firestoreData.createdAt instanceof Date) {
             firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
         }
-        
-        if (firestoreData.id) delete firestoreData.id;
 
+        if (firestoreData.id) delete firestoreData.id; // Don't try to update the ID field itself
 
         await updateDoc(userDocRef, firestoreData);
         const updatedSnap = await getDoc(userDocRef);
@@ -495,6 +497,9 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
+             if (data.subscriptionStatus) { // Ensure mock also updates this directly
+                mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
+            }
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -520,7 +525,7 @@ export const getListings = async (): Promise<Listing[]> => {
     allListings.sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
-        return 0; 
+        return 0;
     });
     return allListings;
   } catch (error) {
@@ -597,7 +602,7 @@ export const addListing = async (
         ...newListingData,
         createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
     };
-    delete firestoreData.id; 
+    delete firestoreData.id;
 
     const docRef = await addDoc(listingsCol, firestoreData);
     const newDocSnap = await getDoc(docRef);
@@ -657,7 +662,7 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
           return timeB - timeA;
         });
     return Promise.all(listingReviews.map(async (review) => {
-        const user = mockUsers.find(u => u.id === review.userId);
+        const user = await getUserById(review.userId); // Use await here
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}` };
     }));
   }
@@ -680,7 +685,7 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
            return timeB - timeA;
         });
     return Promise.all(listingReviews.map(async (review) => {
-        const user = mockUsers.find(u => u.id === review.userId);
+        const user = await getUserById(review.userId); // Use await here
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}` };
     }));
   }
@@ -692,7 +697,7 @@ export const addReview = async (
   rating: number,
   comment: string
 ): Promise<Review> => {
-  const userAddingReview = mockUsers.find(u => u.id === userId) || await getUserById(userId);
+  const userAddingReview = await getUserById(userId); // Use await
   const newReview: Review = {
     id: `mock-review-${Date.now()}`,
     listingId,
@@ -787,7 +792,7 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("dateRange.from", "desc") 
+      orderBy("dateRange.from", "desc")
     );
     const bookingSnapshot = await getDocs(q);
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
@@ -810,7 +815,7 @@ export const addBookingRequest = async (
 
   const listingInfo = await getListingById(data.listingId);
   if (!listingInfo) throw new Error("Listing not found for booking request.");
-  
+
   const renterInfo = await getUserById(data.renterId);
   const landownerInfo = await getUserById(listingInfo.landownerId);
 
@@ -828,7 +833,7 @@ export const addBookingRequest = async (
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
-    return populateBookingDetails(newBooking); // Populate details before returning
+    return populateBookingDetails(newBooking);
   }
 
   try {
@@ -868,6 +873,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
+      // Repopulate details as names might be relevant for confirmation emails/notifications later
       return populateBookingDetails(mockBookings[bookingIndex]);
     }
     return undefined;
@@ -892,4 +898,3 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     return undefined;
   }
 };
-
