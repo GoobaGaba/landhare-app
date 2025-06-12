@@ -23,6 +23,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 
 
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -107,7 +108,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = (listing.price || 0) * durationValue;
-      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText}`;
+      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s','')}`; // Use singular form
     } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
       durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
@@ -351,7 +352,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
                <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="mt-4" disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
+                    <Button variant="outline" className="mt-4" disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}>
                          <Edit className="mr-2 h-4 w-4" /> Write a Review
                     </Button>
                 </AlertDialogTrigger>
@@ -359,7 +360,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                   <AlertDialogHeader>
                     <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
                     <AlertDialogDescription>
-                       The ability to write and submit reviews is a placeholder. Full review functionality will be added in a future update and will require login.
+                       The ability to write and submit reviews is currently a placeholder. Full review functionality will be added in a future update. This action would require login.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
@@ -403,8 +404,14 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                           onSelect={setDateRange}
                           numberOfMonths={1}
                           fromDate={today}
-                          disabled={(date) => isBefore(date, today) || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)} // Calendar still disabled for full preview
+                          disabled={(date) => isBefore(date, today)}
                           className="rounded-md border w-full"
+                          classNames={{
+                            head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.75rem]",
+                            cell: "h-8 w-8 text-center text-xs p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                            day: cn(buttonVariants({ variant: "ghost" }), "h-8 w-8 p-0 font-normal aria-selected:opacity-100"),
+                            caption_label: "text-xs font-medium",
+                          }}
                       />
                     </div>
                     {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
