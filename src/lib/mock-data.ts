@@ -39,7 +39,7 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   name: 'Mock Google User',
   email: 'mock.google.user@example.com',
   avatarUrl: 'https://placehold.co/100x100.png?text=GU',
-  subscriptionStatus: 'premium', // Changed from 'free' to 'premium'
+  subscriptionStatus: 'premium', // Ensure this is premium for testing listing creation
   createdAt: new Date('2023-04-01T10:00:00Z'),
   bio: 'I am a mock user signed in via Google for testing purposes with premium status.',
   bookmarkedListingIds: [],
@@ -564,6 +564,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
     console.log(`[MockData] getListings (mock): Firestore not available. Using mock data. Current mockDataVersion: ${mockDataVersion}`);
+    console.log(`[MockData] getListings (mock): Current mockListings array (first 3 titles): ${mockListings.slice(0, 3).map(l => `${l.title} (Owner: ${l.landownerId})`).join(', ')}`);
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -645,9 +646,10 @@ export const addListing = async (
   };
 
   if (firebaseInitializationError || !db) {
-    console.log(`[MockData] addListing (mock): Adding new listing titled "${newListingData.title}" for landowner ${landownerId}. Current mockDataVersion before add: ${mockDataVersion}`);
+    console.log(`[MockData] addListing (mock): Adding new listing for landowner ${landownerId}. Current mockDataVersion before add: ${mockDataVersion}`);
     mockListings.unshift(newListingData); // Add to the beginning of the array
-    incrementMockDataVersion('addListing');
+    incrementMockDataVersion('addListing'); // This will log the new version
+    console.log(`[MockData] addListing (mock): Listing data:`, { ...newListingData });
     console.log(`[MockData] addListing (mock): Current mockListings count: ${mockListings.length}. Titles: ${mockListings.map(l => l.title).join(', ')}`);
     return Promise.resolve(newListingData);
   }
