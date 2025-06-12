@@ -26,7 +26,7 @@ const faqItems = [
   {
     id: "general-2",
     question: "What are the fees involved?",
-    answer: "LandShare aims for transparent pricing. Renters on our Standard (free) plan pay a small per-booking fee. Landowners on the Standard plan have a small percentage-based service fee on their earnings. Our Premium plan offers $0 booking fees for renters and significantly lower service fees for landowners, plus other benefits. Please visit our <a href='/pricing' class='text-primary hover:underline'>Pricing Page</a> for full details.",
+    answer: "LandShare aims for transparent pricing. Renters on our Standard (free) plan pay a small per-booking fee. Landowners on the Standard plan have a small percentage-based service fee on their earnings. Our Premium plan offers $0 booking fees for renters and significantly lower service fees for landowners, plus other benefits. Please visit our [[Pricing Page]] for full details.",
     icon: DollarSign,
   },
   {
@@ -44,6 +44,29 @@ const faqItems = [
 ];
 
 export default function FaqPage() {
+
+  const renderAnswerWithLinks = (answerText: string) => {
+    const parts = answerText.split(/(\[\[.*?\]\])/g); // Split by [[Link Text]] pattern
+    return parts.map((part, index) => {
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        const linkText = part.substring(2, part.length - 2);
+        let href = "";
+        if (linkText.toLowerCase() === "pricing page") {
+          href = "/pricing";
+        }
+        // Add more else if conditions here for other potential links
+
+        if (href) {
+          return <Link key={index} href={href} className="text-primary hover:underline">{linkText}</Link>;
+        } else {
+          // Fallback for unmapped placeholders (though ideally all should be mapped)
+          return linkText; 
+        }
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 md:py-12">
       <header className="text-center mb-12 md:mb-16">
@@ -65,7 +88,9 @@ export default function FaqPage() {
                     <span className="font-medium">{item.question}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: item.answer }} />
+                <AccordionContent className="text-muted-foreground prose-sm dark:prose-invert max-w-none">
+                  {renderAnswerWithLinks(item.answer)}
+                </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
