@@ -408,6 +408,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
+    // Fallback to mock if not found in Firestore during initial dev/testing
     return mockUsers.find(user => user.id === id);
   } catch (error) {
     console.error("Error fetching user by ID from Firestore, using mock data:", error);
@@ -464,13 +465,13 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError || !db) {
-        console.warn("Firestore not available. Updating user profile in mock data.");
+        console.warn("Firestore not available. Updating user profile in mock data for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-            return mockUsers[userIndex];
+            return Promise.resolve(mockUsers[userIndex]);
         }
-        return undefined;
+        return Promise.resolve(undefined);
     }
     try {
         const userDocRef = doc(db, "users", userId);
@@ -478,7 +479,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         if (firestoreData.createdAt && firestoreData.createdAt instanceof Date) {
             firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
         }
-        // Remove id if it's part of the data object to avoid writing it to Firestore document
+        
         if (firestoreData.id) delete firestoreData.id;
 
 
@@ -489,13 +490,14 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         }
         return undefined;
     } catch (error) {
-        console.error("Error updating user profile in Firestore, attempting mock update:", error);
+        console.error("Error updating user profile in Firestore for user:", userId, error);
+        console.warn("Attempting mock update as fallback for user:", userId);
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-            return mockUsers[userIndex];
+            return Promise.resolve(mockUsers[userIndex]);
         }
-        return undefined;
+        return Promise.resolve(undefined);
     }
 };
 
@@ -890,3 +892,4 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     return undefined;
   }
 };
+
