@@ -80,9 +80,7 @@ export default function HomePage() {
           
           {!authLoading && !currentUser && (
              <>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-                Discover unique land leasing opportunities for tiny homes, RVs, agriculture, and more. Or, turn your idle land into passive income.
-              </p>
+              
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" asChild>
                   <Link href="/search">
