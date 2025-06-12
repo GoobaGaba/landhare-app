@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, CheckCircle, Home } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, CheckCircle, Home, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -42,9 +42,16 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
            {listing.isBoosted && (
-            <Badge variant="secondary" className="absolute top-2 left-2 bg-accent/80 text-accent-foreground border-accent shadow-md z-10">
-                <Star className="h-3 w-3 mr-1 fill-current" /> Boosted
-            </Badge>
+            <div
+              className={cn(
+                "absolute top-2 left-2 z-10 flex items-center justify-center rounded-full shadow-md",
+                "bg-accent text-accent-foreground",
+                "h-6 w-6 p-1"
+              )}
+              title="Boosted Listing"
+            >
+              <PlusCircle className="h-4 w-4" />
+            </div>
           )}
         </div>
         <div className="flex flex-col flex-grow">
@@ -63,7 +70,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               <span>{listing.sizeSqft.toLocaleString()} sq ft</span>
                {listing.pricingModel === 'lease-to-own' && <Home className="h-4 w-4 ml-3 mr-1 text-primary" />}
             </div>
-            {listing.rating && (
+            {listing.rating !== undefined && listing.rating > 0 && (
               <div className="text-sm text-muted-foreground mb-2 flex items-center">
                 <Star className="h-4 w-4 mr-1 text-yellow-400 fill-yellow-400 flex-shrink-0" />
                 <span>{listing.rating.toFixed(1)} ({listing.numberOfRatings} reviews)</span>
@@ -114,9 +121,16 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
           {listing.isBoosted && (
-            <Badge variant="secondary" className={cn("absolute top-2 left-2 bg-accent/80 text-accent-foreground border-accent shadow-md z-10", isCompact ? "text-xs px-1.5 py-0.5" : "")}>
-                <Star className="h-3 w-3 mr-1 fill-current" /> Boosted
-            </Badge>
+            <div
+              className={cn(
+                "absolute top-2 left-2 z-10 flex items-center justify-center rounded-full shadow-md",
+                "bg-accent text-accent-foreground", 
+                isCompact ? "h-5 w-5 p-0.5" : "h-6 w-6 p-1"
+              )}
+              title="Boosted Listing"
+            >
+              <PlusCircle className={cn(isCompact ? "h-3 w-3" : "h-4 w-4")} />
+            </div>
           )}
         </div>
       </CardHeader>
@@ -133,7 +147,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <span>{listing.sizeSqft.toLocaleString()} sq ft</span>
           {listing.pricingModel === 'lease-to-own' && <Home className="h-3 w-3 ml-2 mr-0.5 text-primary" />}
         </div>
-        {listing.rating && (
+        {listing.rating !== undefined && listing.rating > 0 && (
            <div className={cn("text-muted-foreground flex items-center", isCompact ? "text-xs" : "text-sm")}>
             <Star className="h-3 w-3 mr-1 text-yellow-400 fill-yellow-400 flex-shrink-0" />
             <span>{listing.rating.toFixed(1)} ({listing.numberOfRatings} rev.)</span>
