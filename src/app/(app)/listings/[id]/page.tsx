@@ -33,8 +33,8 @@ interface PriceDetails {
 }
 
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = use(paramsPromise); 
-  const { id } = params; 
+  const params = use(paramsPromise);
+  const { id } = params;
 
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -76,10 +76,10 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         setIsLoading(false);
       }
     }
-    if (id) { 
+    if (id) {
         fetchData();
     }
-  }, [id, toast]); 
+  }, [id, toast]);
 
   const handleContactLandowner = () => {
     if (!currentUser) {
@@ -99,13 +99,13 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   const priceDetails: PriceDetails | null = useMemo(() => {
     if (!dateRange || !dateRange.from || !dateRange.to || !listing) return null;
-    
+
     let durationValue = 0;
     let durationUnitText: PriceDetails['durationUnit'] = 'nights';
     let baseRate = 0;
 
     if (listing.pricingModel === 'nightly') {
-      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
+      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = (listing.price || 0) * durationValue;
@@ -114,30 +114,30 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'month' : 'months';
       baseRate = (listing.price || 0) * durationValue;
-    } else { 
-      durationValue = 1; 
+    } else {
+      durationValue = 1;
       durationUnitText = 'month';
-      baseRate = listing.price || 0; 
+      baseRate = listing.price || 0;
     }
-    
+
     if (isNaN(baseRate)) {
       console.warn("baseRate became NaN, defaulting to 0. Listing ID:", listing.id, "Listing Price:", listing.price, "DateRange:", dateRange);
       baseRate = 0;
     }
-    
-    const renterFee = subscriptionStatus === 'premium' ? 0 : 0.99; 
+
+    const renterFee = subscriptionStatus === 'premium' ? 0 : 0.99;
     let totalPrice = baseRate + (listing.pricingModel !== 'lease-to-own' ? renterFee : 0);
 
     if (isNaN(totalPrice)) {
       console.warn("totalPrice became NaN, defaulting. baseRate:", baseRate, "Listing ID:", listing.id);
-      totalPrice = baseRate; // Fallback if fee calculation leads to NaN
+      totalPrice = baseRate;
     }
 
-    return { 
-      basePrice: baseRate, 
+    return {
+      basePrice: baseRate,
       renterFee: listing.pricingModel !== 'lease-to-own' ? renterFee : 0,
-      totalPrice, 
-      duration: durationValue, 
+      totalPrice,
+      duration: durationValue,
       durationUnit: durationUnitText,
       pricingModelUsed: listing.pricingModel,
     };
@@ -186,10 +186,10 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
        const bookingData = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId, 
-        dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to 
-                     ? { from: dateRange.from, to: dateRange.to } 
-                     : { from: new Date(), to: addDays(new Date(), 1) }, 
+        landownerId: listing.landownerId,
+        dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
+                     ? { from: dateRange.from, to: dateRange.to }
+                     : { from: new Date(), to: addDays(new Date(), 1) },
       };
       await addBookingRequest(bookingData);
 
@@ -197,7 +197,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       setIsBookingRequested(true);
       toast({
         title: listing.pricingModel === 'lease-to-own' ? "Inquiry Sent!" : "Booking Request Submitted!",
-        description: listing.pricingModel === 'lease-to-own' 
+        description: listing.pricingModel === 'lease-to-own'
             ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
             : `Your request for "${listing.title}" from ${format(dateRange!.from!, "PPP")} to ${format(dateRange!.to!, "PPP")} has been sent.`,
       });
@@ -244,14 +244,17 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const otherImages = listing?.images ? listing.images.slice(1) : [];
 
   const getPriceDisplay = () => {
-    if (!listing) return "";
+    if (!listing) return { amount: "0", unit: "month" };
+    const priceAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     switch(listing.pricingModel) {
-      case 'nightly': return `$${listing.price || 0} / night`;
-      case 'monthly': return `$${listing.price || 0} / month`;
-      case 'lease-to-own': return `Est. $${listing.price || 0} / month (Lease-to-Own)`;
-      default: return `$${listing.price || 0} / month`; 
+      case 'nightly': return { amount: priceAmount, unit: "night" };
+      case 'monthly': return { amount: priceAmount, unit: "month" };
+      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month (Lease-to-Own)" };
+      default: return { amount: priceAmount, unit: "month" };
     }
   };
+  const displayPrice = getPriceDisplay();
+
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
@@ -280,12 +283,14 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-foreground/90 leading-relaxed">{listing.description}</p>
-              
+
               <Separator className="my-6" />
               <h3 className="text-xl font-semibold mb-3 font-headline">Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
-                <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" /> Price: {getPriceDisplay()}</div>
+                <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" />
+                    Price: ${displayPrice.amount} / {displayPrice.unit}
+                </div>
                 <div className="flex items-center col-span-1 sm:col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
                 {listing.leaseTerm && listing.pricingModel !== 'nightly' && (
                   <div className="flex items-center col-span-1 sm:col-span-2"><Info className="h-5 w-5 mr-2 text-primary" /> Lease Term: <span className="capitalize ml-1">{listing.leaseTerm}</span> {listing.minLeaseDurationMonths ? `(${listing.minLeaseDurationMonths}+ months)` : ''}</div>
@@ -371,10 +376,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         <div className="space-y-6 md:sticky md:top-24 self-start">
           <Card className="shadow-xl border-primary ring-1 ring-primary/30">
              <CardHeader className="pb-4">
-                <div className="flex items-baseline justify-start gap-2">
-                    <span className={cn("text-3xl font-bold text-primary font-headline", listing.pricingModel === 'lease-to-own' && "text-2xl")}>{listing.pricingModel === 'lease-to-own' ? `Est. $${listing.price || 0}` : `$${listing.price || 0}`}</span>
-                    {listing.pricingModel !== 'lease-to-own' && <span className="text-sm text-muted-foreground self-end pb-1">/ {listing.pricingModel === 'nightly' ? 'night' : 'month'}</span>}
-                    {listing.pricingModel === 'lease-to-own' && <span className="text-sm text-muted-foreground self-end pb-1">/ month (Lease-to-Own)</span>}
+                <div className="flex items-baseline justify-start gap-1.5">
+                    <span className={cn("text-3xl font-bold text-primary", listing.pricingModel === 'lease-to-own' && "text-2xl")}>
+                        {listing.pricingModel === 'lease-to-own' ? `Est. $${displayPrice.amount}` : `$${displayPrice.amount}`}
+                    </span>
+                    <span className="text-sm text-muted-foreground self-end pb-1">/ {displayPrice.unit}</span>
                 </div>
              </CardHeader>
              <CardContent className="space-y-4">
@@ -387,9 +393,9 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                             selected={dateRange}
                             onSelect={setDateRange}
                             numberOfMonths={1}
-                            fromDate={today} 
-                            disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)} 
-                            className="rounded-md border p-0 mx-auto"
+                            fromDate={today}
+                            disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                            className="rounded-md border"
                         />
                         {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
                             <p className="text-xs text-accent flex items-center mt-1">
@@ -410,24 +416,24 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {priceDetails && listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange?.to && (
                   <div className="space-y-1 text-sm pt-2 border-t">
                     <div className="flex justify-between">
-                        <span>Base Rate ({priceDetails.duration} {priceDetails.durationUnit}):</span> 
+                        <span>Base Rate ({priceDetails.duration} {priceDetails.durationUnit}):</span>
                         <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
                     </div>
                     {priceDetails.renterFee > 0 && (
                          <div className="flex justify-between">
-                            <span>Renter Booking Fee:</span> 
+                            <span>Renter Booking Fee:</span>
                             <span>${priceDetails.renterFee.toFixed(2)}</span>
                         </div>
                     )}
-                    {subscriptionStatus === 'premium' && ( 
+                    {subscriptionStatus === 'premium' && listing.pricingModel !== 'lease-to-own' && (
                         <div className="flex justify-between text-primary">
-                            <span>Renter Booking Fee:</span> 
+                            <span>Renter Booking Fee:</span>
                             <span>$0.00 (Premium!)</span>
                         </div>
                     )}
                     <Separator className="my-1"/>
                     <div className="flex justify-between font-semibold">
-                        <span>Estimated Total:</span> 
+                        <span>Estimated Total:</span>
                         <span>${(typeof priceDetails.totalPrice === 'number' && !isNaN(priceDetails.totalPrice)) ? priceDetails.totalPrice.toFixed(2) : '--'}</span>
                     </div>
                   </div>
@@ -450,15 +456,15 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     className="w-full"
                     onClick={handleBookingRequestOpen}
                     disabled={
-                        !listing.isAvailable || 
+                        !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
-                        isBookingRequested || 
-                        !currentUser || 
+                        isBookingRequested ||
+                        !currentUser ||
                         (firebaseInitializationError !== null && !currentUser?.appProfile)
                     }
                     >
-                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Requested") 
-                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book") 
+                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Requested")
+                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
                         : "Currently Unavailable")}
                     </Button>
                 )}
@@ -513,7 +519,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking Request"}
             </DialogTitle>
             <DialogDescription>
-               {listing.pricingModel === 'lease-to-own' 
+               {listing.pricingModel === 'lease-to-own'
                 ? `You are about to send an inquiry for "${listing.title}". The landowner will contact you.`
                 : `Please review the details of your booking request for "${listing.title}".`}
             </DialogDescription>
@@ -561,5 +567,3 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     </div>
   );
 }
-
-    
