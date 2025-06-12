@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Listing, LeaseTerm, User } from '@/lib/types';
 import { addListing as dbAddListing, getUserById, getListingsByLandownerCount, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Now uses Firestore
 
+// Server-side schema: landownerId is expected from FormData and coerced to string
 const ListingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, "Title must be at least 3 characters"),
   description: z.string({ required_error: "Description is required." }).min(10, "Description must be at least 10 characters"),
@@ -17,7 +18,7 @@ const ListingFormSchema = z.object({
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.coerce.string({required_error: "Landowner ID is required."}).min(1, "Landowner ID is required and cannot be empty"),
+  landownerId: z.coerce.string({required_error: "Landowner ID is required and cannot be empty."}).min(1, "Landowner ID is required and cannot be empty"),
 });
 
 export type ListingFormState = {
@@ -34,7 +35,7 @@ export type ListingFormState = {
     images?: string[];
     leaseTerm?: string[];
     minLeaseDurationMonths?: string[];
-    landownerId?: string[];
+    landownerId?: string[]; // Keep for error reporting if needed
   };
   listingId?: string;
   success: boolean;
@@ -57,7 +58,7 @@ export async function createListingAction(
     images: formData.getAll('images').map(String).filter(url => url),
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
-    landownerId: formData.get('landownerId'),
+    landownerId: formData.get('landownerId'), // This is where the server gets it
   };
 
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
@@ -71,6 +72,7 @@ export async function createListingAction(
     };
   }
 
+  // landownerId is now validated and coerced to string by Zod
   const currentUserId = validatedFields.data.landownerId;
 
   // This check is an extra layer, Zod validation should catch empty/null landownerId already
@@ -107,18 +109,14 @@ export async function createListingAction(
   }
 
   try {
+    // Destructure landownerId from validatedData as it's used for landownerId, not part of the listing document itself in this structure
+    const { landownerId: _, ...listingDataForDb } = validatedFields.data;
+    
     const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {
-        title: validatedFields.data.title,
-        description: validatedFields.data.description,
-        location: validatedFields.data.location,
-        sizeSqft: validatedFields.data.sizeSqft,
-        price: validatedFields.data.price,
-        pricingModel: validatedFields.data.pricingModel as Listing['pricingModel'],
-        leaseToOwnDetails: validatedFields.data.leaseToOwnDetails,
-        amenities: validatedFields.data.amenities || [],
-        images: validatedFields.data.images || [],
-        leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined,
-        minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ?? undefined,
+        ...listingDataForDb,
+        pricingModel: listingDataForDb.pricingModel as Listing['pricingModel'],
+        leaseTerm: listingDataForDb.leaseTerm as LeaseTerm | undefined,
+        minLeaseDurationMonths: listingDataForDb.minLeaseDurationMonths ?? undefined,
     };
 
     const newListing = await dbAddListing(newListingPayload, currentUserId, isPremiumUser);
@@ -136,3 +134,4 @@ export async function createListingAction(
     };
   }
 }
+

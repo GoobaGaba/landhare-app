@@ -41,6 +41,7 @@ const amenitiesList = [
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 5;
 
+// Client-side schema: landownerId is removed as it's handled directly from context during submission
 const listingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, { message: "Title must be at least 3 characters." }),
   description: z.string({ required_error: "Description is required." }).min(10, { message: "Description must be at least 10 characters." }),
@@ -53,7 +54,6 @@ const listingFormSchema = z.object({
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string().optional(),
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -101,25 +101,11 @@ export function ListingForm() {
       images: [],
       leaseTerm: 'flexible',
       minLeaseDurationMonths: undefined,
-      landownerId: currentUser?.uid || undefined,
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
-  useEffect(() => {
-    if (!authLoading) {
-      if (currentUser?.uid) {
-        if (getValues('landownerId') !== currentUser.uid) {
-          setValue('landownerId', currentUser.uid, { shouldValidate: true, shouldDirty: true });
-        }
-      } else {
-        if (getValues('landownerId')) {
-          setValue('landownerId', undefined, { shouldValidate: true, shouldDirty: true });
-        }
-      }
-    }
-  }, [currentUser, authLoading, getValues, setValue]);
 
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
@@ -227,7 +213,6 @@ export function ListingForm() {
         form.reset({
             title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
             leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-            landownerId: currentUser?.uid || undefined
         });
         setPriceSuggestion(null);
         setPriceSuggestionError(null);
@@ -291,18 +276,18 @@ export function ListingForm() {
 
   const onSubmit = async (data: ListingFormData) => {
     if (!currentUser?.uid || currentUser.uid.trim() === '') {
-      toast({ title: "Authentication Error", description: "Valid User ID is required to create a listing. Please log in.", variant: "destructive"});
+      toast({ title: "Authentication Error", description: "You must be logged in with a valid User ID to create a listing. Please log in again.", variant: "destructive"});
       return;
     }
     
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
+    // Append landownerId directly from currentUser context
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
-    // Explicitly exclude landownerId from data passed to RHF to avoid conflicts
-    const { landownerId: _rhfLandownerId, ...otherRHFData } = data;
-    const submissionData = { ...otherRHFData, images: uploadedImageUrls };
+    // Append other form data
+    const submissionData = { ...data, images: uploadedImageUrls };
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -361,6 +346,7 @@ export function ListingForm() {
                      : watchedPricingModel === 'monthly' ? "Price per Month ($)"
                      : "Est. Monthly Payment ($) for LTO";
 
+  // Simplified and direct check for submit button disabled state
   const isSubmitDisabled = isPending || !currentUser?.uid;
 
 
@@ -371,8 +357,6 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {currentUser?.uid && <input type="hidden" {...register('landownerId')} value={currentUser.uid} />}
-
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
@@ -511,6 +495,7 @@ export function ListingForm() {
             <div>
                 <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
                 <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." />
+                 {errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}
             </div>
           )}
 
@@ -659,25 +644,14 @@ export function ListingForm() {
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
           )}
-           {errors.landownerId && (
-              <Alert variant="destructive" className="mt-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Form Error</AlertTitle>
-                <AlertDescription>{errors.landownerId.message}</AlertDescription>
-              </Alert>
-            )}
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <div className="text-xs text-muted-foreground">
-            {/* Temporary Debug Info */}
-            {/* <p>UID: {currentUser?.uid || "Not logged in"}</p>
-            <p>Button Disabled: {isSubmitDisabled.toString()}</p> */}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" type="button" onClick={() => {form.reset({
               title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
               leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-              landownerId: currentUser?.uid || undefined
               }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
             <Button type="submit" disabled={isSubmitDisabled}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -706,4 +680,5 @@ export function ListingForm() {
     
 
       
+
 
