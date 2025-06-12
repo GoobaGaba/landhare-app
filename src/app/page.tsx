@@ -27,13 +27,12 @@ export default function HomePage() {
       try {
         const allListingsData = await getListings();
         if (Array.isArray(allListingsData)) {
-          // Get top 8 available, then sort by creation date, then take newest 4 for display
           const sortedAvailable = allListingsData
             .filter(l => l.isAvailable)
             .sort((a, b) => {
               const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.seconds * 1000 || 0;
               const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.seconds * 1000 || 0;
-              return timeB - timeA; // Newest first
+              return timeB - timeA; 
             });
           setRecentListings(sortedAvailable.slice(0, 4));
         } else {
@@ -80,52 +79,7 @@ export default function HomePage() {
             Unlock Your Land. Find Your Space.
           </h1>
           
-          {!authLoading && currentUser ? (
-             <div className="mt-10 max-w-2xl mx-auto">
-              <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full shadow-lg rounded-full">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search land (e.g., location, keywords, amenities)"
-                  className="w-full h-14 pl-12 pr-16 rounded-full text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  aria-label="Search for land"
-                />
-                 <Button
-                    type="submit"
-                    size="lg"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full p-0"
-                    aria-label="Search"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
-              </form>
-
-              <div className="mt-16 text-center">
-                <h2 className="text-2xl font-semibold mb-6 text-primary text-center">
-                  Recently added
-                </h2>
-                {isLoadingListings ? (
-                  <div className="flex justify-center items-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-2 text-muted-foreground">Loading listings...</p>
-                  </div>
-                ) : recentListings.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {recentListings.map(listing => (
-                      <ListingCard key={listing.id} listing={listing} viewMode="grid" sizeVariant="compact" />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">No recent listings available at the moment. Check back soon!</p>
-                )}
-                <Button variant="link" asChild className="mt-6">
-                  <Link href="/search">View all listings <ArrowRight className="ml-1 h-4 w-4"/></Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
+          {!authLoading && !currentUser && (
              <>
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
                 Discover unique land leasing opportunities for tiny homes, RVs, agriculture, and more. Or, turn your idle land into passive income.
@@ -137,13 +91,59 @@ export default function HomePage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
-                  <Link href="/listings/new">
+                   {/* This Link will be handled by the header's logic for redirection if not logged in */}
+                  <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>
                     <Home className="mr-2 h-5 w-5" /> List Your Land
                   </Link>
                 </Button>
               </div>
             </>
           )}
+
+          <div className="mt-10 max-w-2xl mx-auto">
+            <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full shadow-lg rounded-full">
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search land (e.g., location, keywords, amenities)"
+                className="w-full h-14 pl-12 pr-16 rounded-full text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                aria-label="Search for land"
+              />
+               <Button
+                  type="submit"
+                  size="lg"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full p-0"
+                  aria-label="Search"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+            </form>
+          </div>
+
+          <div className="mt-16 text-center">
+            <h2 className="text-2xl font-semibold mb-6 text-primary text-center">
+              Recently added
+            </h2>
+            {isLoadingListings ? (
+              <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Loading listings...</p>
+              </div>
+            ) : recentListings.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {recentListings.map(listing => (
+                  <ListingCard key={listing.id} listing={listing} viewMode="grid" sizeVariant="compact" />
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">No recent listings available at the moment. Check back soon!</p>
+            )}
+            <Button variant="link" asChild className="mt-6">
+              <Link href="/search">View all listings <ArrowRight className="ml-1 h-4 w-4"/></Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -258,7 +258,7 @@ export default function HomePage() {
               <Link href="/search">Start Searching Now</Link>
             </Button>
             <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
-              <Link href="/listings/new">Become a Host</Link>
+               <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
           </div>
         </div>

@@ -57,6 +57,8 @@ export default function AppHeader() {
      { href: '/signup', label: 'Sign Up', icon: UserPlus },
   ];
 
+  const listYourLandHref = currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`;
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -81,7 +83,7 @@ export default function AppHeader() {
             />
           </div>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
-            <Link href="/listings/new">
+            <Link href={listYourLandHref}>
                 <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
             </Link>
           </Button>
@@ -180,7 +182,7 @@ export default function AppHeader() {
                 <nav className="flex flex-col gap-1 px-4 flex-grow">
                   <SheetClose asChild>
                     <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon text-neon hover:bg-neon/10 hover:text-neon">
-                      <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
+                      <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
 

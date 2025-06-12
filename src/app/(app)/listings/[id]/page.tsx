@@ -3,8 +3,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { use, useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { use, useState, useEffect, useMemo } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -40,6 +40,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     async function fetchData() {
@@ -76,8 +77,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   const handleContactLandowner = () => {
     if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "destructive" });
-      router.push('/login');
+      toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "default" });
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
     if (isCurrentUserLandowner) {
@@ -108,15 +109,15 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       baseRate = (listing.price || 0) * durationValue;
       displayRateString = `$${listing.price.toFixed(0)}/${durationValue === 1 ? 'night' : 'nights'}`;
     } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
-      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; // Duration in days
+      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-      baseRate = (listing.price / 30) * durationValue; // Prorate monthly price to daily
+      baseRate = (listing.price / 30) * durationValue; 
       durationUnitText = durationValue === 1 ? 'day' : 'days';
       displayRateString = `$${listing.price.toFixed(0)}/month (prorated for ${durationValue} ${durationUnitText})`;
     } else if (listing.pricingModel === 'lease-to-own') {
-      durationValue = 1; // Indicative month
+      durationValue = 1; 
       durationUnitText = 'month';
-      baseRate = listing.price || 0; // This is the indicative LTO monthly payment
+      baseRate = listing.price || 0; 
       displayRateString = `Est. $${listing.price.toFixed(0)}/month (LTO)`;
     } else {
       return null;
@@ -129,7 +130,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     const estimatedTax = subtotal * taxRate;
     let totalPrice = subtotal + estimatedTax;
     
-    if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0; // Fallback if NaN
+    if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0; 
 
     return {
       basePrice: baseRate,
@@ -146,13 +147,13 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
 
   const handleBookingRequestOpen = () => {
-     if (firebaseInitializationError && !currentUser?.appProfile) {
-      toast({ title: "Preview Mode", description: "Booking is disabled in full preview mode (no mock user).", variant: "default" });
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to request a booking or inquire.", variant: "default" });
+      router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to request a booking or inquire.", variant: "destructive" });
-      router.push('/login');
+     if (firebaseInitializationError && !currentUser?.appProfile) { // Already checked currentUser above
+      toast({ title: "Preview Mode", description: "Booking is disabled in full preview mode (no mock user).", variant: "default" });
       return;
     }
     if (listing?.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from || !dateRange.to)) {
@@ -161,7 +162,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     }
      if (listing?.pricingModel === 'monthly' && listing.minLeaseDurationMonths && dateRange?.from && dateRange?.to) {
         const selectedDays = differenceInDays(dateRange.to, dateRange.from) + 1;
-        if (selectedDays < listing.minLeaseDurationMonths * 28) { // Use 28 for a slightly lenient check
+        if (selectedDays < listing.minLeaseDurationMonths * 28) { 
              toast({
                 title: "Minimum Lease Duration",
                 description: `This monthly listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. Your selection is ${selectedDays} days.`,
@@ -174,7 +175,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   };
 
   const handleConfirmBooking = async () => {
-    if (!currentUser || !listing) return;
+    if (!currentUser || !listing) return; // currentUser check is redundant here if handleBookingRequestOpen did its job
     if (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) {
         toast({ title: "Error", description: "Date range is missing for this booking type.", variant: "destructive"});
         return;
@@ -193,7 +194,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         landownerId: listing.landownerId,
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
-                     : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }, // LTO placeholder dates
+                     : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }, 
       };
       await addBookingRequest(bookingData);
 
@@ -245,7 +246,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
   const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png?text=Listing+Image";
-  const otherImages = listing?.images ? listing.images.slice(1,3) : []; // Show up to 2 other images for the grid
+  const otherImages = listing?.images ? listing.images.slice(1,3) : []; 
 
   const getPriceDisplay = () => {
     if (!listing) return { amount: "0", unit: "month", model: 'monthly' as PricingModel };
@@ -350,7 +351,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
                <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="mt-4" disabled={!currentUser || isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
+                    {/* Review button is visually enabled; actual submission would be auth-gated. */}
+                    <Button variant="outline" className="mt-4" disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
                          <Edit className="mr-2 h-4 w-4" /> Write a Review
                     </Button>
                 </AlertDialogTrigger>
@@ -358,7 +360,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                   <AlertDialogHeader>
                     <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
                     <AlertDialogDescription>
-                      The ability to write and submit reviews is currently under development. This is a placeholder for that functionality.
+                      The ability to write and submit reviews is currently under development. This is a placeholder for that functionality. Submitting reviews will require you to be logged in.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
@@ -378,7 +380,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         </div>
 
         <div className="space-y-6 md:sticky md:top-24 self-start">
-          <Card className="shadow-xl border-primary ring-1 ring-primary/30">
+          <Card className={cn("shadow-xl border-primary/30", listing.isBoosted && "ring-1 ring-accent")}>
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
                      <span className={cn("text-3xl font-bold font-body", displayPriceInfo.model === 'lease-to-own' ? "text-2xl" : "text-primary")}>
@@ -401,7 +403,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         onSelect={setDateRange}
                         numberOfMonths={1}
                         fromDate={today}
-                        disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={(date) => isBefore(date, today) || (firebaseInitializationError !== null && !currentUser?.appProfile)}
                         className="rounded-md border w-full"
                     />
                     {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
@@ -453,14 +455,14 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     </div>
                   </div>
                 )}
-                 {!currentUser && (
+                 {!currentUser && !isCurrentUserLandowner && (
                      <p className="text-xs text-destructive flex items-center mt-2">
-                        <UserCircle className="h-4 w-4 mr-1" /> Please <Link href="/login" className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
+                        <UserCircle className="h-4 w-4 mr-1" /> Please <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
                     </p>
                 )}
                  {firebaseInitializationError && !currentUser?.appProfile && (
                     <p className="text-xs text-amber-600 flex items-center mt-2">
-                        <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode.
+                        <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode without mock user login.
                     </p>
                  )}
              </CardContent>
@@ -474,7 +476,6 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
                         isBookingRequested ||
-                        !currentUser ||
                         (firebaseInitializationError !== null && !currentUser?.appProfile)
                     }
                     >
@@ -499,7 +500,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                             size="sm"
                             className="ml-auto"
                             onClick={handleContactLandowner}
-                            disabled={!currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                            disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}
                         >
                             <MessageSquare className="h-4 w-4 mr-1.5" /> Contact
                         </Button>
@@ -511,7 +512,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         variant="outline"
                         className="w-full"
                         onClick={handleContactLandowner}
-                        disabled={!currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}
                     >
                         <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
                     </Button>
@@ -555,7 +556,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${(typeof priceDetails.estimatedTax === 'number' && !isNaN(priceDetails.estimatedTax)) ? priceDetails.estimatedTax.toFixed(2) : '--'}</span></div>
               <Separator className="my-2"/>
               <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${(typeof priceDetails.totalPrice === 'number' && !isNaN(priceDetails.totalPrice)) ? priceDetails.totalPrice.toFixed(2) : '--'}</span></p>
-              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( // Use 28 for lenient day check
+              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
                     <p className="text-sm text-destructive flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate. Rate may be adjusted.
                     </p>
