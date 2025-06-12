@@ -55,7 +55,7 @@ const listingFormSchema = z.object({
       }
       return true;
     },
-    { message: "Lease-to-Own details are required and must be at least 10 characters if selected." }
+    { message: "Lease-to-Own details are required and must be at least 10 characters if 'Lease-to-Own' is selected." }
   ),
   amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
@@ -88,10 +88,10 @@ export function ListingForm() {
   const [currentSubscriptionOnMount, setCurrentSubscriptionOnMount] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (currentUser?.appProfile?.subscriptionStatus) {
+    if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
         setCurrentSubscriptionOnMount(currentUser.appProfile.subscriptionStatus);
     }
-  }, [currentUser]);
+  }, [currentUser, authLoading]);
 
 
   const form = useForm<ListingFormData>({
@@ -284,8 +284,8 @@ export function ListingForm() {
   const onSubmit = async (data: ListingFormData) => {
     if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
       toast({
-        title: "Cannot Submit Listing",
-        description: `Auth Loading: ${String(authLoading)}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
+        title: "Form Submission Blocked",
+        description: `Auth Loading: ${authLoading}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
         variant: "destructive",
         duration: 7000,
       });
@@ -297,8 +297,7 @@ export function ListingForm() {
 
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
-    const { ...listingDataForDb } = data;
-    const submissionData = { ...listingDataForDb, images: uploadedImageUrls };
+    const submissionData = { ...data, images: uploadedImageUrls };
 
 
     Object.entries(submissionData).forEach(([key, value]) => {
@@ -326,7 +325,7 @@ export function ListingForm() {
     });
   };
 
-  if (authLoading || (!currentUser && subscriptionStatus === 'loading')) { // Adjusted loading check
+  if (authLoading || (!currentUser && subscriptionStatus === 'loading') ) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -369,14 +368,7 @@ export function ListingForm() {
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
-          <div className="p-2 my-2 border border-dashed border-destructive text-xs bg-destructive/10 rounded-md">
-              <p className="font-bold text-destructive-foreground mb-1">DEBUG FORM STATE:</p>
-              <p>Auth Loading: <span className="font-mono">{String(authLoading)}</span></p>
-              <p>Current User Exists: <span className="font-mono">{String(!!currentUser)}</span></p>
-              <p>Current User UID: <span className="font-mono">{currentUser?.uid || 'N/A'}</span></p>
-              <p>Current User Email: <span className="font-mono">{currentUser?.email || 'N/A'}</span></p>
-              <p>Is Submit Button Disabled: <span className="font-mono">{String(isSubmitButtonDisabled)}</span></p>
-          </div>
+          
           <div>
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
@@ -696,5 +688,3 @@ export function ListingForm() {
     </Card>
   );
 }
-
-    
