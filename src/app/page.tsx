@@ -140,7 +140,7 @@ export default function HomePage() {
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            The platform built to make affordable housing more accessible
+            The platform built to make affordable housing Great again
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg">
