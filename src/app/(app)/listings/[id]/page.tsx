@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { type Listing, type Review as ReviewType, type User, type PricingModel } from '@/lib/types';
+import type { Listing, Review as ReviewType, User, PricingModel } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -33,8 +33,8 @@ interface PriceDetails {
 }
 
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = use(paramsPromise);
-  const { id } = params;
+  const resolvedParams = use(paramsPromise);
+  const { id } = resolvedParams;
 
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -114,7 +114,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'month' : 'months';
       baseRate = (listing.price || 0) * durationValue;
-    } else {
+    } else { // Default or Lease-to-own, treat duration as 1 month for simplicity in this calculation
       durationValue = 1;
       durationUnitText = 'month';
       baseRate = listing.price || 0;
@@ -130,7 +130,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
     if (isNaN(totalPrice)) {
       console.warn("totalPrice became NaN, defaulting. baseRate:", baseRate, "Listing ID:", listing.id);
-      totalPrice = baseRate;
+      totalPrice = baseRate; // Default to baseRate if calculation fails
     }
 
     return {
@@ -186,10 +186,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
        const bookingData = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId,
+        landownerId: listing.landownerId, // This should be correct as listing.landownerId is set
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
-                     : { from: new Date(), to: addDays(new Date(), 1) },
+                     // For LTO or if dates somehow missing, default to a short placeholder range
+                     : { from: new Date(), to: addDays(new Date(), 1) }, 
       };
       await addBookingRequest(bookingData);
 
@@ -244,13 +245,13 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const otherImages = listing?.images ? listing.images.slice(1) : [];
 
   const getPriceDisplay = () => {
-    if (!listing) return { amount: "0", unit: "month" };
+    if (!listing) return { amount: "0", unit: "month", model: 'monthly' as PricingModel };
     const priceAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     switch(listing.pricingModel) {
-      case 'nightly': return { amount: priceAmount, unit: "night" };
-      case 'monthly': return { amount: priceAmount, unit: "month" };
-      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month (Lease-to-Own)" };
-      default: return { amount: priceAmount, unit: "month" };
+      case 'nightly': return { amount: priceAmount, unit: "night", model: listing.pricingModel };
+      case 'monthly': return { amount: priceAmount, unit: "month", model: listing.pricingModel };
+      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month", model: listing.pricingModel }; // Suffix (Lease-to-Own) removed for cleaner display
+      default: return { amount: priceAmount, unit: "month", model: 'monthly' as PricingModel };
     }
   };
   const displayPrice = getPriceDisplay();
@@ -280,6 +281,9 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 <MapPin className="h-5 w-5 mr-2 text-primary" />
                 <span>{listing.location}</span>
               </div>
+               {listing.pricingModel === 'lease-to-own' && (
+                  <Badge variant="secondary" className="mt-2 w-fit bg-accent/20 text-accent-foreground border-accent">Lease-to-Own Opportunity</Badge>
+              )}
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-foreground/90 leading-relaxed">{listing.description}</p>
@@ -289,7 +293,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
                 <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" />
-                    Price: ${displayPrice.amount} / {displayPrice.unit}
+                    Price: {listing.pricingModel === 'lease-to-own' ? displayPrice.amount : `$${displayPrice.amount}`} / {displayPrice.unit}
                 </div>
                 <div className="flex items-center col-span-1 sm:col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
                 {listing.leaseTerm && listing.pricingModel !== 'nightly' && (
@@ -377,16 +381,19 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           <Card className="shadow-xl border-primary ring-1 ring-primary/30">
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
-                    <span className={cn("text-3xl font-bold text-primary", listing.pricingModel === 'lease-to-own' && "text-2xl")}>
-                        {listing.pricingModel === 'lease-to-own' ? `Est. $${displayPrice.amount}` : `$${displayPrice.amount}`}
+                     <span className={cn("text-3xl font-bold text-primary font-sans", displayPrice.model === 'lease-to-own' && "text-2xl")}>
+                        {displayPrice.model === 'lease-to-own' ? displayPrice.amount : `$${displayPrice.amount}`}
                     </span>
                     <span className="text-sm text-muted-foreground self-end pb-1">/ {displayPrice.unit}</span>
                 </div>
+                {listing.pricingModel === 'lease-to-own' && (
+                    <p className="text-xs text-muted-foreground -mt-2">Lease-to-Own Inquiry</p>
+                )}
              </CardHeader>
              <CardContent className="space-y-4">
                 {listing.isAvailable && !isCurrentUserLandowner && listing.pricingModel !== 'lease-to-own' && (
-                    <>
-                        <Label htmlFor="booking-calendar" className="font-medium">Select Dates</Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="booking-calendar" className="font-medium block mb-1">Select Dates</Label>
                         <Calendar
                             id="booking-calendar"
                             mode="range"
@@ -395,14 +402,14 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                             numberOfMonths={1}
                             fromDate={today}
                             disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
-                            className="rounded-md border"
+                            className="rounded-md border w-full"
                         />
                         {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
-                            <p className="text-xs text-accent flex items-center mt-1">
+                            <p className="text-xs text-accent flex items-center pt-1">
                                 <AlertTriangle className="h-4 w-4 mr-1" /> Min. {listing.minLeaseDurationMonths}-month lease.
                             </p>
                         )}
-                    </>
+                    </div>
                 )}
                 {listing.pricingModel === 'lease-to-own' && listing.leaseToOwnDetails && (
                      <div>
