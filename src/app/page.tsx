@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
-import { getListings } from '@/lib/mock-data'; 
+import { getListings } from '@/lib/mock-data';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -84,7 +84,7 @@ export default function HomePage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search land (e.g., location, keywords)"
-                  className="w-full h-12 pl-12 pr-16 rounded-lg text-sm focus-visible:ring-primary" 
+                  className="w-full h-12 pl-12 pr-16 rounded-lg text-sm focus-visible:ring-primary"
                   aria-label="Search for land"
                 />
                  <Button
@@ -97,8 +97,8 @@ export default function HomePage() {
                   </Button>
               </form>
 
-              <div className="mt-16 text-center"> 
-                <h2 className="text-2xl font-semibold mb-6 text-primary text-center"> 
+              <div className="mt-16 text-center">
+                <h2 className="text-2xl font-semibold mb-6 text-primary text-center">
                   Recently added
                 </h2>
                 {isLoadingListings ? (
@@ -136,31 +136,33 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* The Problem Section */}
+      {/* The Problem Section / Housing Challenge */}
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">The Housing Challenge</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+            The platform built to make affordable housing more accessible while helping landowners earn from unused spaces
+          </h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
             Skyrocketing home prices and idle land. LandShare Connect offers a new path.
           </p>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />Aspiring Homeowners</CardTitle>
+                <CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />Affordable Housing Dilemma</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-foreground/90">
-                  Average U.S. home prices exceed $417,000, making traditional homeownership a distant dream for many.
+                  The average U.S. home exceeds $415,000 in 2024. With interest rates and mortgages increasing year over year, we find more and more reason to grow the affordable housing market.
                 </p>
               </CardContent>
             </Card>
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Landowners' Dilemma</CardTitle>
+                <CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Passive Income Opportunity</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-foreground/90">
-                  Millions of acres of private land sit unused, generating no income for their owners.
+                  For those already owning property, we offer a chance to earn extra income for your shared spaces. Simply list your space and accept your first booking.
                 </p>
               </CardContent>
             </Card>
@@ -259,3 +261,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
