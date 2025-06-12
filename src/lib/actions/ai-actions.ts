@@ -34,7 +34,6 @@ export async function getSuggestedTitleAction(
     if (!input.location || !input.keywords) {
       return { error: "Location and keywords are required for a title suggestion." };
     }
-    // Optional: Add more specific validation for keywords length or content if needed.
 
     const result = await suggestListingTitle(input);
     return { data: result };

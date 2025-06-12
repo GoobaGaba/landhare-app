@@ -8,7 +8,7 @@ import Link from "next/link";
 import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
-import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById, getUserById } from '@/lib/mock-data';
+import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById } from '@/lib/mock-data';
 import { format, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
@@ -100,16 +100,29 @@ export default function BookingsPage() {
 
     const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
-    const durationMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+    
+    let durationMonths = 0;
+    if (listingDetails.pricingModel === 'monthly' || listingDetails.pricingModel === 'lease-to-own') {
+        durationMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+    } else if (listingDetails.pricingModel === 'nightly') {
+        // For nightly, we might not generate a full lease, or we generate a "short-term rental agreement"
+        // For this example, let's assume even nightly might want some terms, and use 1 month as a placeholder duration.
+        // Or, better, we can adjust the prompt. For now, let's estimate.
+        const days = differenceInDays(toDate, fromDate) + 1;
+        durationMonths = Math.max(1, Math.ceil(days / 30)); // Approximate months
+    }
+    
+    if (durationMonths <= 0) durationMonths = 1;
+
 
     const input: GenerateLeaseTermsInput = {
-        listingType: `Plot for ${listingDetails.title}`, // Could be more specific if listing had a 'type' field
-        durationMonths: durationMonths > 0 ? durationMonths : 1,
-        monthlyPrice: listingDetails.pricePerMonth,
+        listingType: listingDetails.pricingModel === 'nightly' ? `Short-term rental for ${listingDetails.title}` : `Plot for ${listingDetails.title}`,
+        durationMonths: durationMonths,
+        monthlyPrice: listingDetails.price, // Use the unified price field
         landownerName: booking.landownerName,
         renterName: booking.renterName,
         listingAddress: listingDetails.location,
-        additionalRules: "No permanent structures without written consent. Maintain cleanliness of the plot." // Example
+        additionalRules: listingDetails.leaseToOwnDetails || "No permanent structures without written consent. Maintain cleanliness of the plot." // Example, could be fetched from listing
     };
     
     const result = await getGeneratedLeaseTermsAction(input);
@@ -279,7 +292,7 @@ export default function BookingsPage() {
                       onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
                       disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isLeaseTermsLoading}
                     >
-                      {isLeaseTermsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      {isLeaseTermsLoading && booking.status === 'Pending Confirmation' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                        Approve
                     </Button>
                     <Button 

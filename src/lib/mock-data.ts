@@ -19,9 +19,8 @@ import {
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
 
-export const FREE_TIER_LISTING_LIMIT = 1; // For non-premium users
+export const FREE_TIER_LISTING_LIMIT = 1; 
 
-// --- MOCK DATA ARRAYS ---
 let mockUsers: User[] = [
   {
     id: 'mock-user-uid-12345',
@@ -82,7 +81,7 @@ let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 200,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
-    landownerId: 'mock-user-uid-12345', // Owned by mock premium user
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
@@ -101,7 +100,7 @@ let mockListings: Listing[] = [
     price: 150,
     images: ['https://placehold.co/800x600.png?text=Desert+Oasis'],
     landownerId: 'landowner-jane-doe',
-    isAvailable: true, // Made available for testing
+    isAvailable: true, 
     rating: 4.5,
     numberOfRatings: 10,
     leaseTerm: 'short-term',
@@ -119,7 +118,7 @@ let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 400,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
-    landownerId: 'mock-user-uid-12345', // Owned by mock premium user
+    landownerId: 'mock-user-uid-12345', 
     isAvailable: true,
     rating: 4.9,
     numberOfRatings: 22,
@@ -136,14 +135,14 @@ let mockListings: Listing[] = [
     sizeSqft: 1500,
     amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access'],
     pricingModel: 'nightly',
-    price: 45, // $45 per night
+    price: 45, 
     images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
     rating: 4.7,
     numberOfRatings: 12,
     isBoosted: false,
-    leaseTerm: 'short-term', // Informational for nightly
+    leaseTerm: 'short-term', 
     createdAt: new Date('2024-02-01T09:00:00Z'),
   },
   {
@@ -151,10 +150,10 @@ let mockListings: Listing[] = [
     title: 'Mountain Homestead - Lease to Own!',
     description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm.',
     location: 'Boone, NC',
-    sizeSqft: 45000, // approx 1 acre
-    amenities: ['road access', 'septic system' /*implies perk test passed*/],
+    sizeSqft: 45000, 
+    amenities: ['road access', 'septic system' ],
     pricingModel: 'lease-to-own',
-    price: 650, // Indicative monthly payment
+    price: 650, 
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (includes principal, interest, taxes, insurance estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby'],
     landownerId: 'mock-user-uid-12345',
@@ -162,8 +161,8 @@ let mockListings: Listing[] = [
     rating: 4.3,
     numberOfRatings: 5,
     isBoosted: true,
-    leaseTerm: 'long-term', // LTO is inherently long-term
-    minLeaseDurationMonths: 60, // Corresponds to 5 years
+    leaseTerm: 'long-term', 
+    minLeaseDurationMonths: 60, 
     createdAt: new Date('2024-03-15T11:00:00Z'),
   },
   {
@@ -171,8 +170,8 @@ let mockListings: Listing[] = [
     title: 'Basic Rural Plot - Affordable!',
     description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping or a very simple setup. Check local ordinances.',
     location: 'Rural Plains, KS',
-    sizeSqft: 22000, // approx 0.5 acre
-    amenities: [], // No amenities
+    sizeSqft: 22000, 
+    amenities: [], 
     pricingModel: 'monthly',
     price: 75,
     images: ['https://placehold.co/800x600.png?text=Basic+Plot'],
@@ -195,7 +194,7 @@ let mockListings: Listing[] = [
     price: 550,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
     landownerId: 'mock-user-uid-12345',
-    isAvailable: false, // Not available
+    isAvailable: false, 
     rating: 4.9,
     numberOfRatings: 35,
     isBoosted: true,
@@ -227,8 +226,8 @@ let mockBookings: Booking[] = [
     landownerId: 'mock-user-uid-12345',
     landownerName: 'Mock UI Tester',
     status: 'Pending Confirmation',
-    dateRange: { from: new Date('2024-03-01'), to: new Date('2024-04-01') },
-    createdAt: new Date('2024-02-20T11:00:00Z'),
+    dateRange: { from: new Date('2024-08-01'), to: new Date('2024-09-01') },
+    createdAt: new Date('2024-07-20T11:00:00Z'),
   },
   {
     id: 'booking-3',
@@ -240,7 +239,7 @@ let mockBookings: Booking[] = [
     landownerName: 'Jane Doe',
     status: 'Declined',
     dateRange: { from: new Date('2024-07-01'), to: new Date('2024-08-01') },
-    createdAt: new Date('2024-02-25T12:00:00Z'),
+    createdAt: new Date('2024-06-25T12:00:00Z'),
   },
   {
     id: 'booking-4-nightly',
@@ -251,8 +250,32 @@ let mockBookings: Booking[] = [
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Confirmed',
-    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') }, // 5 nights
+    dateRange: { from: new Date('2024-07-10'), to: new Date('2024-07-15') }, 
     createdAt: new Date('2024-06-01T10:00:00Z'),
+  },
+  {
+    id: 'booking-5-lto-pending',
+    listingId: 'listing-6-mountain-homestead-lto',
+    listingTitle: 'Mountain Homestead - Lease to Own!',
+    renterId: 'renter-john-smith',
+    renterName: 'John Smith',
+    landownerId: 'mock-user-uid-12345',
+    landownerName: 'Mock UI Tester',
+    status: 'Pending Confirmation', // LTO inquiries also start as pending
+    dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') }, // 5 year LTO
+    createdAt: new Date('2024-07-25T10:00:00Z'),
+  },
+  {
+    id: 'booking-6-mockuser-pending',
+    listingId: 'listing-1-sunny-meadow',
+    listingTitle: 'Sunny Meadow Plot',
+    renterId: 'mock-user-uid-12345', // Mock user is the renter
+    renterName: 'Mock UI Tester',
+    landownerId: 'landowner-jane-doe', // Jane Doe is landowner
+    landownerName: 'Jane Doe',
+    status: 'Pending Confirmation',
+    dateRange: { from: new Date('2024-10-01'), to: new Date('2024-11-01') },
+    createdAt: new Date('2024-07-28T11:00:00Z'),
   },
 ];
 
@@ -269,7 +292,7 @@ let mockReviews: Review[] = [
   {
     id: 'review-2',
     listingId: 'listing-2-forest-retreat',
-    userId: 'landowner-jane-doe',
+    userId: 'landowner-jane-doe', // Simulating landowner reviewing (less common, but for data)
     userName: 'Jane Doe',
     rating: 4,
     comment: 'Nice and secluded, a bit rough around the edges but has potential.',
@@ -292,6 +315,15 @@ let mockReviews: Review[] = [
     rating: 4,
     comment: 'Interesting LTO option. Land is raw but promising. Landowner was helpful with info.',
     createdAt: new Date('2024-05-01T10:00:00Z'),
+  },
+  {
+    id: 'review-5-basic',
+    listingId: 'listing-7-basic-rural-plot',
+    userId: 'renter-john-smith',
+    userName: 'John Smith',
+    rating: 2,
+    comment: 'It truly is basic, but the price was right for what it is. No surprises.',
+    createdAt: new Date('2024-06-10T10:00:00Z'),
   },
 ];
 
@@ -320,7 +352,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
-    price: data.price || data.pricePerMonth || 0, // backward compatibility for pricePerMonth
+    price: data.price || data.pricePerMonth || 0, 
     leaseToOwnDetails: data.leaseToOwnDetails,
     images: data.images && data.images.length > 0 ? data.images : ["https://placehold.co/800x600.png?text=Land"],
     landownerId: data.landownerId,
@@ -366,10 +398,8 @@ const mapDocToReview = (docSnap: any): Review => {
   };
 };
 
-// --- USERS ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("Firestore not available. Using mock data for getUserById.");
     return mockUsers.find(user => user.id === id);
   }
   try {
@@ -444,10 +474,13 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     }
     try {
         const userDocRef = doc(db, "users", userId);
-        const firestoreData = { ...data };
+        const firestoreData: any = { ...data };
         if (firestoreData.createdAt && firestoreData.createdAt instanceof Date) {
             firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
         }
+        // Remove id if it's part of the data object to avoid writing it to Firestore document
+        if (firestoreData.id) delete firestoreData.id;
+
 
         await updateDoc(userDocRef, firestoreData);
         const updatedSnap = await getDoc(userDocRef);
@@ -466,15 +499,15 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     }
 };
 
-
-// --- LISTINGS ---
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Using mock data for listings.");
     return [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
-        return (b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0) - (a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0);
+        const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
+        const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0;
+        return timeB - timeA;
     });
   }
   try {
@@ -485,7 +518,7 @@ export const getListings = async (): Promise<Listing[]> => {
     allListings.sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
-        return 0;
+        return 0; 
     });
     return allListings;
   } catch (error) {
@@ -493,7 +526,9 @@ export const getListings = async (): Promise<Listing[]> => {
     return [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
-        return (b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0) - (a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0);
+        const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
+        const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0;
+        return timeB - timeA;
     });
   }
 };
@@ -516,7 +551,6 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("Firestore not available. Using mock data for getListingById.");
     return mockListings.find(listing => listing.id === id);
   }
   try {
@@ -557,13 +591,11 @@ export const addListing = async (
 
   try {
     const listingsCol = collection(db, "listings");
-    const firestoreData = {
+    const firestoreData: any = {
         ...newListingData,
-        pricePerMonth: newListingData.pricingModel === 'monthly' ? newListingData.price : undefined, // for potential backward compatibility if old systems read pricePerMonth
         createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
-        id: undefined,
     };
-    delete firestoreData.id;
+    delete firestoreData.id; 
 
     const docRef = await addDoc(listingsCol, firestoreData);
     const newDocSnap = await getDoc(docRef);
@@ -614,12 +646,14 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
   }
 };
 
-// --- REVIEWS ---
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("Firestore not available. Using mock data for reviews.");
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
-        .sort((a, b) => (b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0) - (a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0));
+        .sort((a, b) => {
+          const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
+          const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0;
+          return timeB - timeA;
+        });
     return Promise.all(listingReviews.map(async (review) => {
         const user = mockUsers.find(u => u.id === review.userId);
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}` };
@@ -638,7 +672,11 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
   } catch (error) {
     console.error("Error fetching reviews from Firestore, using mock data:", error);
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
-        .sort((a, b) => (b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0) - (a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0));
+        .sort((a, b) => {
+           const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as Timestamp)?.seconds * 1000 || 0;
+           const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as Timestamp)?.seconds * 1000 || 0;
+           return timeB - timeA;
+        });
     return Promise.all(listingReviews.map(async (review) => {
         const user = mockUsers.find(u => u.id === review.userId);
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}` };
@@ -677,7 +715,7 @@ export const addReview = async (
 
   try {
     const reviewsCol = collection(db, "reviews");
-    const firestoreReviewData = {
+    const firestoreReviewData: any = {
         listingId: newReview.listingId,
         userId: newReview.userId,
         userName: newReview.userName,
@@ -696,7 +734,7 @@ export const addReview = async (
         const currentNumRatings = listingData.numberOfRatings || 0;
         const newNumRatings = currentNumRatings + 1;
         const newTotalRating = currentRating * currentNumRatings + rating;
-        const newAvgRating = newTotalRating / newNumRatings;
+        const newAvgRating = newNumRatings > 0 ? newTotalRating / newNumRatings : 0;
         await updateDoc(listingRef, {
             rating: newAvgRating,
             numberOfRatings: newNumRatings,
@@ -716,7 +754,6 @@ export const addReview = async (
   }
 };
 
-// --- BOOKINGS ---
 const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
     const listing = await getListingById(booking.listingId);
     const renter = await getUserById(booking.renterId);
@@ -731,9 +768,12 @@ const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
 
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
   if (firebaseInitializationError || !db) {
-    // console.warn("Firestore not available. Using mock data for bookings.");
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
-        .sort((a,b) => (b.dateRange.from instanceof Date ? b.dateRange.from.getTime() : (b.dateRange.from as Timestamp)?.seconds * 1000 || 0) - (a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0));
+        .sort((a,b) => {
+          const timeA = a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0;
+          const timeB = b.dateRange.from instanceof Date ? b.dateRange.from.getTime() : (b.dateRange.from as Timestamp)?.seconds * 1000 || 0;
+          return timeB - timeA;
+        });
     return Promise.all(userBookings.map(populateBookingDetails));
   }
 
@@ -745,7 +785,7 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("dateRange.from", "desc")
+      orderBy("dateRange.from", "desc") 
     );
     const bookingSnapshot = await getDocs(q);
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
@@ -753,7 +793,11 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
   } catch (error) {
     console.error("Error fetching bookings from Firestore, using mock data:", error);
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
-        .sort((a,b) => (b.dateRange.from instanceof Date ? b.dateRange.from.getTime() : (b.dateRange.from as Timestamp)?.seconds * 1000 || 0) - (a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0));
+        .sort((a,b) => {
+            const timeA = a.dateRange.from instanceof Date ? a.dateRange.from.getTime() : (a.dateRange.from as Timestamp)?.seconds * 1000 || 0;
+            const timeB = b.dateRange.from instanceof Date ? b.dateRange.from.getTime() : (b.dateRange.from as Timestamp)?.seconds * 1000 || 0;
+            return timeB - timeA;
+        });
     return Promise.all(userBookings.map(populateBookingDetails));
   }
 };
@@ -762,24 +806,19 @@ export const addBookingRequest = async (
   data: Omit<Booking, 'id' | 'status' | 'listingTitle' | 'landownerName' | 'renterName' | 'createdAt'> & {dateRange: {from: Date; to: Date}}
 ): Promise<Booking> => {
 
-  let landownerIdToUse = data.landownerId;
-  let listingTitleToUse: string | undefined;
-
   const listingInfo = await getListingById(data.listingId);
   if (!listingInfo) throw new Error("Listing not found for booking request.");
-  landownerIdToUse = listingInfo.landownerId;
-  listingTitleToUse = listingInfo.title;
-
+  
   const renterInfo = await getUserById(data.renterId);
-  const landownerInfo = await getUserById(landownerIdToUse);
+  const landownerInfo = await getUserById(listingInfo.landownerId);
 
   const newBooking: Booking = {
-    id: `mock-booking-${Date.now()}`,
+    id: `mock-booking-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     ...data,
-    landownerId: landownerIdToUse,
+    landownerId: listingInfo.landownerId,
     status: 'Pending Confirmation',
     createdAt: new Date(),
-    listingTitle: listingTitleToUse,
+    listingTitle: listingInfo.title,
     renterName: renterInfo?.name,
     landownerName: landownerInfo?.name,
   };
@@ -787,16 +826,16 @@ export const addBookingRequest = async (
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
-    return newBooking;
+    return populateBookingDetails(newBooking); // Populate details before returning
   }
 
   try {
     const bookingsCol = collection(db, "bookings");
-    const firestoreBookingData = {
+    const firestoreBookingData: any = {
       listingId: data.listingId,
       renterId: data.renterId,
-      landownerId: landownerIdToUse,
-      listingTitle: listingTitleToUse,
+      landownerId: listingInfo.landownerId,
+      listingTitle: listingInfo.title,
       renterName: renterInfo?.name,
       landownerName: landownerInfo?.name,
       status: 'Pending Confirmation' as Booking['status'],
@@ -810,7 +849,6 @@ export const addBookingRequest = async (
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
         const mappedBooking = mapDocToBooking(newDocSnap);
-        // Ensure details are populated for the returned object
         return populateBookingDetails(mappedBooking);
     } else {
         throw new Error("Failed to retrieve newly created booking request from Firestore.");
@@ -818,7 +856,7 @@ export const addBookingRequest = async (
   } catch (error) {
     console.error("Error adding booking request to Firestore, adding to mock data as fallback:", error);
     mockBookings.unshift(newBooking);
-    return newBooking;
+    return populateBookingDetails(newBooking);
   }
 };
 

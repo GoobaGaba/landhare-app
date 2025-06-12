@@ -2,6 +2,7 @@
 import type { Timestamp } from 'firebase/firestore';
 
 export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';
+export type PricingModel = 'nightly' | 'monthly' | 'lease-to-own';
 
 export interface Listing {
   id: string;
@@ -10,7 +11,9 @@ export interface Listing {
   location: string;
   sizeSqft: number;
   amenities: string[];
-  pricePerMonth: number;
+  price: number; // Unified price field
+  pricingModel: PricingModel;
+  leaseToOwnDetails?: string;
   images: string[];
   landownerId: string;
   isAvailable: boolean;
@@ -18,7 +21,7 @@ export interface Listing {
   numberOfRatings?: number;
   leaseTerm?: LeaseTerm;
   minLeaseDurationMonths?: number;
-  isBoosted?: boolean; // For premium listings
+  isBoosted?: boolean; 
   createdAt?: Date | Timestamp;
 }
 
@@ -42,7 +45,7 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date | Timestamp;
-  userName?: string; // Added for displaying review author name easily
+  userName?: string; 
 }
 
 export interface Booking {
@@ -103,6 +106,7 @@ export type SuggestListingTitleOutput = {
   reasoning: string;
 };
 
+// Input for the AI lease generation flow
 export type GenerateLeaseTermsInput = {
   listingType: string; // e.g., "RV Pad", "Tiny Home Lot", "Agricultural Land"
   durationMonths: number;
@@ -113,6 +117,7 @@ export type GenerateLeaseTermsInput = {
   additionalRules?: string; // Comma-separated custom rules
 };
 
+// Output for the AI lease generation flow
 export type GenerateLeaseTermsOutput = {
   leaseAgreementText: string;
   summaryPoints: string[];

@@ -22,6 +22,8 @@ import { addDays, format, differenceInCalendarMonths, differenceInDays, startOfM
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+
 
 interface PriceDetails {
   basePrice: number;
@@ -114,7 +116,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'month' : 'months';
       baseRate = (listing.price || 0) * durationValue;
-    } else { // Default or Lease-to-own, treat duration as 1 month for simplicity in this calculation
+    } else { 
       durationValue = 1;
       durationUnitText = 'month';
       baseRate = listing.price || 0;
@@ -130,7 +132,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
     if (isNaN(totalPrice)) {
       console.warn("totalPrice became NaN, defaulting. baseRate:", baseRate, "Listing ID:", listing.id);
-      totalPrice = baseRate; // Default to baseRate if calculation fails
+      totalPrice = baseRate; 
     }
 
     return {
@@ -186,10 +188,9 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
        const bookingData = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId, // This should be correct as listing.landownerId is set
+        landownerId: listing.landownerId, 
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
-                     // For LTO or if dates somehow missing, default to a short placeholder range
                      : { from: new Date(), to: addDays(new Date(), 1) }, 
       };
       await addBookingRequest(bookingData);
@@ -250,7 +251,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     switch(listing.pricingModel) {
       case 'nightly': return { amount: priceAmount, unit: "night", model: listing.pricingModel };
       case 'monthly': return { amount: priceAmount, unit: "month", model: listing.pricingModel };
-      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month", model: listing.pricingModel }; // Suffix (Lease-to-Own) removed for cleaner display
+      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month", model: listing.pricingModel };
       default: return { amount: priceAmount, unit: "month", model: 'monthly' as PricingModel };
     }
   };
@@ -259,7 +260,6 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
-      {/* Image Gallery */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div className="relative w-full h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
           <Image src={mainImage} alt={listing.title} data-ai-hint="landscape field" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
@@ -272,7 +272,6 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
-        {/* Main Content Area (Left) */}
         <div className="md:col-span-2 space-y-6">
           <Card className="overflow-hidden">
             <CardHeader className="pb-4">
@@ -325,7 +324,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <CardTitle className="text-2xl flex items-center font-headline">
                 <Star className="h-6 w-6 mr-2 text-yellow-400 fill-yellow-400" />
                 Reviews ({listing.numberOfRatings || reviews.length})
-                {listing.rating && <span className="ml-2 text-xl font-bold text-muted-foreground">{listing.rating.toFixed(1)}/5</span>}
+                {listing.rating !== undefined && <span className="ml-2 text-xl font-bold text-muted-foreground">{listing.rating.toFixed(1)}/5</span>}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -376,12 +375,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           </Card>
         </div>
 
-        {/* Booking Card Area (Right Sticky Column) */}
         <div className="space-y-6 md:sticky md:top-24 self-start">
           <Card className="shadow-xl border-primary ring-1 ring-primary/30">
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
-                     <span className={cn("text-3xl font-bold text-primary font-sans", displayPrice.model === 'lease-to-own' && "text-2xl")}>
+                     <span className={cn("text-3xl font-bold font-sans text-primary", displayPrice.model === 'lease-to-own' && "text-2xl")}>
                         {displayPrice.model === 'lease-to-own' ? displayPrice.amount : `$${displayPrice.amount}`}
                     </span>
                     <span className="text-sm text-muted-foreground self-end pb-1">/ {displayPrice.unit}</span>
