@@ -23,6 +23,7 @@ export interface Listing {
   minLeaseDurationMonths?: number; // Min full months for 'monthly' or 'LTO'
   isBoosted?: boolean;
   createdAt?: Date | Timestamp;
+  bookmarkedBy?: string[]; // List of user IDs who bookmarked this
 }
 
 export type SubscriptionStatus = 'free' | 'premium' | 'loading';
@@ -36,6 +37,7 @@ export interface User {
   createdAt?: Date | Timestamp;
   subscriptionStatus?: SubscriptionStatus;
   stripeCustomerId?: string;
+  bookmarkedListingIds?: string[]; // List of listing IDs bookmarked by user
 }
 
 export interface Review {
