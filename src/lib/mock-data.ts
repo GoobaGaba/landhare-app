@@ -473,6 +473,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     } else {
       mockUsers.push(profileData);
     }
+    mockDataVersion++; // Increment version for user data changes
     return Promise.resolve(profileData);
   }
 
@@ -497,6 +498,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     } else {
       mockUsers.push(profileData);
     }
+    mockDataVersion++; // Increment version for user data changes
     return Promise.resolve(profileData);
   }
 };
@@ -513,6 +515,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
                 mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
+            mockDataVersion++; // Increment version for user data changes
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -544,6 +547,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
                 mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
+            mockDataVersion++; // Increment version for user data changes
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -553,16 +557,14 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Using mock data for listings. Version:", mockDataVersion);
-    // Return a new sorted array reference to help React detect changes if it relies on reference equality
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
-        // Ensure createdAt is a Date object for consistent comparison
         const timeA = (a.createdAt instanceof Date ? a.createdAt : (a.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
         const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
-        return timeB - timeA; // Newest first
+        return timeB - timeA;
     });
-    return sortedMockListings;
+    return Promise.resolve([...sortedMockListings]); // Return a new array
   }
   try {
     const listingsCol = collection(db, "listings");
@@ -578,7 +580,7 @@ export const getListings = async (): Promise<Listing[]> => {
         const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
         return timeB - timeA;
     });
-    return sortedMockListings;
+    return Promise.resolve([...sortedMockListings]); // Return a new array
   }
 };
 
@@ -635,20 +637,19 @@ export const addListing = async (
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding listing to mock data.");
     mockListings.unshift(newListingData);
-    mockDataVersion++; // Increment version to trigger re-fetches
+    mockDataVersion++;
     console.log("Mock listing added, new mockDataVersion:", mockDataVersion);
     return Promise.resolve(newListingData);
   }
 
   try {
     const listingsCol = collection(db, "listings");
-    // Prepare data for Firestore, ensuring correct types
     const firestoreReadyData = {
-      ...data, // Spread the validated data from the form
+      ...data,
       landownerId: landownerId,
       isAvailable: true,
-      images: newListingData.images, // Use processed images (with placeholders if needed)
-      rating: null, // Firestore often uses null for undefined numeric/boolean
+      images: newListingData.images,
+      rating: null,
       numberOfRatings: 0,
       isBoosted: isLandownerPremium,
       createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
@@ -664,7 +665,7 @@ export const addListing = async (
   } catch (error) {
     console.error("Error adding listing to Firestore, adding to mock data as fallback:", error);
     mockListings.unshift(newListingData);
-    mockDataVersion++; // Increment version for fallback as well
+    mockDataVersion++;
     console.log("Mock listing added (fallback), new mockDataVersion:", mockDataVersion);
     return Promise.resolve(newListingData);
   }
@@ -779,7 +780,7 @@ export const addReview = async (
         listing.numberOfRatings = (listing.numberOfRatings || 0) + 1;
         listing.rating = totalRating / listing.numberOfRatings;
     }
-    mockDataVersion++; // Reviews might affect listing display (rating), so update version
+    mockDataVersion++;
     return Promise.resolve(newReview);
   }
 
@@ -897,7 +898,7 @@ export const addBookingRequest = async (
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding booking request to mock data.");
     mockBookings.unshift(newBooking);
-    mockDataVersion++; // New booking might affect UI lists
+    mockDataVersion++;
     return populateBookingDetails(newBooking);
   }
 
@@ -939,7 +940,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex !== -1) {
       mockBookings[bookingIndex].status = status;
-      mockDataVersion++; // Status change might affect UI lists
+      mockDataVersion++;
       return populateBookingDetails(mockBookings[bookingIndex]);
     }
     return undefined;

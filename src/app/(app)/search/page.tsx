@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
@@ -50,20 +50,19 @@ export default function SearchPage() {
       }
       setIsLoading(true);
       try {
-        // fetchAllListings will return mock data if firebaseInitializationError is set
-        const listings = await fetchAllListings();
+        const listings = await fetchAllListings(); // Uses mockDataVersion internally if in mock mode
         const availableListings = listings.filter(l => l.isAvailable);
         setAllListings(availableListings);
       } catch (error: any) {
         console.error("Error fetching listings:", error);
         toast({ title: "Loading Error", description: error.message || "Could not load listings.", variant: "destructive" });
-        setAllListings([]); // Fallback to empty if even mock fetching fails
+        setAllListings([]);
       } finally {
         setIsLoading(false);
       }
     };
     loadInitialListings();
-  }, [toast, mockDataVersion]); // Added mockDataVersion
+  }, [toast, mockDataVersion]);
 
 
   const resetFilters = () => {
@@ -91,7 +90,7 @@ export default function SearchPage() {
     }
 
     listings = listings.filter(
-      l => (l.price ?? l.pricePerMonth) >= priceRange[0] && (l.price ?? l.pricePerMonth) <= priceRange[1]
+      l => (l.price ?? 0) >= priceRange[0] && (l.price ?? 0) <= priceRange[1]
     );
 
     listings = listings.filter(
@@ -110,34 +109,25 @@ export default function SearchPage() {
 
     listings = [...listings].sort((a, b) => {
       let comparison = 0;
-      // Prioritize boosted listings if not sorting by price/size specifically
-      if (sortBy.includes('rating') || sortBy === 'default_sort_perhaps') { // Assuming default or rating sort considers boost
-          if (a.isBoosted && !b.isBoosted) comparison = -1;
-          if (!a.isBoosted && b.isBoosted) comparison = 1;
-          if (comparison !== 0) return comparison;
-      }
-
-      const priceA = a.price ?? a.pricePerMonth;
-      const priceB = b.price ?? b.pricePerMonth;
+      if (a.isBoosted && !b.isBoosted) comparison = -1;
+      if (!a.isBoosted && b.isBoosted) comparison = 1;
+      if (comparison !== 0 && (sortBy.includes('rating') || sortBy === 'default_sort_perhaps')) return comparison;
+      
+      const priceA = a.price ?? 0;
+      const priceB = b.price ?? 0;
 
       switch (sortBy) {
-        case 'price_asc':
-          comparison = priceA - priceB;
-          break;
-        case 'price_desc':
-          comparison = priceB - priceA;
-          break;
-        case 'size_asc':
-          comparison = a.sizeSqft - b.sizeSqft;
-          break;
-        case 'size_desc':
-          comparison = b.sizeSqft - a.sizeSqft;
-          break;
-        case 'rating_desc':
-          comparison = (b.rating || 0) - (a.rating || 0);
-          break;
-        default:
-          comparison = 0;
+        case 'price_asc': comparison = priceA - priceB; break;
+        case 'price_desc': comparison = priceB - priceA; break;
+        case 'size_asc': comparison = a.sizeSqft - b.sizeSqft; break;
+        case 'size_desc': comparison = b.sizeSqft - a.sizeSqft; break;
+        case 'rating_desc': comparison = (b.rating || 0) - (a.rating || 0); break;
+        default: comparison = 0;
+      }
+      // If primary sort criteria are equal, then consider boost status
+      if (comparison === 0) {
+        if (a.isBoosted && !b.isBoosted) return -1;
+        if (!a.isBoosted && b.isBoosted) return 1;
       }
       return comparison;
     });
@@ -181,7 +171,6 @@ export default function SearchPage() {
           selectedLeaseTerm={selectedLeaseTerm}
           setSelectedLeaseTerm={setSelectedLeaseTerm}
           resetFilters={resetFilters}
-          // disabled prop removed
         />
       </div>
       <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6">
@@ -198,11 +187,10 @@ export default function SearchPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
-              // disabled prop removed
             />
           </div>
           <div className="flex items-center gap-2">
-            <Select value={sortBy} onValueChange={setSortBy} /* disabled prop removed */>
+            <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by..." />
               </SelectTrigger>
@@ -214,10 +202,10 @@ export default function SearchPage() {
                 <SelectItem value="size_desc">Size (Large to Small)</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View" /* disabled prop removed */>
+            <Button variant={viewMode === 'grid' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('grid')} title="Grid View">
               <LayoutGrid className="h-4 w-4"/>
             </Button>
-            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View" /* disabled prop removed */>
+            <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')} title="List View">
               <List className="h-4 w-4"/>
             </Button>
           </div>

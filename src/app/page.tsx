@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
 import { getListings, mockDataVersion } from '@/lib/mock-data';
 import { ListingCard } from '@/components/land-search/listing-card';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
@@ -22,10 +22,10 @@ export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    async function fetchRecentListings() {
+    const fetchRecentListings = async () => {
       setIsLoadingListings(true);
       try {
-        const allListingsData = await getListings();
+        const allListingsData = await getListings(); // This will use mockDataVersion if in mock mode
         if (Array.isArray(allListingsData)) {
           const sortedAvailable = allListingsData
             .filter(l => l.isAvailable)
@@ -44,9 +44,9 @@ export default function HomePage() {
       } finally {
         setIsLoadingListings(false);
       }
-    }
+    };
     fetchRecentListings();
-  }, [mockDataVersion]); // Added mockDataVersion
+  }, [mockDataVersion]);
 
   const getFirstName = () => {
     if (currentUser?.appProfile?.name) return currentUser.appProfile.name.split(' ')[0];
