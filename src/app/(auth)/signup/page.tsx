@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Mail, CaseUpper } from 'lucide-react'; // Using CaseUpper as a generic 'brand' icon
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const signupSchema = z.object({
@@ -31,7 +31,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { signUpWithEmailPassword } = useAuth();
+  const { signUpWithEmailPassword, signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,11 +43,10 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Pass displayName to signUpWithEmailPassword
       await signUpWithEmailPassword({ 
         email: data.email, 
         password: data.password, 
-        displayName: data.displayName || data.email.split('@')[0] // Default if not provided
+        displayName: data.displayName || data.email.split('@')[0] 
       });
       toast({
         title: 'Signup Successful',
@@ -82,44 +81,89 @@ export default function SignupPage() {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+      toast({
+        title: 'Sign Up Successful',
+        description: "You're signed up with Google! Redirecting...",
+      });
+      router.push('/dashboard');
+    } catch (err: any) {
+      let errorMessage = "Could not sign up with Google. Please try again.";
+      if (err.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Google Sign-Up cancelled.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      toast({
+        title: 'Google Sign Up Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-sm shadow-xl">
       <CardHeader className="space-y-1 text-center">
         <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
-        <CardDescription>Enter your details to get started with LandShare.</CardDescription>
+        <CardDescription>Join LandShare to find or list land.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Signup Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignUp} disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CaseUpper className="mr-2 h-4 w-4" />} 
+          Sign up with Google
+        </Button>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">
+              Or sign up with email
+            </span>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Signup Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
           <div className="space-y-2">
             <Label htmlFor="displayName">Full Name (Optional)</Label>
-            <Input id="displayName" type="text" placeholder="John Doe" {...register('displayName')} />
+            <Input id="displayName" type="text" placeholder="John Doe" {...register('displayName')} disabled={isLoading} />
             {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="you@example.com" {...register('email')} />
+            <Input id="email" type="email" placeholder="you@example.com" {...register('email')} disabled={isLoading} />
             {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
+            <Input id="password" type="password" placeholder="••••••••" {...register('password')} disabled={isLoading} />
             {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} />
+            <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} disabled={isLoading} />
             {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Create Account
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+            Create Account with Email
           </Button>
         </form>
       </CardContent>
@@ -134,5 +178,3 @@ export default function SignupPage() {
     </Card>
   );
 }
-
-    

@@ -21,6 +21,17 @@ import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel }
 
 export const FREE_TIER_LISTING_LIMIT = 1; // Free users can list 1 property.
 
+// Predefined mock Google user for testing UI flows when Firebase is not available
+export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
+  id: 'mock-google-user-uid-67890',
+  name: 'Mock Google User',
+  email: 'mock.google.user@example.com',
+  avatarUrl: 'https://placehold.co/100x100.png?text=GU',
+  subscriptionStatus: 'free', // Or 'premium' if you want to test that flow by default
+  createdAt: new Date('2023-04-01T10:00:00Z'),
+  bio: 'I am a mock user signed in via Google for testing purposes.',
+};
+
 export let mockUsers: User[] = [
   {
     id: 'mock-user-uid-12345',
@@ -49,6 +60,7 @@ export let mockUsers: User[] = [
     createdAt: new Date('2023-03-20T12:00:00Z'),
     bio: 'Looking for a quiet place for my tiny home.',
   },
+  MOCK_GOOGLE_USER_FOR_UI_TESTING, // Add the mock Google user to the list
 ];
 
 export let mockListings: Listing[] = [
@@ -343,7 +355,7 @@ const mapDocToUser = (docSnap: any): User => {
     id: docSnap.id,
     name: data.name || 'Unknown User',
     email: data.email || '',
-    avatarUrl: data.avatarUrl || `https://placehold.co/100x100.png?text=${(data.name || 'U').charAt(0)}`,
+    avatarUrl: data.avatarUrl || `https://placehold.co/100x100.png?text=${(data.name || 'U').charAt(0).toUpperCase()}`,
     subscriptionStatus: data.subscriptionStatus || 'free',
     stripeCustomerId: data.stripeCustomerId,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
@@ -361,7 +373,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
-    price: data.price !== undefined ? data.price : (data.pricePerMonth || 0), // Handle legacy pricePerMonth
+    price: data.price !== undefined ? data.price : (data.pricePerMonth || 0), 
     leaseToOwnDetails: data.leaseToOwnDetails,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`],
     landownerId: data.landownerId,
@@ -388,9 +400,9 @@ const mapDocToBooking = (docSnap: any): Booking => {
       to: data.dateRange.to.toDate ? data.dateRange.to.toDate() : new Date(data.dateRange.to),
     },
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-    listingTitle: data.listingTitle, // Will be populated by populateBookingDetails
-    renterName: data.renterName,     // Will be populated by populateBookingDetails
-    landownerName: data.landownerName, // Will be populated by populateBookingDetails
+    listingTitle: data.listingTitle, 
+    renterName: data.renterName,     
+    landownerName: data.landownerName, 
   };
 };
 
@@ -417,7 +429,6 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
-    // Fallback for dev if not found in Firestore but exists in mock (e.g. during initial setup)
     const mockUser = mockUsers.find(user => user.id === id);
     if (mockUser) return mockUser;
     return undefined;
@@ -427,19 +438,19 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
   }
 };
 
-export const createUserProfile = async (userId: string, email: string, name?: string): Promise<User> => {
+export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
   const profileData: User = {
     id: userId,
     email: email,
     name: name || email.split('@')[0],
-    avatarUrl: `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`,
+    avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`,
     subscriptionStatus: 'free',
     createdAt: new Date(),
     bio: "Welcome to LandShare!",
   };
 
   if (firebaseInitializationError || !db) {
-    console.warn("Firestore not available. Adding user to mock data.");
+    console.warn("Firestore not available. Adding/updating user in mock data.");
     const existingUserIndex = mockUsers.findIndex(u => u.id === userId);
     if (existingUserIndex !== -1) {
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
@@ -455,15 +466,15 @@ export const createUserProfile = async (userId: string, email: string, name?: st
         ...profileData,
         createdAt: Timestamp.fromDate(profileData.createdAt as Date)
     };
-    await setDoc(userDocRef, firestoreProfileData, { merge: true });
+    await setDoc(userDocRef, firestoreProfileData, { merge: true }); // Use merge to avoid overwriting existing fields if called for an existing user
 
     const newUserSnap = await getDoc(userDocRef);
     if (newUserSnap.exists()) {
         return mapDocToUser(newUserSnap);
     }
-    throw new Error("Failed to retrieve newly created user profile from Firestore.");
+    throw new Error("Failed to retrieve user profile from Firestore after creation/update.");
   } catch (error) {
-    console.error("Error creating user profile in Firestore, adding to mock data as fallback:", error);
+    console.error("Error creating/updating user profile in Firestore, modifying mock data as fallback:", error);
     const existingUserIndex = mockUsers.findIndex(u => u.id === userId);
      if (existingUserIndex !== -1) {
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
@@ -480,7 +491,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-            // Special handling for subscriptionStatus if it's in data
             if (data.subscriptionStatus) {
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
             }
@@ -495,7 +505,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
         }
 
-        if (firestoreData.id) delete firestoreData.id; // Don't try to update the ID field itself
+        if (firestoreData.id) delete firestoreData.id; 
 
         await updateDoc(userDocRef, firestoreData);
         const updatedSnap = await getDoc(userDocRef);
@@ -509,7 +519,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-             if (data.subscriptionStatus) { // Ensure mock also updates this directly
+             if (data.subscriptionStatus) { 
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
             }
             return Promise.resolve(mockUsers[userIndex]);
@@ -531,7 +541,6 @@ export const getListings = async (): Promise<Listing[]> => {
   }
   try {
     const listingsCol = collection(db, "listings");
-    // Order by isBoosted first (true comes before false with desc), then by createdAt
     const q = query(listingsCol, orderBy("isBoosted", "desc"), orderBy("createdAt", "desc"));
     const listingSnapshot = await getDocs(q);
     return listingSnapshot.docs.map(mapDocToListing);
@@ -591,7 +600,7 @@ export const addListing = async (
     landownerId: landownerId,
     isAvailable: true,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    rating: undefined, // New listings start with no rating
+    rating: undefined, 
     numberOfRatings: 0,
     isBoosted: isLandownerPremium,
     createdAt: new Date(),
@@ -599,18 +608,18 @@ export const addListing = async (
 
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding listing to mock data.");
-    mockListings.unshift(newListingData); // Add to beginning to appear as recent
+    mockListings.unshift(newListingData); 
     return Promise.resolve(newListingData);
   }
 
   try {
     const listingsCol = collection(db, "listings");
     const firestoreData: any = {
-        ...newListingData, // Use all fields from newListingData
-        pricePerMonth: data.price, // Ensure pricePerMonth is set for compatibility if needed, though unified 'price' is primary
+        ...newListingData, 
+        price: data.price, // Use unified 'price' field
         createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
     };
-    delete firestoreData.id; // Firestore generates its own ID
+    delete firestoreData.id; 
 
     const docRef = await addDoc(listingsCol, firestoreData);
     const newDocSnap = await getDoc(docRef);
@@ -800,7 +809,7 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("createdAt", "desc") // Order by creation date for consistent listing
+      orderBy("createdAt", "desc") 
     );
     const bookingSnapshot = await getDocs(q);
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
@@ -840,7 +849,7 @@ export const addBookingRequest = async (
 
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding booking request to mock data.");
-    mockBookings.unshift(newBooking); // Add to beginning
+    mockBookings.unshift(newBooking); 
     return populateBookingDetails(newBooking);
   }
 
@@ -850,9 +859,9 @@ export const addBookingRequest = async (
       listingId: data.listingId,
       renterId: data.renterId,
       landownerId: listingInfo.landownerId,
-      listingTitle: listingInfo.title, // Store for easier display
-      renterName: renterInfo?.name,     // Store for easier display
-      landownerName: landownerInfo?.name, // Store for easier display
+      listingTitle: listingInfo.title, 
+      renterName: renterInfo?.name,     
+      landownerName: landownerInfo?.name, 
       status: 'Pending Confirmation' as Booking['status'],
       dateRange: {
         from: Timestamp.fromDate(data.dateRange.from),
@@ -864,7 +873,6 @@ export const addBookingRequest = async (
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
         const mappedBooking = mapDocToBooking(newDocSnap);
-        // Ensure it's populated before returning
         return populateBookingDetails(mappedBooking);
     } else {
         throw new Error("Failed to retrieve newly created booking request from Firestore.");
