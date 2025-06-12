@@ -1,4 +1,6 @@
 
+'use client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { HelpCircle, User, Home, DollarSign, Search } from "lucide-react";
@@ -59,7 +61,7 @@ export default function FaqPage() {
         if (href) {
           return <Link key={index} href={href} className="text-primary hover:underline">{linkText}</Link>;
         } else {
-          // Fallback for unmapped placeholders (though ideally all should be mapped)
+          // Fallback for unmapped placeholders
           return linkText; 
         }
       }
