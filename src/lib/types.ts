@@ -42,6 +42,7 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: Date | Timestamp;
+  userName?: string; // Added for displaying review author name easily
 }
 
 export interface Booking {
@@ -88,4 +89,31 @@ export type PriceSuggestionInput = {
 export type PriceSuggestionOutput = {
   suggestedPrice: number;
   reasoning: string;
+};
+
+export type SuggestListingTitleInput = {
+  location: string;
+  sizeSqft?: number;
+  keywords: string;
+  existingDescription?: string;
+};
+
+export type SuggestListingTitleOutput = {
+  suggestedTitle: string;
+  reasoning: string;
+};
+
+export type GenerateLeaseTermsInput = {
+  listingType: string; // e.g., "RV Pad", "Tiny Home Lot", "Agricultural Land"
+  durationMonths: number;
+  monthlyPrice: number;
+  landownerName: string;
+  renterName: string;
+  listingAddress: string;
+  additionalRules?: string; // Comma-separated custom rules
+};
+
+export type GenerateLeaseTermsOutput = {
+  leaseAgreementText: string;
+  summaryPoints: string[];
 };

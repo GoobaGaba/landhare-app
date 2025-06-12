@@ -3,6 +3,7 @@
 
 import { suggestListingPrice, type SuggestListingPriceInput, type SuggestListingPriceOutput } from '@/ai/flows/suggest-listing-price';
 import { suggestListingTitle, type SuggestListingTitleInput, type SuggestListingTitleOutput } from '@/ai/flows/suggest-listing-title';
+import { generateLeaseTerms, type GenerateLeaseTermsInput, type GenerateLeaseTermsOutput } from '@/ai/flows/generate-lease-terms-flow';
 
 export async function getSuggestedPriceAction(
   input: SuggestListingPriceInput
@@ -43,5 +44,25 @@ export async function getSuggestedTitleAction(
       return { error: error.message };
     }
     return { error: "An unknown error occurred while suggesting a title." };
+  }
+}
+
+export async function getGeneratedLeaseTermsAction(
+  input: GenerateLeaseTermsInput
+): Promise<{ data?: GenerateLeaseTermsOutput; error?: string }> {
+  try {
+    // Basic validation
+    if (!input.listingType || input.durationMonths <= 0 || input.monthlyPrice <= 0 || !input.landownerName || !input.renterName || !input.listingAddress) {
+      return { error: "Missing required fields for lease term generation (type, duration, price, names, address)." };
+    }
+    
+    const result = await generateLeaseTerms(input);
+    return { data: result };
+  } catch (error) {
+    console.error("Error generating lease terms:", error);
+    if (error instanceof Error) {
+      return { error: error.message };
+    }
+    return { error: "An unknown error occurred while generating lease terms." };
   }
 }

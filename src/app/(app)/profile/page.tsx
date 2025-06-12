@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle } from "lucide-react";
+import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat } from "lucide-react";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { SubscriptionStatus, User as AppUserType } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { firebaseInitializationError } from '@/lib/firebase';
+import { Switch } from "@/components/ui/switch";
 
 
 interface ProfileDisplayData {
@@ -36,37 +37,27 @@ export default function ProfilePage() {
   const [emailDisplay, setEmailDisplay] = useState('');
   const [bioInput, setBioInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSwitchingSubscription, setIsSwitchingSubscription] = useState(false);
 
 
   useEffect(() => {
-    if (currentUser && currentUser.appProfile) {
+    if (currentUser) { // Covers both live and mock user scenarios
+      const currentAppProfile = currentUser.appProfile;
+      const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
+
       const currentProfile: ProfileDisplayData = {
-        name: currentUser.appProfile.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
+        name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
-        avatarUrl: currentUser.appProfile.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: currentUser.appProfile.bio || "Welcome to my LandShare profile!",
+        avatarUrl: currentAppProfile?.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentAppProfile?.name || currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
+        bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' ? "I am the main mock user." : "Welcome to my LandShare profile!"),
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
-        subscriptionTier: subscriptionStatus !== 'loading' ? subscriptionStatus : (currentUser.appProfile.subscriptionStatus || 'free'),
+        subscriptionTier: currentSubscription,
       };
       setProfileDisplayData(currentProfile);
       setNameInput(currentProfile.name);
       setEmailDisplay(currentProfile.email);
       setBioInput(currentProfile.bio);
-    } else if (currentUser && !currentUser.appProfile && !authLoading) {
-        const fallbackProfile: ProfileDisplayData = {
-            name: currentUser.displayName || currentUser.email?.split('@')[0] || "User",
-            email: currentUser.email || "No email provided",
-            avatarUrl: currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-            bio: "Profile data partially loaded.",
-            memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
-            subscriptionTier: subscriptionStatus !== 'loading' ? subscriptionStatus : 'free',
-        }
-        setProfileDisplayData(fallbackProfile);
-        setNameInput(fallbackProfile.name);
-        setEmailDisplay(fallbackProfile.email);
-        setBioInput(fallbackProfile.bio);
-    }
-    else {
+    } else {
       setProfileDisplayData(null);
     }
   }, [currentUser, authLoading, subscriptionStatus]);
@@ -83,12 +74,13 @@ export default function ProfilePage() {
     if (bioInput !== profileDisplayData.bio) updateData.bio = bioInput;
 
     if (Object.keys(updateData).length > 0) {
-        const updatedUser = await updateCurrentAppUserProfile(updateData);
+        const updatedUser = await updateCurrentAppUserProfile(updateData); // This handles both FirebaseUser displayname/photoURL and AppUserType
         if (updatedUser && updatedUser.appProfile) {
             setProfileDisplayData(prev => prev ? {
                  ...prev,
                  name: updatedUser.appProfile!.name || prev.name,
-                 bio: updatedUser.appProfile!.bio || prev.bio
+                 bio: updatedUser.appProfile!.bio || prev.bio,
+                 avatarUrl: updatedUser.appProfile!.avatarUrl || updatedUser.photoURL || prev.avatarUrl,
             } : null);
              setNameInput(updatedUser.appProfile!.name || nameInput);
              setBioInput(updatedUser.appProfile!.bio || bioInput);
@@ -127,6 +119,25 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSubscriptionToggle = async () => {
+    if (!currentUser || !profileDisplayData) return;
+    setIsSwitchingSubscription(true);
+    const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
+    try {
+      const updatedUser = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
+      if (updatedUser && updatedUser.appProfile) {
+        setProfileDisplayData(prev => prev ? {...prev, subscriptionTier: updatedUser.appProfile!.subscriptionStatus || newStatus } : null);
+        toast({ title: "Subscription Updated (Mock)", description: `Your account is now simulated as ${newStatus}.` });
+      } else {
+        throw new Error("Failed to update subscription status in simulation.");
+      }
+    } catch (error: any) {
+      toast({ title: "Subscription Switch Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSwitchingSubscription(false);
+    }
+  };
+
 
   if (authLoading || (currentUser && !profileDisplayData && subscriptionStatus === 'loading') ) {
     return (
@@ -137,7 +148,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (firebaseInitializationError && !currentUser) {
+  if (firebaseInitializationError && !currentUser) { // currentUser might be mockUser
      return (
       <Card>
         <CardHeader>
@@ -187,7 +198,7 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
           <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier}</span></p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto" disabled={authLoading || isSaving}>
+        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto" disabled={authLoading || isSaving || isSwitchingSubscription}>
           {authLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>} Refresh Profile
         </Button>
       </div>
@@ -207,7 +218,7 @@ export default function ProfilePage() {
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>Manage your personal details and preferences.</CardDescription>
               </div>
-              <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => isEditing ? handleSave() : setIsEditing(true)} disabled={isSaving || authLoading}>
+              <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => isEditing ? handleSave() : setIsEditing(true)} disabled={isSaving || authLoading || isSwitchingSubscription}>
                 {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (isEditing ? <><Save className="mr-2 h-4 w-4" /> Save Changes</> : <><Edit3 className="mr-2 h-4 w-4" /> Edit Profile</>)}
               </Button>
             </CardHeader>
@@ -235,7 +246,7 @@ export default function ProfilePage() {
                <div>
                 <Label htmlFor="avatarUrl">Avatar URL (Optional)</Label>
                 <Input id="avatarUrl" value={profileDisplayData.avatarUrl || ''} disabled />
-                 <p className="text-xs text-muted-foreground mt-1">Avatar update via direct URL or file upload is not yet implemented. This field shows current avatar URL if available.</p>
+                 <p className="text-xs text-muted-foreground mt-1">Avatar update via direct URL or file upload is not yet implemented. This field shows current avatar URL if available. You can try editing your name, as the placeholder avatar uses initials.</p>
               </div>
             </CardContent>
             {isEditing && (
@@ -270,13 +281,13 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 border rounded-md">
                 <Label htmlFor="email-notifications" className="cursor-pointer">Email Notifications for New Messages</Label>
-                <Input type="checkbox" id="email-notifications" className="h-5 w-5 cursor-pointer" defaultChecked />
+                <Switch id="email-notifications" defaultChecked onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `New message emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} />
               </div>
                <div className="flex items-center justify-between p-3 border rounded-md">
                 <Label htmlFor="promo-emails" className="cursor-pointer">Promotional Emails & Updates</Label>
-                <Input type="checkbox" id="promo-emails" className="h-5 w-5 cursor-pointer" />
+                <Switch id="promo-emails" onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `Promotional emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} />
               </div>
-              <Button onClick={() => toast({title: "Preferences Saved (Mock)", description:"Your notification preferences have been noted. Full functionality coming soon."}) }><Save className="mr-2 h-4 w-4" /> Save Notification Settings</Button>
+              {/* Removed general save button as individual switches give instant feedback */}
             </CardContent>
           </Card>
         </TabsContent>
@@ -306,6 +317,27 @@ export default function ProfilePage() {
                   </>
                 )}
               </div>
+
+              <div className="p-4 border rounded-lg">
+                 <div className="flex items-center justify-between">
+                    <div>
+                        <h4 className="font-medium">Simulate Subscription Tier</h4>
+                        <p className="text-xs text-muted-foreground">For testing purposes, toggle between Free and Premium.</p>
+                    </div>
+                    <Button 
+                        onClick={handleSubscriptionToggle} 
+                        variant="outline" 
+                        size="sm"
+                        disabled={isSwitchingSubscription || authLoading}
+                        className="w-36"
+                    >
+                        {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>} 
+                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
+                    </Button>
+                 </div>
+                 {firebaseInitializationError && <p className="text-xs text-destructive mt-2">Note: Subscription simulation primarily affects UI. Backend enforcement may differ in full preview.</p>}
+              </div>
+
               <div>
                 <h4 className="font-medium mb-2">Payment Methods</h4>
                 <p className="text-sm text-muted-foreground">Your payment methods are managed securely via Stripe. (Placeholder)</p>

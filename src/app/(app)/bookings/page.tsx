@@ -5,28 +5,43 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle } from "lucide-react";
+import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import type { Booking } from '@/lib/types';
-import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus } from '@/lib/mock-data';
-import { format } from 'date-fns';
+import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
+import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById, getUserById } from '@/lib/mock-data';
+import { format, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
+import { getGeneratedLeaseTermsAction } from '@/lib/actions/ai-actions';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState(false);
+  const [leaseTermsModalOpen, setLeaseTermsModalOpen] = useState(false);
+  const [currentLeaseTerms, setCurrentLeaseTerms] = useState<string | null>(null);
+  const [currentLeaseSummary, setCurrentLeaseSummary] = useState<string[] | null>(null);
   const { toast } = useToast();
 
   const loadBookings = useCallback(async () => {
-    if (firebaseInitializationError && !currentUser) { // Only fully block if no mock user is available either
+    if (firebaseInitializationError && !currentUser?.appProfile) { 
       setIsLoading(false);
       setUserBookings([]);
       if (firebaseInitializationError) {
           toast({ 
             title: "Preview Mode Active", 
-            description: "Firebase not configured. Cannot load live bookings. Displaying sample data if available or an empty state.", 
+            description: "Firebase not configured. Cannot load live bookings.", 
             variant: "default",
             duration: 5000  
           });
@@ -34,7 +49,7 @@ export default function BookingsPage() {
       return;
     }
     
-    if (firebaseInitializationError && currentUser) { // Firebase down, but we have a mock user
+    if (firebaseInitializationError && currentUser?.appProfile) { 
          toast({ 
             title: "Preview Mode Active", 
             description: "Firebase not configured. Displaying sample bookings for preview.", 
@@ -46,7 +61,6 @@ export default function BookingsPage() {
     setIsLoading(true);
     
     try {
-      // getBookingsForUser will use mock data if firebaseInitializationError and currentUser.uid is mock
       const bookingsFromDb = await getBookingsForUser(currentUser!.uid); 
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
@@ -56,33 +70,68 @@ export default function BookingsPage() {
         description: error.message || "Could not load your bookings.",
         variant: "destructive",
       });
-      setUserBookings([]); // Fallback to empty if error during fetch (even mock)
+      setUserBookings([]); 
     } finally {
       setIsLoading(false);
     }
   }, [currentUser, toast]);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && currentUser) {
       loadBookings();
+    } else if (!authLoading && !currentUser) {
+      setIsLoading(false);
     }
   }, [authLoading, currentUser, loadBookings]);
 
 
-  const handleUpdateBookingStatus = async (bookingId: string, newStatus: Booking['status']) => {
-    if (firebaseInitializationError) {
+  const handleGenerateAndShowLeaseTerms = async (booking: Booking) => {
+    if (!currentUser || !booking.listingTitle || !booking.renterName || !booking.landownerName) {
+        toast({title: "Missing Data", description: "Cannot generate lease terms due to missing booking details.", variant: "destructive"});
+        return;
+    }
+    setIsLeaseTermsLoading(true);
+    const listingDetails = await getListingById(booking.listingId);
+    if (!listingDetails) {
+        toast({title: "Error", description: "Could not fetch listing details for lease terms.", variant: "destructive"});
+        setIsLeaseTermsLoading(false);
+        return;
+    }
+
+    const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
+    const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
+    const durationMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+
+    const input: GenerateLeaseTermsInput = {
+        listingType: `Plot for ${listingDetails.title}`, // Could be more specific if listing had a 'type' field
+        durationMonths: durationMonths > 0 ? durationMonths : 1,
+        monthlyPrice: listingDetails.pricePerMonth,
+        landownerName: booking.landownerName,
+        renterName: booking.renterName,
+        listingAddress: listingDetails.location,
+        additionalRules: "No permanent structures without written consent. Maintain cleanliness of the plot." // Example
+    };
+    
+    const result = await getGeneratedLeaseTermsAction(input);
+    setIsLeaseTermsLoading(false);
+
+    if (result.data) {
+        setCurrentLeaseTerms(result.data.leaseAgreementText);
+        setCurrentLeaseSummary(result.data.summaryPoints);
+        setLeaseTermsModalOpen(true);
+    } else {
+        toast({title: "AI Error", description: result.error || "Failed to generate lease terms.", variant: "destructive"});
+    }
+  };
+
+
+  const handleUpdateBookingStatus = async (booking: Booking, newStatus: Booking['status']) => {
+    if (firebaseInitializationError && !currentUser?.appProfile) {
         toast({ 
             title: "Preview Mode", 
-            description: "Updating booking status is disabled in preview mode.", 
+            description: "Updating booking status is disabled in full preview mode.", 
             variant: "default"
         });
-        // Simulate update for mock data if needed by calling dbUpdateBookingStatus which handles mock
-        if (currentUser) {
-             try {
-                await dbUpdateBookingStatus(bookingId, newStatus);
-                loadBookings(); // Re-load mock bookings
-             } catch (e) { /* ignore mock update error */ }
-        }
         return;
     }
     if(!currentUser){
@@ -92,17 +141,20 @@ export default function BookingsPage() {
 
     const originalBookings = [...userBookings];
     setUserBookings(prevBookings => 
-      prevBookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b)
+      prevBookings.map(b => b.id === booking.id ? { ...b, status: newStatus } : b)
     );
 
     try {
-      const updatedBooking = await dbUpdateBookingStatus(bookingId, newStatus);
+      const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
       if (updatedBooking) {
         toast({
           title: "Booking Updated",
           description: `Booking status changed to ${newStatus}.`,
         });
         await loadBookings(); 
+        if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
+            await handleGenerateAndShowLeaseTerms(updatedBooking);
+        }
       } else {
         throw new Error("Update operation returned undefined.");
       }
@@ -123,7 +175,7 @@ export default function BookingsPage() {
     return 'text-muted-foreground';
   };
   
-  const formatDateRange = (dateRange: { from: Date; to: Date }): string => {
+  const formatDateRange = (dateRange: { from: Date | { toDate: () => Date }; to: Date | { toDate: () => Date } }): string => {
     const fromDate = dateRange.from instanceof Date ? dateRange.from : (dateRange.from as any).toDate();
     const toDate = dateRange.to instanceof Date ? dateRange.to : (dateRange.to as any).toDate();
     return `${format(fromDate, "PPP")} - ${format(toDate, "PPP")}`;
@@ -138,7 +190,7 @@ export default function BookingsPage() {
     );
   }
   
-  if (!currentUser && !isLoading) { // If no user (even mock) after loading.
+  if (!currentUser && !isLoading) { 
      return (
       <Card>
         <CardHeader>
@@ -201,7 +253,7 @@ export default function BookingsPage() {
           {userBookings.map((booking) => (
             <Card key={booking.id} className="shadow-md hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle>{booking.listingTitle || `Listing ID: ${booking.listingId}`}</CardTitle>
+                <CardTitle>{booking.listingTitle || `Listing: ${booking.listingId.substring(0,10)}...`}</CardTitle>
                 <CardDescription>
                   Status: <span className={`font-semibold ${getStatusColor(booking.status)}`}>{booking.status}</span>
                 </CardDescription>
@@ -224,15 +276,16 @@ export default function BookingsPage() {
                     <Button 
                       size="sm" 
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                      onClick={() => handleUpdateBookingStatus(booking.id, 'Confirmed')}
-                      disabled={firebaseInitializationError !== null && !currentUser!.appProfile} // Disable if firebase error and not a mock user with appProfile
+                      onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
+                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isLeaseTermsLoading}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                      {isLeaseTermsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                       Approve
                     </Button>
                     <Button 
                       variant="destructive" 
                       size="sm"
-                      onClick={() => handleUpdateBookingStatus(booking.id, 'Declined')}
+                      onClick={() => handleUpdateBookingStatus(booking, 'Declined')}
                       disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
                     >
                       <XCircle className="mr-2 h-4 w-4" /> Decline
@@ -243,11 +296,17 @@ export default function BookingsPage() {
                   <Button 
                     variant="destructive" 
                     size="sm"
-                    onClick={() => handleUpdateBookingStatus(booking.id, 'Cancelled')}
+                    onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')}
                     disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
                   >
                     <AlertTriangle className="mr-2 h-4 w-4" /> Cancel Request
                   </Button>
+                )}
+                {booking.status === 'Confirmed' && (
+                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading}>
+                        {isLeaseTermsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                        View Lease Suggestion
+                    </Button>
                 )}
               </CardFooter>
             </Card>
@@ -255,6 +314,34 @@ export default function BookingsPage() {
         </div>
       )}
       
+      <AlertDialog open={leaseTermsModalOpen} onOpenChange={setLeaseTermsModalOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>AI Suggested Lease Terms</AlertDialogTitle>
+            <AlertDialogDescription>
+              This is an AI-generated lease suggestion based on the booking details.
+              <strong> It is for informational purposes only and should be reviewed by legal counsel before use.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 custom-scrollbar text-sm space-y-4">
+            {currentLeaseSummary && (
+                <div className="mb-4 p-3 bg-muted/50 rounded-md">
+                    <h3 className="font-semibold mb-2 text-foreground">Key Summary Points:</h3>
+                    <ul className="list-disc list-inside space-y-1">
+                        {currentLeaseSummary.map((point, idx) => <li key={idx}>{point}</li>)}
+                    </ul>
+                </div>
+            )}
+            <pre className="whitespace-pre-wrap font-sans bg-card p-4 rounded-md border">
+                {currentLeaseTerms || "No lease terms generated."}
+            </pre>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setLeaseTermsModalOpen(false)}>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card className="mt-8 bg-muted/30">
         <CardHeader>
             <CardTitle className="text-lg">Booking Management Tip</CardTitle>
@@ -263,7 +350,7 @@ export default function BookingsPage() {
             <p className="text-sm text-muted-foreground">
                Respond to booking requests promptly. Approved bookings show as 'Confirmed'.
                You can cancel 'Pending Confirmation' requests if your plans change.
-               Landowners should check for new requests often.
+               Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available.
             </p>
         </CardContent>
       </Card>
