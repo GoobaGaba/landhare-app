@@ -19,7 +19,16 @@ const ListingFormSchema = z.object({
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   landownerId: z.coerce.string({required_error: "Landowner ID is required and cannot be empty."}).min(1, "Landowner ID is required and cannot be empty"),
+}).superRefine((data, ctx) => {
+  if (data.pricingModel === 'lease-to-own' && (!data.leaseToOwnDetails || data.leaseToOwnDetails.trim().length < 10)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lease-to-Own details are required and must be at least 10 characters if 'Lease-to-Own' is selected.",
+      path: ['leaseToOwnDetails'],
+    });
+  }
 });
+
 
 export type ListingFormState = {
   message: string;
@@ -35,7 +44,7 @@ export type ListingFormState = {
     images?: string[];
     leaseTerm?: string[];
     minLeaseDurationMonths?: string[];
-    landownerId?: string[]; // Keep for error reporting if needed
+    landownerId?: string[];
   };
   listingId?: string;
   success: boolean;
@@ -58,7 +67,7 @@ export async function createListingAction(
     images: formData.getAll('images').map(String).filter(url => url),
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
-    landownerId: formData.get('landownerId'), // This is where the server gets it
+    landownerId: formData.get('landownerId'),
   };
 
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
@@ -72,10 +81,8 @@ export async function createListingAction(
     };
   }
 
-  // landownerId is now validated and coerced to string by Zod
   const currentUserId = validatedFields.data.landownerId;
 
-  // This check is an extra layer, Zod validation should catch empty/null landownerId already
   if (!currentUserId || currentUserId.trim() === '') {
     return {
       message: "Authentication error: Could not determine landowner. Landowner ID is invalid or missing after validation.",
@@ -109,7 +116,6 @@ export async function createListingAction(
   }
 
   try {
-    // Destructure landownerId from validatedData as it's used for landownerId, not part of the listing document itself in this structure
     const { landownerId: _, ...listingDataForDb } = validatedFields.data;
     
     const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {

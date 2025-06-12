@@ -1,8 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useTransition, ChangeEvent, useActionState } from 'react'; // Updated import
-// import { useFormState } from 'react-dom'; // Old import, removed
+import { useEffect, useState, useTransition, ChangeEvent, useActionState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -41,7 +40,6 @@ const amenitiesList = [
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 5;
 
-// Client-side schema no longer includes landownerId, as it's sourced directly from auth context
 const listingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, { message: "Title must be at least 3 characters." }),
   description: z.string({ required_error: "Description is required." }).min(10, { message: "Description must be at least 10 characters." }),
@@ -49,19 +47,19 @@ const listingFormSchema = z.object({
   sizeSqft: z.coerce.number({ required_error: "Size is required.", invalid_type_error: "Size must be a number." }).positive({ message: "Size must be a positive number." }),
   price: z.coerce.number({ required_error: "Price is required.", invalid_type_error: "Price must be a number." }).positive({ message: "Price must be a positive number." }),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
-  leaseToOwnDetails: z.string().optional().refine(
-    (val, ctx) => {
-      if (ctx.parent?.pricingModel === 'lease-to-own' && (!val || val.trim().length < 10)) {
-        return false;
-      }
-      return true;
-    },
-    { message: "Lease-to-Own details are required and must be at least 10 characters if 'Lease-to-Own' is selected." }
-  ),
+  leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.pricingModel === 'lease-to-own' && (!data.leaseToOwnDetails || data.leaseToOwnDetails.trim().length < 10)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lease-to-Own details are required and must be at least 10 characters if 'Lease-to-Own' is selected.",
+      path: ['leaseToOwnDetails'],
+    });
+  }
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -71,7 +69,6 @@ const initialFormState: ListingFormState = { message: '', success: false };
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const { toast } = useToast();
-  // Updated to use React.useActionState
   const [formState, formAction] = useActionState(createListingAction, initialFormState);
   const [isPending, startTransition] = useTransition();
 
@@ -89,14 +86,6 @@ export function ListingForm() {
   
   const [currentSubscriptionOnMount, setCurrentSubscriptionOnMount] = useState<string | undefined>(undefined);
   const [formSubmittedSuccessfully, setFormSubmittedSuccessfully] = useState(false);
-
-
-  useEffect(() => {
-    if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
-        setCurrentSubscriptionOnMount(currentUser.appProfile.subscriptionStatus);
-    }
-  }, [currentUser, authLoading]);
-
 
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
@@ -117,6 +106,11 @@ export function ListingForm() {
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
+  useEffect(() => {
+    if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
+        setCurrentSubscriptionOnMount(currentUser.appProfile.subscriptionStatus);
+    }
+  }, [currentUser, authLoading]);
 
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
@@ -212,11 +206,10 @@ export function ListingForm() {
     }
   };
 
-  // Effect for handling form submission feedback (toast and reset)
   useEffect(() => {
-    if (formState.message && !isPending) { // isPending from useTransition is true during action
+    if (formState.message && !isPending) {
       if (formState.success) {
-        if (!formSubmittedSuccessfully) { // Only process success once
+        if (!formSubmittedSuccessfully) {
           toast({
             title: "Success!",
             description: formState.message,
@@ -233,21 +226,19 @@ export function ListingForm() {
           setSelectedFiles([]);
           setImagePreviews([]);
           setImageUploadError(null);
-          setFormSubmittedSuccessfully(true); // Mark as processed
+          setFormSubmittedSuccessfully(true);
         }
       } else {
-        // Handle error messages if not success
         toast({
           title: "Error",
           description: formState.message,
           variant: "destructive",
         });
-        setFormSubmittedSuccessfully(false); // Reset flag on error for next try
+        setFormSubmittedSuccessfully(false);
       }
     }
   }, [formState, isPending, toast, form, formSubmittedSuccessfully]);
 
-  // Reset the formSubmittedSuccessfully flag if the form becomes dirty again after a successful submission
   useEffect(() => {
     if (formSubmittedSuccessfully && form.formState.isDirty) {
       setFormSubmittedSuccessfully(false);
@@ -318,10 +309,8 @@ export function ListingForm() {
     const uploadedImageUrls = imagePreviews; 
     const formDataToSubmit = new FormData();
 
-    // Explicitly add landownerId from authenticated user
     formDataToSubmit.append('landownerId', currentUser.uid); 
 
-    // Append other form data
     const submissionData = { ...data, images: uploadedImageUrls };
 
     Object.entries(submissionData).forEach(([key, value]) => {
@@ -344,7 +333,7 @@ export function ListingForm() {
         });
     }
 
-    setFormSubmittedSuccessfully(false); // Reset success flag before new submission
+    setFormSubmittedSuccessfully(false); 
     startTransition(() => {
       formAction(formDataToSubmit);
     });
@@ -530,7 +519,7 @@ export function ListingForm() {
           {watchedPricingModel === 'lease-to-own' && (
             <div>
                 <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
-                <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." />
+                <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." aria-invalid={errors.leaseToOwnDetails ? "true" : "false"} />
                  {errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}
             </div>
           )}
@@ -672,18 +661,6 @@ export function ListingForm() {
                 <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link>
             </AlertDescription>
           </Alert>
-
-          {/* This debug info was removed in a previous step, but re-adding if needed */}
-          {/* 
-           <div className="mt-4 p-2 border border-dashed border-muted-foreground bg-card">
-                <h4 className="text-xs font-semibold">DEBUG FORM STATE:</h4>
-                <p className="text-xs">Auth Loading: {String(authLoading)}</p>
-                <p className="text-xs">Current User Exists: {String(!!currentUser)}</p>
-                <p className="text-xs">Current User UID: {currentUser?.uid || 'N/A'}</p>
-                <p className="text-xs">Current User Email: {currentUser?.email || 'N/A'}</p>
-                <p className="text-xs">Is Submit Button Disabled: {String(isSubmitButtonDisabled)}</p>
-           </div>
-          */}
 
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
