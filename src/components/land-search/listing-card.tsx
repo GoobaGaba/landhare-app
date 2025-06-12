@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, Home, Plus } from 'lucide-react'; // Changed PlusCircle to Plus
+import { MapPin, DollarSign, Maximize, Star, Home, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -31,7 +31,12 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
 
   if (viewMode === 'list') {
     return (
-      <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col sm:flex-row h-full">
+      <Card className={cn(
+        "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full",
+        listing.isBoosted 
+          ? "shadow-boosted-lg hover:shadow-boosted-xl" 
+          : "shadow-lg hover:shadow-xl"
+      )}>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
             src={listing.images[0] || "https://placehold.co/600x400.png"}
@@ -43,10 +48,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           />
            {listing.isBoosted && (
             <Plus
-              className={cn(
-                "absolute top-2 left-2 z-10 text-accent",
-                "h-5 w-5" // Adjusted size for list view
-              )}
+              className="absolute top-2 left-2 z-10 text-accent h-5 w-5"
               strokeWidth={3}
               title="Boosted Listing"
             />
@@ -107,7 +109,13 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
 
   // Grid View (default or compact)
   return (
-    <Card className={cn("overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full", isCompact ? "text-sm" : "")}>
+    <Card className={cn(
+      "overflow-hidden transition-shadow duration-300 flex flex-col h-full", 
+      isCompact ? "text-sm" : "",
+      listing.isBoosted 
+        ? "shadow-boosted-lg hover:shadow-boosted-xl" 
+        : "shadow-lg hover:shadow-xl"
+    )}>
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
           <Image
@@ -122,9 +130,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             <Plus
               className={cn(
                 "absolute top-2 left-2 z-10 text-accent",
-                isCompact ? "h-4 w-4" : "h-5 w-5" // Adjusted size
+                isCompact ? "h-4 w-4" : "h-5 w-5"
               )}
-              strokeWidth={3} // Thicker stroke
+              strokeWidth={3}
               title="Boosted Listing"
             />
           )}
