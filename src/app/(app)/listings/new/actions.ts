@@ -6,18 +6,18 @@ import type { Listing, LeaseTerm, User } from '@/lib/types';
 import { addListing as dbAddListing, getUserById, getListingsByLandownerCount, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Now uses Firestore
 
 const ListingFormSchema = z.object({
-  title: z.string().min(5, "Title must be at least 5 characters"),
-  description: z.string().min(20, "Description must be at least 20 characters"),
-  location: z.string().min(3, "Location is required"),
-  sizeSqft: z.coerce.number().positive("Size must be a positive number"),
-  price: z.coerce.number().positive("Price must be a positive number"), // Changed from pricePerMonth
-  pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
+  title: z.string({ required_error: "Title is required." }).min(3, "Title must be at least 3 characters"),
+  description: z.string({ required_error: "Description is required." }).min(10, "Description must be at least 10 characters"),
+  location: z.string({ required_error: "Location is required." }).min(3, "Location is required"),
+  sizeSqft: z.coerce.number({ invalid_type_error: "Size must be a number.", required_error: "Size is required." }).positive("Size must be a positive number"),
+  price: z.coerce.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive("Price must be a positive number"),
+  pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
-  amenities: z.array(z.string()).min(1, "Select at least one amenity or type 'none' if applicable"),
+  amenities: z.array(z.string()).optional().default([]), // Made optional
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string().min(1, "Landowner ID is required"),
+  landownerId: z.string({ required_error: "Landowner ID is missing."}).min(1, "Landowner ID is required"),
 });
 
 export type ListingFormState = {
@@ -27,7 +27,7 @@ export type ListingFormState = {
     description?: string[];
     location?: string[];
     sizeSqft?: string[];
-    price?: string[]; // Changed from pricePerMonth
+    price?: string[];
     pricingModel?: string[];
     leaseToOwnDetails?: string[];
     amenities?: string[];
@@ -50,10 +50,10 @@ export async function createListingAction(
     description: formData.get('description'),
     location: formData.get('location'),
     sizeSqft: formData.get('sizeSqft'),
-    price: formData.get('price'), // Changed from pricePerMonth
+    price: formData.get('price'),
     pricingModel: formData.get('pricingModel'),
     leaseToOwnDetails: formData.get('leaseToOwnDetails') || undefined,
-    amenities: formData.getAll('amenities').map(String),
+    amenities: formData.getAll('amenities').map(String).filter(a => a), // Ensure empty strings from getAll are filtered if schema is optional
     images: formData.getAll('images').map(String).filter(url => url),
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
@@ -63,6 +63,7 @@ export async function createListingAction(
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
 
   if (!validatedFields.success) {
+    console.log("Server validation errors:", validatedFields.error.flatten().fieldErrors);
     return {
       message: "Validation failed. Please check your input.",
       errors: validatedFields.error.flatten().fieldErrors,
@@ -105,17 +106,16 @@ export async function createListingAction(
   }
 
   try {
-    // Construct the data for dbAddListing ensuring field names match the Listing type
     const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {
         title: validatedFields.data.title,
         description: validatedFields.data.description,
         location: validatedFields.data.location,
         sizeSqft: validatedFields.data.sizeSqft,
-        price: validatedFields.data.price, // Corrected field name
+        price: validatedFields.data.price,
         pricingModel: validatedFields.data.pricingModel as Listing['pricingModel'],
         leaseToOwnDetails: validatedFields.data.leaseToOwnDetails,
-        amenities: validatedFields.data.amenities,
-        images: validatedFields.data.images,
+        amenities: validatedFields.data.amenities || [], // Ensure amenities is an array
+        images: validatedFields.data.images || [],
         leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined,
         minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ?? undefined,
     };

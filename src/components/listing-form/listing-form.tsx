@@ -42,18 +42,18 @@ const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 5;
 
 const listingFormSchema = z.object({
-  title: z.string().min(5, { message: "Title must be at least 5 characters." }),
-  description: z.string().min(20, { message: "Description must be at least 20 characters." }),
-  location: z.string().min(3, { message: "Location is required." }),
-  sizeSqft: z.coerce.number().positive({ message: "Size must be a positive number." }),
-  price: z.coerce.number().positive({ message: "Price must be a positive number." }), // Unified price field
+  title: z.string({ required_error: "Title is required." }).min(3, { message: "Title must be at least 3 characters." }),
+  description: z.string({ required_error: "Description is required." }).min(10, { message: "Description must be at least 10 characters." }),
+  location: z.string({ required_error: "Location is required." }).min(3, { message: "Location is required." }),
+  sizeSqft: z.coerce.number({ invalid_type_error: "Size must be a number.", required_error: "Size is required." }).positive({ message: "Size must be a positive number." }),
+  price: z.coerce.number({ invalid_type_error: "Price must be a number.", required_error: "Price is required." }).positive({ message: "Price must be a positive number." }),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
-  amenities: z.array(z.string()).min(1, { message: "Select at least one amenity." }),
+  amenities: z.array(z.string()).optional().default([]), // Made optional
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string().min(1, "Landowner ID is required"),
+  landownerId: z.string({ required_error: "Landowner ID is missing."}).min(1, "Landowner ID is required"),
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -126,7 +126,7 @@ export function ListingForm() {
     setPriceSuggestion(null);
     setPriceSuggestionError(null);
 
-    const amenitiesString = watchedAmenities.join(', ');
+    const amenitiesString = watchedAmenities?.join(', '); // Optional chaining for watchedAmenities
     const input: PriceSuggestionInput = {
       location: watchedLocation,
       sizeSqft: Number(watchedSizeSqft),
@@ -168,7 +168,7 @@ export function ListingForm() {
     setTitleSuggestionError(null);
 
     const descriptionSnippet = watchedDescription.substring(0, 200); 
-    const keywords = watchedAmenities.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
+    const keywords = watchedAmenities?.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
 
 
     const input: SuggestListingTitleInput = {
@@ -375,7 +375,7 @@ export function ListingForm() {
                     variant="outline"
                     size="icon"
                     onClick={handleSuggestTitle}
-                    disabled={isTitleSuggestionLoading || !watchedLocation || (!watchedDescription && watchedAmenities.length === 0)}
+                    disabled={isTitleSuggestionLoading || !watchedLocation || (!watchedDescription && watchedAmenities?.length === 0)}
                     title="Suggest Title with AI"
                 >
                     {isTitleSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
