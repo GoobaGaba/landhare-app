@@ -139,12 +139,9 @@ export default function HomePage() {
       {/* The Problem Section / Housing Challenge */}
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
             The platform built to make affordable housing more accessible while helping landowners earn from unused spaces
           </h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Skyrocketing home prices and idle land. LandShare Connect offers a new path.
-          </p>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg">
               <CardHeader>
