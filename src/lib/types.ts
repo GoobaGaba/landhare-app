@@ -122,3 +122,15 @@ export type GenerateLeaseTermsOutput = {
   leaseAgreementText: string;
   summaryPoints: string[];
 };
+
+// For displaying price calculation details on listing page
+export interface PriceDetails {
+  basePrice: number;
+  renterFee: number;
+  subtotal: number;
+  estimatedTax: number;
+  totalPrice: number;
+  duration: number;
+  durationUnit: 'night' | 'month' | 'nights' | 'months';
+  pricingModelUsed: PricingModel;
+}
