@@ -51,7 +51,7 @@ export let mockUsers: User[] = [
   },
 ];
 
-let mockListings: Listing[] = [
+export let mockListings: Listing[] = [
   {
     id: 'listing-1-sunny-meadow',
     title: 'Sunny Meadow Plot',
@@ -204,7 +204,7 @@ let mockListings: Listing[] = [
   }
 ];
 
-let mockBookings: Booking[] = [
+export let mockBookings: Booking[] = [
   {
     id: 'booking-1',
     listingId: 'listing-1-sunny-meadow',
@@ -279,7 +279,7 @@ let mockBookings: Booking[] = [
   },
 ];
 
-let mockReviews: Review[] = [
+export let mockReviews: Review[] = [
   {
     id: 'review-1',
     listingId: 'listing-1-sunny-meadow',
@@ -363,7 +363,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     pricingModel: data.pricingModel || 'monthly',
     price: data.price !== undefined ? data.price : (data.pricePerMonth || 0), // Handle legacy pricePerMonth
     leaseToOwnDetails: data.leaseToOwnDetails,
-    images: data.images && data.images.length > 0 ? data.images : ["https://placehold.co/800x600.png?text=Land"],
+    images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`],
     landownerId: data.landownerId,
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
     rating: data.rating,
@@ -905,5 +905,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     return undefined;
   }
 };
+
+    
 
     

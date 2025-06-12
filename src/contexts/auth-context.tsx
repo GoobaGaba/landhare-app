@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (firebaseInitializationError) {
       console.warn("Auth Context: Firebase not available. Initializing with NO user signed in.");
-      setCurrentUser(null); // Start with no user signed in
+      setCurrentUser(null); // Start with no user signed in for preview mode
       setSubscriptionStatus('free'); // Default for a non-logged-in state
       setLoading(false);
       setAuthError(firebaseInitializationError); 
@@ -340,3 +340,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+
+    
