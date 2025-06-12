@@ -16,10 +16,13 @@ import {
   or,
   setDoc,
   getCountFromServer,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
 
 export const FREE_TIER_LISTING_LIMIT = 1; // Free users can list 1 property.
+export const FREE_TIER_BOOKMARK_LIMIT = 5;
 
 // Predefined mock Google user for testing UI flows when Firebase is not available
 export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
@@ -30,6 +33,7 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   subscriptionStatus: 'free', // Or 'premium' if you want to test that flow by default
   createdAt: new Date('2023-04-01T10:00:00Z'),
   bio: 'I am a mock user signed in via Google for testing purposes.',
+  bookmarkedListingIds: [],
 };
 
 export let mockUsers: User[] = [
@@ -41,6 +45,7 @@ export let mockUsers: User[] = [
     subscriptionStatus: 'premium',
     createdAt: new Date('2023-01-01T10:00:00Z'),
     bio: 'I am the main mock user for testing purposes with premium status.',
+    bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
   },
   {
     id: 'landowner-jane-doe',
@@ -50,6 +55,7 @@ export let mockUsers: User[] = [
     subscriptionStatus: 'free',
     createdAt: new Date('2023-02-15T11:00:00Z'),
     bio: 'Experienced landowner with several plots available.',
+    bookmarkedListingIds: [],
   },
   {
     id: 'renter-john-smith',
@@ -59,6 +65,7 @@ export let mockUsers: User[] = [
     subscriptionStatus: 'free',
     createdAt: new Date('2023-03-20T12:00:00Z'),
     bio: 'Looking for a quiet place for my tiny home.',
+    bookmarkedListingIds: ['listing-2-forest-retreat'],
   },
   MOCK_GOOGLE_USER_FOR_UI_TESTING, // Add the mock Google user to the list
 ];
@@ -360,6 +367,7 @@ const mapDocToUser = (docSnap: any): User => {
     stripeCustomerId: data.stripeCustomerId,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
     bio: data.bio || '',
+    bookmarkedListingIds: data.bookmarkedListingIds || [],
   };
 };
 
@@ -373,7 +381,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     sizeSqft: data.sizeSqft,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
-    price: data.price !== undefined ? data.price : (data.pricePerMonth || 0), 
+    price: data.price, // Unified price field, expect it to be present
     leaseToOwnDetails: data.leaseToOwnDetails,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`],
     landownerId: data.landownerId,
@@ -400,9 +408,9 @@ const mapDocToBooking = (docSnap: any): Booking => {
       to: data.dateRange.to.toDate ? data.dateRange.to.toDate() : new Date(data.dateRange.to),
     },
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-    listingTitle: data.listingTitle, 
-    renterName: data.renterName,     
-    landownerName: data.landownerName, 
+    listingTitle: data.listingTitle,
+    renterName: data.renterName,
+    landownerName: data.landownerName,
   };
 };
 
@@ -429,8 +437,12 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
+    // Fallback to mock if not found in DB during potential transition or testing
     const mockUser = mockUsers.find(user => user.id === id);
-    if (mockUser) return mockUser;
+    if (mockUser) {
+        console.warn(`User ${id} not found in Firestore, returning mock user.`);
+        return mockUser;
+    }
     return undefined;
   } catch (error) {
     console.error("Error fetching user by ID from Firestore, using mock data:", error);
@@ -442,11 +454,12 @@ export const createUserProfile = async (userId: string, email: string, name?: st
   const profileData: User = {
     id: userId,
     email: email,
-    name: name || email.split('@')[0],
+    name: name || email.split('@')[0] || 'Anonymous User',
     avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`,
     subscriptionStatus: 'free',
     createdAt: new Date(),
     bio: "Welcome to LandShare!",
+    bookmarkedListingIds: [],
   };
 
   if (firebaseInitializationError || !db) {
@@ -466,7 +479,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
         ...profileData,
         createdAt: Timestamp.fromDate(profileData.createdAt as Date)
     };
-    await setDoc(userDocRef, firestoreProfileData, { merge: true }); // Use merge to avoid overwriting existing fields if called for an existing user
+    await setDoc(userDocRef, firestoreProfileData, { merge: true });
 
     const newUserSnap = await getDoc(userDocRef);
     if (newUserSnap.exists()) {
@@ -494,6 +507,9 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             if (data.subscriptionStatus) {
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
             }
+            if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
+                mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
+            }
             return Promise.resolve(mockUsers[userIndex]);
         }
         return Promise.resolve(undefined);
@@ -505,7 +521,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
         }
 
-        if (firestoreData.id) delete firestoreData.id; 
+        if (firestoreData.id) delete firestoreData.id;
 
         await updateDoc(userDocRef, firestoreData);
         const updatedSnap = await getDoc(userDocRef);
@@ -519,8 +535,11 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         const userIndex = mockUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-             if (data.subscriptionStatus) { 
+             if (data.subscriptionStatus) {
                 mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
+            }
+            if (data.bookmarkedListingIds) { // Ensure mock data also updates bookmarks
+                mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
             }
             return Promise.resolve(mockUsers[userIndex]);
         }
@@ -595,12 +614,12 @@ export const addListing = async (
   isLandownerPremium: boolean = false
 ): Promise<Listing> => {
   const newListingData: Listing = {
-    id: `mock-listing-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    id: `mock-listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, // ID for mock, Firestore generates its own
     ...data,
     landownerId: landownerId,
     isAvailable: true,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    rating: undefined, 
+    rating: undefined,
     numberOfRatings: 0,
     isBoosted: isLandownerPremium,
     createdAt: new Date(),
@@ -608,20 +627,25 @@ export const addListing = async (
 
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding listing to mock data.");
-    mockListings.unshift(newListingData); 
+    mockListings.unshift(newListingData);
     return Promise.resolve(newListingData);
   }
 
   try {
     const listingsCol = collection(db, "listings");
-    const firestoreData: any = {
-        ...newListingData, 
-        price: data.price, // Use unified 'price' field
-        createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
+    // Prepare data for Firestore, ensuring correct types
+    const firestoreReadyData = {
+      ...data, // Spread the validated data from the form
+      landownerId: landownerId,
+      isAvailable: true,
+      images: newListingData.images, // Use processed images (with placeholders if needed)
+      rating: null, // Firestore often uses null for undefined numeric/boolean
+      numberOfRatings: 0,
+      isBoosted: isLandownerPremium,
+      createdAt: Timestamp.fromDate(newListingData.createdAt as Date),
     };
-    delete firestoreData.id; 
 
-    const docRef = await addDoc(listingsCol, firestoreData);
+    const docRef = await addDoc(listingsCol, firestoreReadyData);
     const newDocSnap = await getDoc(docRef);
     if (newDocSnap.exists()){
          return mapDocToListing(newDocSnap);
@@ -809,7 +833,7 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
         where("renterId", "==", userId),
         where("landownerId", "==", userId)
       ),
-      orderBy("createdAt", "desc") 
+      orderBy("createdAt", "desc")
     );
     const bookingSnapshot = await getDocs(q);
     const bookings = bookingSnapshot.docs.map(mapDocToBooking);
@@ -849,7 +873,7 @@ export const addBookingRequest = async (
 
   if (firebaseInitializationError || !db) {
     console.warn("Firestore not available. Adding booking request to mock data.");
-    mockBookings.unshift(newBooking); 
+    mockBookings.unshift(newBooking);
     return populateBookingDetails(newBooking);
   }
 
@@ -859,9 +883,9 @@ export const addBookingRequest = async (
       listingId: data.listingId,
       renterId: data.renterId,
       landownerId: listingInfo.landownerId,
-      listingTitle: listingInfo.title, 
-      renterName: renterInfo?.name,     
-      landownerName: landownerInfo?.name, 
+      listingTitle: listingInfo.title,
+      renterName: renterInfo?.name,
+      landownerName: landownerInfo?.name,
       status: 'Pending Confirmation' as Booking['status'],
       dateRange: {
         from: Timestamp.fromDate(data.dateRange.from),
@@ -912,5 +936,79 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
       return populateBookingDetails(mockBookings[bookingIndex]);
     }
     return undefined;
+  }
+};
+
+// --- Bookmark Functions ---
+
+export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
+  const user = await getUserById(userId);
+  if (!user) throw new Error("User not found.");
+
+  if (user.subscriptionStatus === 'free' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
+    throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached for free accounts. Upgrade to Premium for unlimited bookmarks.`);
+  }
+
+  const currentBookmarks = user.bookmarkedListingIds || [];
+  if (currentBookmarks.includes(listingId)) {
+    return user; // Already bookmarked
+  }
+
+  const updatedBookmarks = [...currentBookmarks, listingId];
+
+  if (firebaseInitializationError || !db) {
+    console.warn("Firestore not available. Updating bookmarks in mock data for user:", userId);
+    const userIndex = mockUsers.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
+      return mockUsers[userIndex];
+    }
+    return undefined;
+  }
+
+  try {
+    const userDocRef = doc(db, "users", userId);
+    await updateDoc(userDocRef, {
+      bookmarkedListingIds: arrayUnion(listingId)
+    });
+    const updatedUserSnap = await getDoc(userDocRef);
+    return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
+  } catch (error) {
+    console.error("Error adding bookmark in Firestore for user:", userId, error);
+    throw error; // Re-throw to be handled by the action
+  }
+};
+
+export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
+  const user = await getUserById(userId);
+  if (!user) throw new Error("User not found.");
+
+  const currentBookmarks = user.bookmarkedListingIds || [];
+  if (!currentBookmarks.includes(listingId)) {
+    return user; // Not bookmarked, nothing to remove
+  }
+
+  const updatedBookmarks = currentBookmarks.filter(id => id !== listingId);
+
+  if (firebaseInitializationError || !db) {
+    console.warn("Firestore not available. Updating bookmarks in mock data for user:", userId);
+    const userIndex = mockUsers.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      mockUsers[userIndex].bookmarkedListingIds = updatedBookmarks;
+      return mockUsers[userIndex];
+    }
+    return undefined;
+  }
+
+  try {
+    const userDocRef = doc(db, "users", userId);
+    await updateDoc(userDocRef, {
+      bookmarkedListingIds: arrayRemove(listingId)
+    });
+    const updatedUserSnap = await getDoc(userDocRef);
+    return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
+  } catch (error) {
+    console.error("Error removing bookmark in Firestore for user:", userId, error);
+    throw error; // Re-throw to be handled by the action
   }
 };

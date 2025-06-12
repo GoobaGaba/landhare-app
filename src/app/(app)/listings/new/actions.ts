@@ -10,9 +10,11 @@ const ListingFormSchema = z.object({
   description: z.string().min(20, "Description must be at least 20 characters"),
   location: z.string().min(3, "Location is required"),
   sizeSqft: z.coerce.number().positive("Size must be a positive number"),
-  pricePerMonth: z.coerce.number().positive("Price must be a positive number"),
+  price: z.coerce.number().positive("Price must be a positive number"), // Changed from pricePerMonth
+  pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
+  leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).min(1, "Select at least one amenity or type 'none' if applicable"),
-  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]), // Expecting URLs from client-side upload
+  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   landownerId: z.string().min(1, "Landowner ID is required"),
@@ -25,7 +27,9 @@ export type ListingFormState = {
     description?: string[];
     location?: string[];
     sizeSqft?: string[];
-    pricePerMonth?: string[];
+    price?: string[]; // Changed from pricePerMonth
+    pricingModel?: string[];
+    leaseToOwnDetails?: string[];
     amenities?: string[];
     images?: string[];
     leaseTerm?: string[];
@@ -46,9 +50,11 @@ export async function createListingAction(
     description: formData.get('description'),
     location: formData.get('location'),
     sizeSqft: formData.get('sizeSqft'),
-    pricePerMonth: formData.get('pricePerMonth'),
+    price: formData.get('price'), // Changed from pricePerMonth
+    pricingModel: formData.get('pricingModel'),
+    leaseToOwnDetails: formData.get('leaseToOwnDetails') || undefined,
     amenities: formData.getAll('amenities').map(String),
-    images: formData.getAll('images').map(String).filter(url => url), // Get all image URLs, filter out empty ones
+    images: formData.getAll('images').map(String).filter(url => url),
     leaseTerm: formData.get('leaseTerm') || undefined,
     minLeaseDurationMonths: formData.get('minLeaseDurationMonths') ? Number(formData.get('minLeaseDurationMonths')) : undefined,
     landownerId: formData.get('landownerId'),
@@ -98,25 +104,23 @@ export async function createListingAction(
     }
   }
 
-  // **IMPORTANT**: Image file upload to Firebase Storage should happen client-side.
-  // The `validatedFields.data.images` should contain an array of *URLs*
-  // obtained *after* successful client-side uploads.
-  // This server action does NOT handle raw file uploads.
-
   try {
-    const newListingData: Omit<Listing, 'id' | 'rating' | 'numberOfRatings' | 'isAvailable' | 'createdAt' | 'landownerId' | 'isBoosted'> & { landownerId?: string } = {
+    // Construct the data for dbAddListing ensuring field names match the Listing type
+    const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {
         title: validatedFields.data.title,
         description: validatedFields.data.description,
         location: validatedFields.data.location,
         sizeSqft: validatedFields.data.sizeSqft,
-        pricePerMonth: validatedFields.data.pricePerMonth,
+        price: validatedFields.data.price, // Corrected field name
+        pricingModel: validatedFields.data.pricingModel as Listing['pricingModel'],
+        leaseToOwnDetails: validatedFields.data.leaseToOwnDetails,
         amenities: validatedFields.data.amenities,
-        images: validatedFields.data.images, // These are expected to be URLs
+        images: validatedFields.data.images,
         leaseTerm: validatedFields.data.leaseTerm as LeaseTerm | undefined,
         minLeaseDurationMonths: validatedFields.data.minLeaseDurationMonths ?? undefined,
     };
 
-    const newListing = await dbAddListing(newListingData, currentUserId, isPremiumUser);
+    const newListing = await dbAddListing(newListingPayload, currentUserId, isPremiumUser);
 
     return {
       message: `Listing "${newListing.title}" created successfully!`,
