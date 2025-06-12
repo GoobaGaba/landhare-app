@@ -27,7 +27,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const amenitiesList = [
-  { id: 'water hookup', label: 'Water Hookup' }, // Keep IDs consistent for matching in FilterPanel
+  { id: 'water hookup', label: 'Water Hookup' },
   { id: 'power access', label: 'Power Access' },
   { id: 'septic system', label: 'Septic System' },
   { id: 'road access', label: 'Road Access' },
@@ -53,7 +53,7 @@ const listingFormSchema = z.object({
   images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
-  landownerId: z.string({ required_error: "Landowner ID is missing."}).min(1, "Landowner ID is required"),
+  landownerId: z.string({ required_error: "Landowner ID is unexpectedly missing from form data."}).min(1, "Landowner ID is required for form submission."),
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
@@ -108,10 +108,16 @@ export function ListingForm() {
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
   useEffect(() => {
-    if (currentUser && !getValues('landownerId')) {
-      setValue('landownerId', currentUser.uid);
+    if (currentUser?.uid) {
+      if (getValues('landownerId') !== currentUser.uid) {
+        setValue('landownerId', currentUser.uid, { shouldValidate: true, shouldDirty: true });
+      }
+    } else {
+      if (getValues('landownerId')) {
+        setValue('landownerId', '', { shouldValidate: true, shouldDirty: true });
+      }
     }
-  }, [currentUser, setValue, getValues]);
+  }, [currentUser, getValues, setValue]);
 
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
@@ -282,24 +288,21 @@ export function ListingForm() {
 
 
   const onSubmit = async (data: ListingFormData) => {
-    if (!currentUser?.uid) {
-      toast({ title: "Authentication Error", description: "You must be logged in to create a listing.", variant: "destructive"});
+    // data here is from react-hook-form's state
+    if (!currentUser?.uid || currentUser.uid.trim() === '') {
+      toast({ title: "Authentication Error", description: "Valid User ID is required to create a listing. Please log in.", variant: "destructive"});
       return;
-    }
-    // Explicitly set landownerId from currentUser to ensure it's correct
-    data.landownerId = currentUser.uid;
-
-    if (data.landownerId !== currentUser.uid) { // This check is now somewhat redundant but safe
-        toast({ title: "Form Error", description: "Landowner ID mismatch. Please refresh.", variant: "destructive"});
-        setValue('landownerId', currentUser.uid); // Attempt to re-sync form state
-        return;
     }
 
     const uploadedImageUrls = imagePreviews; 
-
     const formDataToSubmit = new FormData();
-    // Use the 'data' object which now has the guaranteed landownerId
-    const submissionData = { ...data, images: uploadedImageUrls };
+
+    // ** Crucial change: Directly append the confirmed currentUser.uid **
+    formDataToSubmit.append('landownerId', currentUser.uid);
+
+    // For other fields, use the 'data' object from RHF, but exclude landownerId as we've handled it.
+    const { landownerId, ...otherRHFData } = data; // Destructure to remove landownerId from RHF data
+    const submissionData = { ...otherRHFData, images: uploadedImageUrls };
 
     Object.entries(submissionData).forEach(([key, value]) => {
       if (key === 'amenities' && Array.isArray(value)) {
@@ -366,8 +369,10 @@ export function ListingForm() {
         <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Landowner ID is primarily handled in onSubmit, but keep hidden field for schema consistency if needed */}
-        <input type="hidden" {...register('landownerId')} value={currentUser.uid} />
+        {/* Hidden input for landownerId, its value is kept in sync by useEffect and defaultValues */}
+        {/* It's less critical now that onSubmit directly uses currentUser.uid for FormData, but doesn't hurt for RHF state. */}
+        {currentUser?.uid && <input type="hidden" {...register('landownerId')} value={currentUser.uid} />}
+
         <CardContent className="space-y-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
@@ -654,7 +659,7 @@ export function ListingForm() {
                 <AlertDescription>{formState.message}</AlertDescription>
               </Alert>
           )}
-           {/* Display landownerId error if it exists, though it should be caught by earlier checks now */}
+           {/* Display landownerId error if it exists on the client, though server action is primary check */}
            {errors.landownerId && (
               <Alert variant="destructive" className="mt-2">
                 <AlertCircle className="h-4 w-4" />
@@ -669,7 +674,7 @@ export function ListingForm() {
             leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
             landownerId: currentUser?.uid || ''
             }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null);}} disabled={isPending}>Reset Form</Button>
-          <Button type="submit" disabled={isPending || !currentUser}>
+          <Button type="submit" disabled={isPending || !currentUser || !currentUser.uid}>
             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Create Listing
           </Button>
@@ -692,5 +697,4 @@ export function ListingForm() {
     </Card>
   );
 }
-
     
