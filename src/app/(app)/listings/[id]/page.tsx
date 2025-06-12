@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { use, useState, useEffect, useMemo, useCallback } from 'react'; // Import use
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +12,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import type { Listing, Review as ReviewType, User, PricingModel } from '@/lib/types';
+import type { Listing, Review as ReviewType, User, PricingModel as ListingPricingModel } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -28,10 +29,14 @@ interface PriceDetails {
   totalPrice: number;
   duration: number;
   durationUnit: 'night' | 'month' | 'nights' | 'months';
-  pricingModelUsed: PricingModel;
+  pricingModelUsed: ListingPricingModel;
 }
 
-export default function ListingDetailPage({ params }: { params: { id: string } }) {
+// Update the params prop type to Promise<{ id: string }> as per the warning
+export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise); // Unwrap the promise to get the params object
+  const { id } = params; // Destructure id from the resolved params
+
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
   const [landowner, setLandowner] = useState<User | null>(null);
@@ -56,7 +61,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       }
       setIsLoading(true);
       try {
-        const listingData = await getListingById(params.id);
+        // Use the resolved 'id' here
+        const listingData = await getListingById(id);
         setListing(listingData || null);
 
         if (listingData) {
@@ -72,8 +78,10 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         setIsLoading(false);
       }
     }
-    fetchData();
-  }, [params.id, toast]);
+    if (id) { // Ensure id is available (it should be after `use(paramsPromise)`)
+        fetchData();
+    }
+  }, [id, toast]); // 'id' is now stable from the use(paramsPromise) call
 
   const handleContactLandowner = () => {
     if (!currentUser) {
@@ -99,20 +107,18 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     let baseRate = 0;
 
     if (listing.pricingModel === 'nightly') {
-      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
+      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; // +1 to include the start day
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = listing.price * durationValue;
     } else if (listing.pricingModel === 'monthly') {
       durationValue = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
-      if (durationValue <= 0) durationValue = 1;
+      if (durationValue <= 0) durationValue = 1; // Ensure at least 1 month for short selections
       durationUnitText = durationValue === 1 ? 'month' : 'months';
       baseRate = listing.price * durationValue;
     } else { // 'lease-to-own'
-      // For LTO, the "base price" for this calculation can be the monthly estimate,
-      // but the actual transaction is an inquiry. Let's assume 1 month for fee calculation if needed.
-      durationValue = 1; // Placeholder duration for LTO fee display if any
+      durationValue = 1; 
       durationUnitText = 'month';
-      baseRate = listing.price; // Use the indicative monthly price
+      baseRate = listing.price; 
     }
     
     const renterFee = subscriptionStatus === 'premium' ? 0 : 0.99; 
@@ -171,10 +177,10 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
        const bookingData = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId,
+        landownerId: listing.landownerId, // This should be correct from the fetched listing
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to 
                      ? { from: dateRange.from, to: dateRange.to } 
-                     : { from: new Date(), to: addDays(new Date(), 1) }, // Placeholder for LTO
+                     : { from: new Date(), to: addDays(new Date(), 1) }, // Placeholder for LTO if dates not strictly needed for inquiry
       };
       await addBookingRequest(bookingData);
 
@@ -234,7 +240,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       case 'nightly': return `$${listing.price} / night`;
       case 'monthly': return `$${listing.price} / month`;
       case 'lease-to-own': return `Est. $${listing.price} / month (Lease-to-Own)`;
-      default: return `$${listing.price} / month`;
+      default: return `$${listing.price} / month`; // Fallback, should ideally not happen
     }
   };
 
@@ -372,8 +378,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                             selected={dateRange}
                             onSelect={setDateRange}
                             numberOfMonths={1}
-                            fromDate={today}
-                            disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                            fromDate={today} // Can select today
+                            disabled={(date) => isBefore(date, today) || !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile)} // Disable past dates
                             className="rounded-md border p-0 mx-auto"
                         />
                         {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && (
@@ -404,7 +410,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                             <span>${priceDetails.renterFee.toFixed(2)}</span>
                         </div>
                     )}
-                    {subscriptionStatus === 'premium' && (
+                    {subscriptionStatus === 'premium' && ( // Renter is premium
                         <div className="flex justify-between text-primary">
                             <span>Renter Booking Fee:</span> 
                             <span>$0.00 (Premium!)</span>
@@ -546,3 +552,5 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
+    
