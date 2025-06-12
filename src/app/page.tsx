@@ -140,7 +140,7 @@ export default function HomePage() {
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-            The platform built to make affordable housing more accessible while helping landowners earn from unused spaces
+            The platform built to make affordable housing more accessible
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg">
@@ -155,11 +155,11 @@ export default function HomePage() {
             </Card>
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Passive Income Opportunity</CardTitle>
+                <CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-foreground/90">
-                  For those already owning property, we offer a chance to earn extra income for your shared spaces. Simply list your space and accept your first booking.
+                  Millions of acres sit idle across the country. LandShare empowers property owners to transform these underused spaces into a steady stream of cash flow. Listing your land is simple – unlock its earning potential today.
                 </p>
               </CardContent>
             </Card>
@@ -170,10 +170,7 @@ export default function HomePage() {
       {/* Our Solution Section */}
       <section className="w-full py-16 md:py-24 bg-secondary/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Our Solution: LandShare Connect</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            LandShare Connect: Where affordable space meets available land. We make direct connections simple, creating new possibilities for everyone.
-          </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Our Solution? LandShare!</h2>
           <div className="grid md:grid-cols-2 gap-8 items-start">
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Land Seekers</h3>
@@ -193,7 +190,7 @@ export default function HomePage() {
             <div className="space-y-6">
               <h3 className="text-2xl font-semibold text-primary">For Landowners</h3>
               <p className="text-foreground/90">
-                Have land sitting idle? List it on LandShare Connect and start earning. We provide easy tools for listing, managing bookings, and secure payments. Turn your empty space into opportunity.
+                Have land sitting idle? List it on LandShare and start earning. We provide easy tools for listing, managing bookings, and secure payments. Turn your empty space into opportunity.
               </p>
               <Image
                 src="https://placehold.co/600x400.png"
@@ -243,7 +240,7 @@ export default function HomePage() {
         <div className="container mx-auto text-center px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Change the Game?</h2>
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
-            Join LandShare Connect today. Whether you're looking for land or have land to share, opportunity awaits.
+            Join LandShare today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
@@ -258,5 +255,6 @@ export default function HomePage() {
     </div>
   );
 }
+    
 
     

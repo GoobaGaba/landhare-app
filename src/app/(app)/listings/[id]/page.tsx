@@ -361,7 +361,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             <CardContent className="text-xs text-muted-foreground space-y-1">
               <p>Ensure you understand the land use rules.</p>
               <p>Communicate clearly with the landowner.</p>
-              <p>All payments are processed securely through LandShare Connect.</p>
+              <p>All payments are processed securely through LandShare.</p>
               <Link href="/safety" className="text-primary hover:underline">Read our safety tips</Link>
             </CardContent>
           </Card>
@@ -400,3 +400,5 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
+    

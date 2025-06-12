@@ -293,7 +293,7 @@ export function ListingForm() {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Create New Land Listing</CardTitle>
-        <CardDescription>Fill in the details below to list your land on LandShare Connect.</CardDescription>
+        <CardDescription>Fill in the details below to list your land on LandShare.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <input type="hidden" {...register('landownerId')} />
@@ -466,7 +466,7 @@ export function ListingForm() {
             <Percent className="h-4 w-4" />
             <AlertTitle className="text-sm font-medium">Service Fee Information</AlertTitle>
             <AlertDescription className="text-xs">
-                LandShare Connect applies a service fee to successful bookings.
+                LandShare applies a service fee to successful bookings.
                 {subscriptionStatus === 'premium' ?
                 " As a Premium member, you benefit from a reduced closing fee of 0.99% on your payouts." :
                 " Free accounts are subject to a 3% closing fee on landowner payouts. Upgrade to Premium for lower fees and more benefits!"
@@ -555,3 +555,5 @@ export function ListingForm() {
     </Card>
   );
 }
+
+    

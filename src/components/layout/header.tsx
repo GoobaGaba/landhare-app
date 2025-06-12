@@ -125,7 +125,7 @@ export default function AppHeader() {
                       <DropdownMenuLabel>Theme</DropdownMenuLabel>
                       <DropdownMenuItem
                         onSelect={(event) => {
-                          event.preventDefault(); // Prevent the dropdown from closing
+                          event.preventDefault(); 
                           setTheme(theme === 'dark' ? 'light' : 'dark');
                         }}
                         className="cursor-pointer"
@@ -238,3 +238,5 @@ export default function AppHeader() {
     </header>
   );
 }
+
+    

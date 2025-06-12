@@ -1,3 +1,4 @@
+
 import type { SVGProps } from 'react';
 
 export function Logo(props: SVGProps<SVGSVGElement>) {
@@ -8,7 +9,7 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       viewBox="0 0 48 48" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
-      aria-label="LandShare Connect Logo"
+      aria-label="LandShare Logo"
       {...props}
     >
       <rect x="4" y="20" width="40" height="20" rx="2" className="fill-primary" /> {/* Land parcel */}
@@ -19,3 +20,5 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+    

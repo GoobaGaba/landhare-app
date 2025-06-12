@@ -10,7 +10,7 @@ export default function AboutPage() {
     <div className="container mx-auto px-4 py-8 md:py-12">
       <header className="text-center mb-12 md:mb-16">
         <Info className="h-16 w-16 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-3">About LandShare Connect</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-3">About LandShare</h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
           Connecting landowners with those seeking affordable and flexible land options, fostering a new approach to housing and land use.
         </p>
@@ -32,7 +32,7 @@ export default function AboutPage() {
             <div className="md:w-1/2 p-6 md:p-8">
               <h2 className="text-2xl md:text-3xl font-semibold text-primary mb-4">Our Mission</h2>
               <p className="text-foreground/90 leading-relaxed mb-4">
-                At LandShare Connect, our mission is to bridge the gap between unused land and the growing need for affordable, flexible living spaces. We believe that by connecting landowners with individuals and families seeking plots for tiny homes, RVs, manufactured housing, or other innovative uses, we can create a more sustainable and accessible housing market.
+                At LandShare, our mission is to bridge the gap between unused land and the growing need for affordable, flexible living spaces. We believe that by connecting landowners with individuals and families seeking plots for tiny homes, RVs, manufactured housing, or other innovative uses, we can create a more sustainable and accessible housing market.
               </p>
               <p className="text-foreground/90 leading-relaxed">
                 We aim to empower landowners to generate income from their idle property while providing renters with unique opportunities to find their perfect spot, whether for short-term stays or long-term settlement.
@@ -74,7 +74,7 @@ export default function AboutPage() {
             <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
           <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Join the Movement</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-            Whether you have land to share or are looking for a place to call your own, LandShare Connect is here to help you make meaningful connections.
+            Whether you have land to share or are looking for a place to call your own, LandShare is here to help you make meaningful connections.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" asChild>
@@ -95,3 +95,5 @@ export default function AboutPage() {
     </div>
   );
 }
+
+    

@@ -6,7 +6,7 @@ export default function AppFooter() {
     <footer className="border-t bg-background">
       <div className="container mx-auto px-4 py-4 text-sm text-muted-foreground text-center">
         <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1 mb-2">
-          <span>&copy; {new Date().getFullYear()} LandShare Connect.</span>
+          <span>&copy; {new Date().getFullYear()} LandShare.</span>
           <Link href="/about" className="hover:text-primary">About</Link>
           <Link href="/contact" className="hover:text-primary">Contact</Link>
           <Link href="/terms" className="hover:text-primary">Terms</Link>
@@ -18,3 +18,5 @@ export default function AppFooter() {
     </footer>
   );
 }
+
+    
