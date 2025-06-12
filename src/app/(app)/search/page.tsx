@@ -6,7 +6,7 @@ import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
 import type { Listing, LeaseTerm } from "@/lib/types";
-import { getListings as fetchAllListings } from '@/lib/mock-data';
+import { getListings as fetchAllListings, mockDataVersion } from '@/lib/mock-data';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
@@ -63,7 +63,7 @@ export default function SearchPage() {
       }
     };
     loadInitialListings();
-  }, [toast]);
+  }, [toast, mockDataVersion]); // Added mockDataVersion
 
 
   const resetFilters = () => {

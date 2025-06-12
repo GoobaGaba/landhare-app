@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import type { Listing } from '@/lib/types';
-import { getListings } from '@/lib/mock-data';
+import { getListings, mockDataVersion } from '@/lib/mock-data';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,7 +46,7 @@ export default function HomePage() {
       }
     }
     fetchRecentListings();
-  }, []);
+  }, [mockDataVersion]); // Added mockDataVersion
 
   const getFirstName = () => {
     if (currentUser?.appProfile?.name) return currentUser.appProfile.name.split(' ')[0];

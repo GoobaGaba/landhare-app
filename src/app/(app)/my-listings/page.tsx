@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ListChecks, PlusCircle, Edit3, Trash2, Search, AlertTriangle, Loader2, UserCircle, Edit } from "lucide-react";
 import type { Listing } from "@/lib/types";
-import { getListings, deleteListing as dbDeleteListing } from "@/lib/mock-data";
+import { getListings, deleteListing as dbDeleteListing, mockDataVersion } from "@/lib/mock-data";
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -81,7 +81,7 @@ export default function MyListingsPage() {
         setIsLoading(false);
         setMyListings([]);
     }
-  }, [authLoading, currentUser, loadMyListings]);
+  }, [authLoading, currentUser, loadMyListings, mockDataVersion]); // Added mockDataVersion
 
   const openDeleteDialog = (listing: Listing) => {
     if (firebaseInitializationError) {
@@ -107,7 +107,7 @@ export default function MyListingsPage() {
         try {
             await dbDeleteListing(listingToDelete.id);
             toast({ title: "Mock Listing Deleted", description: `"${listingToDelete.title}" removed from preview.`});
-            loadMyListings();
+            // loadMyListings will be triggered by mockDataVersion change
         } catch (e) {
             toast({ title: "Mock Deletion Failed", description: "Could not remove mock listing.", variant: "destructive"});
         } finally {
@@ -124,7 +124,7 @@ export default function MyListingsPage() {
           title: "Listing Deleted",
           description: `"${listingToDelete.title}" has been successfully deleted.`,
         });
-        await loadMyListings();
+        await loadMyListings(); // Re-fetch real data if not in mock mode
       } else {
         throw new Error("Deletion operation failed.");
       }
