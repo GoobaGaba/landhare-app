@@ -7,12 +7,12 @@ import { getListings, mockDataVersion } from '@/lib/mock-data';
 import { useAuth } from '@/contexts/auth-context';
 
 interface ListingsDataState {
-  allAvailableListings: Listing[]; // For search page (already filtered by isAvailable)
-  myListings: Listing[];            // For my-listings page
-  recentListings: Listing[];        // For homepage
+  allAvailableListings: Listing[];
+  myListings: Listing[];
+  recentListings: Listing[];
   isLoading: boolean;
   error: string | null;
-  refreshListings: () => void; // Function to manually trigger re-fetch
+  refreshListings: () => void;
 }
 
 export function useListingsData(): ListingsDataState {
@@ -20,65 +20,72 @@ export function useListingsData(): ListingsDataState {
   const [internalListings, setInternalListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Local version to ensure re-fetch when mockDataVersion changes
   const [currentMockDataVersion, setCurrentMockDataVersion] = useState(mockDataVersion);
 
   const fetchAndProcessListings = useCallback(async () => {
-    console.log(`[useListingsData] Fetching. mockDataVersion from source: ${mockDataVersion}, hook's current: ${currentMockDataVersion}, currentUser: ${currentUser?.uid}`);
+    console.log(`[useListingsData] fetchAndProcessListings: Triggered. Current mockDataVersion in hook: ${currentMockDataVersion}, global mockDataVersion: ${mockDataVersion}`);
     setIsLoading(true);
     setError(null);
     try {
-      // getListings() internally uses mockDataVersion if in mock mode.
-      // This fetch function is the one place we get all listings.
       const fetchedListings = await getListings();
       setInternalListings(fetchedListings);
-      console.log(`[useListingsData] Fetched ${fetchedListings.length} total listings internally.`);
+      console.log(`[useListingsData] fetchAndProcessListings: Fetched ${fetchedListings.length} total listings internally.`);
     } catch (err: any) {
-      console.error("[useListingsData] Error fetching listings:", err);
+      console.error("[useListingsData] fetchAndProcessListings: Error fetching listings:", err);
       setError(err.message || "Failed to load listings.");
       setInternalListings([]);
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed mockDataVersion and currentMockDataVersion from here, will use effect below
+  }, [currentMockDataVersion]); // Depends on local version
 
   useEffect(() => {
-    // This effect runs when mockDataVersion from the global scope changes
     if (mockDataVersion !== currentMockDataVersion) {
-      console.log(`[useListingsData] mockDataVersion changed from ${currentMockDataVersion} to ${mockDataVersion}. Re-fetching.`);
-      setCurrentMockDataVersion(mockDataVersion); // Update local version tracker
-      fetchAndProcessListings();
+      console.log(`[useListingsData] useEffect (version change): mockDataVersion changed from ${currentMockDataVersion} to ${mockDataVersion}. Updating local version and re-fetching.`);
+      setCurrentMockDataVersion(mockDataVersion);
+      // fetchAndProcessListings will be called by the next effect if currentMockDataVersion changed
     }
-  }, [mockDataVersion, currentMockDataVersion, fetchAndProcessListings]);
+  }, [mockDataVersion, currentMockDataVersion]);
 
   useEffect(() => {
-    // Initial fetch
-    console.log("[useListingsData] Initial fetch effect triggered.");
+    console.log("[useListingsData] useEffect (initial/fetch trigger): Fetching listings due to component mount or currentMockDataVersion change.");
     fetchAndProcessListings();
-  }, [fetchAndProcessListings]); // Only depends on the memoized fetch function itself for initial load
+  }, [fetchAndProcessListings]); // This now correctly depends on the memoized fetchAndProcessListings
 
   const allAvailableListings = useMemo(() => {
-    return internalListings.filter(l => l.isAvailable);
+    console.log('[useListingsData] Calculating allAvailableListings. Internal listings count:', internalListings.length);
+    const available = internalListings.filter(l => l.isAvailable);
+    console.log('[useListingsData] allAvailableListings calculated. Count:', available.length);
+    return available;
   }, [internalListings]);
 
   const myListings = useMemo(() => {
-    return currentUser
+    console.log('[useListingsData] Calculating myListings. currentUser.uid:', currentUser?.uid, 'Internal listings count:', internalListings.length);
+    if (currentUser?.uid && internalListings.length > 0) {
+      console.log('[useListingsData] internalListings sample (first 5) for myListings filter:', internalListings.slice(0,5).map(l => ({id: l.id, title: l.title, owner: l.landownerId})));
+    }
+    const filtered = currentUser
       ? internalListings.filter(listing => listing.landownerId === currentUser.uid)
       : [];
+    console.log('[useListingsData] myListings calculated. Filtered count:', filtered.length, 'Titles:', filtered.map(l => l.title));
+    return filtered;
   }, [internalListings, currentUser]);
 
   const recentListings = useMemo(() => {
-    return [...allAvailableListings] // Use already filtered available listings
+    console.log('[useListingsData] Calculating recentListings. allAvailableListings count:', allAvailableListings.length);
+    const recent = [...allAvailableListings]
       .sort((a, b) => {
         const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt as any)?.seconds * 1000 || 0;
         const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt as any)?.seconds * 1000 || 0;
         return timeB - timeA;
       })
       .slice(0, 4);
+    console.log('[useListingsData] recentListings calculated. Count:', recent.length);
+    return recent;
   }, [allAvailableListings]);
   
   const refreshListings = useCallback(() => {
-    console.log("[useListingsData] Manual refreshListings called.");
+    console.log("[useListingsData] Manual refreshListings called. Triggering fetch.");
     fetchAndProcessListings();
   }, [fetchAndProcessListings]);
 

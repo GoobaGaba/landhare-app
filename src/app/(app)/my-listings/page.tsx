@@ -2,95 +2,58 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListChecks, PlusCircle, Search, AlertTriangle, Loader2, UserCircle, Edit, Trash2 } from "lucide-react";
-import type { Listing } from "@/lib/types";
-// ListingCard import is removed temporarily for debugging
-// import { ListingCard } from '@/components/land-search/listing-card'; 
+import { ListChecks, PlusCircle, Search, AlertTriangle, Loader2, UserCircle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useAuth } from '@/contexts/auth-context';
-import { firebaseInitializationError } from '@/lib/firebase';
 import { useListingsData } from '@/hooks/use-listings-data';
-import { useState, useEffect } from 'react';
+import { firebaseInitializationError } from '@/lib/firebase'; // Keep for context
+import { useEffect } from 'react';
 
 export default function MyListingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const { myListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
   const { toast } = useToast();
 
-  // These states are for dialogs, not critical for initial display debugging
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-
-  console.log(`[MyListingsPage] Render. AuthLoading: ${authLoading}, ListingsLoading: ${listingsLoading}, CurrentUser UID: ${currentUser?.uid}, MyListings count: ${myListings?.length}, ListingsError: ${listingsError}`);
-
+  // Log the state received from the hook at the top of the render
+  console.log(`[MyListingsPage] Render. AuthLoading: ${authLoading}, CurrentUser UID: ${currentUser?.uid}`);
+  console.log(`[MyListingsPage] Data from useListingsData: isLoading: ${listingsLoading}, error: ${listingsError}, myListings count: ${myListings?.length}`);
+  
   useEffect(() => {
     if (listingsError) {
+      console.error("[MyListingsPage] Listings Error:", listingsError);
       toast({ title: "Error loading your listings", description: listingsError, variant: "destructive" });
     }
   }, [listingsError, toast]);
 
-  // Functions for dialogs - temporarily simplified
-  const openDeleteDialog = (listing: Listing) => {
-    console.log("Attempting to open delete dialog for (mock):", listing.title);
-    // setListingToDelete(listing);
-    // setShowDeleteDialog(true);
-    toast({title: "Delete Action (Mock)", description: "Delete dialog functionality temporarily suspended for debugging."})
-  };
-
-  const confirmDeleteListing = async () => {
-    console.log("Confirm delete (mock)");
-    // setShowDeleteDialog(false);
-    // setListingToDelete(null);
-  };
-
-  const handleEditClick = (listing: Listing) => {
-    console.log("Attempting to open edit dialog for (mock):", listing.title);
-    // setShowEditDialog(true);
-     toast({title: "Edit Action (Mock)", description: "Edit dialog functionality temporarily suspended for debugging."})
-  };
-
-
   if (authLoading || listingsLoading) {
+    console.log("[MyListingsPage] Rendering: Loading state (auth or listings)");
     return (
       <div className="space-y-8">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">My Listings</h1>
-          <Button asChild>
-            <Link href="/listings/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Create New Listing
-            </Link>
-          </Button>
+          <h1 className="text-3xl font-bold">My Listings (Debug)</h1>
         </div>
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><ListChecks className="h-6 w-6 text-primary" />Manage Your Land Listings</CardTitle></CardHeader>
-          <CardContent><div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading listings...</p></div></CardContent>
+          <CardHeader><CardTitle>Loading Listings...</CardTitle></CardHeader>
+          <CardContent><div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading your listings...</p></div></CardContent>
         </Card>
       </div>
     );
   }
 
-  if (!currentUser && !authLoading) { // Check after authLoading is false
+  if (!currentUser && !authLoading) {
+    console.log("[MyListingsPage] Rendering: Not logged in");
      return (
-      <Card><CardHeader><CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6 text-primary" />Please Log In</CardTitle></CardHeader>
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6 text-primary" />Please Log In</CardTitle></CardHeader>
         <CardContent><p className="text-muted-foreground">You need to be logged in to manage your listings.</p><Button asChild className="mt-4"><Link href="/login">Log In</Link></Button></CardContent>
       </Card>
     );
   }
   
   if (listingsError) {
+    console.log("[MyListingsPage] Rendering: Listings error state - ", listingsError);
      return (
       <Card>
         <CardHeader>
@@ -100,14 +63,14 @@ export default function MyListingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{listingsError}</p>
-          <Button onClick={() => { console.log("Refresh button clicked"); refreshListings(); }} className="mt-4">Try Again</Button>
+          <Button onClick={() => { console.log("[MyListingsPage] Refresh button clicked"); refreshListings(); }} className="mt-4">Try Again</Button>
         </CardContent>
       </Card>
     );
   }
 
-  // If we reach here, currentUser should be defined and no listingsError
-  // myListings from the hook should also be an array.
+  // At this point, user is logged in, no loading, no listingsError
+  console.log(`[MyListingsPage] Rendering: User logged in. MyListings count: ${myListings.length}`);
 
   return (
     <div className="space-y-8">
@@ -119,51 +82,46 @@ export default function MyListingsPage() {
       </div>
 
       {myListings.length === 0 ? (
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              You haven't created any listings yet. Get started by listing your land!
-              {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
-            </p>
-            <Button asChild className="mt-4" disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}>
-                <Link href="/listings/new">Create Your First Listing</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-            <CardHeader>
-                <CardTitle>Your Listings ({myListings.length})</CardTitle>
-                <CardDescription>User: {currentUser?.uid} | Email: {currentUser?.email}</CardDescription>
-            </CardHeader>
+        <>
+          {console.log("[MyListingsPage] Rendering: No listings found for user.")}
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet (Debug)</CardTitle></CardHeader>
             <CardContent>
-                <ul className="list-disc pl-5 space-y-1">
-                    {myListings.map((listing) => (
-                        <li key={listing.id}>
-                            <strong>{listing.title}</strong> (ID: {listing.id}, Owner: {listing.landownerId})
-                            <Link href={`/listings/${listing.id}`} className="ml-2 text-xs text-primary hover:underline">(View)</Link>
-                        </li>
-                    ))}
-                </ul>
+              <p className="text-muted-foreground">
+                You haven't created any listings yet, or they are not being correctly associated with your user ID ({currentUser?.uid}).
+                {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
+              </p>
+              <Button asChild className="mt-4" disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}>
+                  <Link href="/listings/new">Create Your First Listing</Link>
+              </Button>
             </CardContent>
-        </Card>
-        // Original grid rendering commented out for debugging
-        /*
-        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {myListings.map((listing) => (
-            <div key={listing.id} className="flex flex-col">
-              <ListingCard listing={listing} viewMode="grid" />
-              <div className="mt-2 flex gap-2 p-2 bg-card rounded-b-lg border border-t-0 shadow-sm">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditClick(listing)} disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}><Edit className="mr-2 h-4 w-4" /> Edit</Button>
-                <Button variant="destructive" size="sm" className="flex-1" onClick={() => openDeleteDialog(listing)} disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-              </div>
-            </div>
-          ))}
-        </div>
-        */
+          </Card>
+        </>
+      ) : (
+        <>
+          {console.log(`[MyListingsPage] Rendering: Found ${myListings.length} listings for user. Displaying list.`)}
+          <Card>
+              <CardHeader>
+                  <CardTitle>Your Listings ({myListings.length})</CardTitle>
+                  <CardDescription>
+                    User ID: {currentUser?.uid} | Email: {currentUser?.email} <br/>
+                    (If a newly created listing is missing, check console logs for ID mismatches or filtering issues in useListingsData)
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <ul className="list-disc pl-5 space-y-2">
+                      {myListings.map((listing) => (
+                          <li key={listing.id} className="border-b pb-1 mb-1">
+                              <strong>{listing.title}</strong> (ID: {listing.id}) <br/>
+                              <span className="text-xs text-muted-foreground">Owner ID on Listing: {listing.landownerId}</span>
+                              <Link href={`/listings/${listing.id}`} className="ml-2 text-xs text-primary hover:underline">(View)</Link>
+                          </li>
+                      ))}
+                  </ul>
+              </CardContent>
+          </Card>
+        </>
       )}
-      {/* AlertDialogs temporarily removed for clarity during this debug step */}
     </div>
   );
 }
