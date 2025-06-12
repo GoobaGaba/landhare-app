@@ -2,12 +2,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ListChecks, PlusCircle, Search, AlertTriangle, Loader2, UserCircle, Edit, Trash2 } from "lucide-react";
 import type { Listing } from "@/lib/types";
-import { deleteListing as dbDeleteListing } from '@/lib/mock-data';
-import { ListingCard } from '@/components/land-search/listing-card';
+// ListingCard import is removed temporarily for debugging
+// import { ListingCard } from '@/components/land-search/listing-card'; 
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -29,50 +29,39 @@ export default function MyListingsPage() {
   const { myListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
   const { toast } = useToast();
 
+  // These states are for dialogs, not critical for initial display debugging
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
 
+  console.log(`[MyListingsPage] Render. AuthLoading: ${authLoading}, ListingsLoading: ${listingsLoading}, CurrentUser UID: ${currentUser?.uid}, MyListings count: ${myListings?.length}, ListingsError: ${listingsError}`);
+
   useEffect(() => {
-    console.log(`[MyListingsPage] Hook Data: AuthLoading: ${authLoading}, ListingsLoading: ${listingsLoading}, CurrentUser: ${currentUser?.uid}, MyListings count: ${myListings.length}`);
     if (listingsError) {
       toast({ title: "Error loading your listings", description: listingsError, variant: "destructive" });
     }
-  }, [authLoading, listingsLoading, currentUser, myListings, listingsError, toast]);
+  }, [listingsError, toast]);
 
+  // Functions for dialogs - temporarily simplified
   const openDeleteDialog = (listing: Listing) => {
-    if (firebaseInitializationError && !currentUser?.appProfile) {
-       toast({ title: "Preview Mode", description: "Deleting listings is disabled in full preview mode (no mock user login).", variant: "default" });
-       return;
-    }
-    setListingToDelete(listing);
-    setShowDeleteDialog(true);
+    console.log("Attempting to open delete dialog for (mock):", listing.title);
+    // setListingToDelete(listing);
+    // setShowDeleteDialog(true);
+    toast({title: "Delete Action (Mock)", description: "Delete dialog functionality temporarily suspended for debugging."})
   };
 
   const confirmDeleteListing = async () => {
-    if (!listingToDelete) return;
-
-    let deleteSuccessful = false;
-    try {
-      // dbDeleteListing in mock-data.ts already calls incrementMockDataVersion
-      await dbDeleteListing(listingToDelete.id);
-      deleteSuccessful = true;
-      toast({ title: "Listing Deleted", description: `"${listingToDelete.title}" removed.`});
-    } catch (e: any) {
-        toast({ title: "Deletion Failed", description: e.message || "Could not remove listing.", variant: "destructive"});
-    } finally {
-        setShowDeleteDialog(false);
-        setListingToDelete(null);
-        if (deleteSuccessful) {
-          // The useListingsData hook should pick up the change via mockDataVersion
-          // refreshListings(); // Explicitly calling refresh might not be needed if mockDataVersion works
-        }
-    }
+    console.log("Confirm delete (mock)");
+    // setShowDeleteDialog(false);
+    // setListingToDelete(null);
   };
 
   const handleEditClick = (listing: Listing) => {
-    setShowEditDialog(true);
+    console.log("Attempting to open edit dialog for (mock):", listing.title);
+    // setShowEditDialog(true);
+     toast({title: "Edit Action (Mock)", description: "Edit dialog functionality temporarily suspended for debugging."})
   };
+
 
   if (authLoading || listingsLoading) {
     return (
@@ -93,18 +82,37 @@ export default function MyListingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading) {
+  if (!currentUser && !authLoading) { // Check after authLoading is false
      return (
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6 text-primary" />Please Log In</CardTitle></CardHeader>
         <CardContent><p className="text-muted-foreground">You need to be logged in to manage your listings.</p><Button asChild className="mt-4"><Link href="/login">Log In</Link></Button></CardContent>
       </Card>
     );
   }
+  
+  if (listingsError) {
+     return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-6 w-6" />Error Loading Your Listings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">{listingsError}</p>
+          <Button onClick={() => { console.log("Refresh button clicked"); refreshListings(); }} className="mt-4">Try Again</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If we reach here, currentUser should be defined and no listingsError
+  // myListings from the hook should also be an array.
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <h1 className="text-3xl font-bold">My Listings</h1>
+        <h1 className="text-3xl font-bold">My Listings (Debug View)</h1>
         <Button asChild disabled={(firebaseInitializationError !== null && !currentUser?.appProfile)}>
           <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
         </Button>
@@ -124,6 +132,24 @@ export default function MyListingsPage() {
           </CardContent>
         </Card>
       ) : (
+        <Card>
+            <CardHeader>
+                <CardTitle>Your Listings ({myListings.length})</CardTitle>
+                <CardDescription>User: {currentUser?.uid} | Email: {currentUser?.email}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ul className="list-disc pl-5 space-y-1">
+                    {myListings.map((listing) => (
+                        <li key={listing.id}>
+                            <strong>{listing.title}</strong> (ID: {listing.id}, Owner: {listing.landownerId})
+                            <Link href={`/listings/${listing.id}`} className="ml-2 text-xs text-primary hover:underline">(View)</Link>
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+        </Card>
+        // Original grid rendering commented out for debugging
+        /*
         <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {myListings.map((listing) => (
             <div key={listing.id} className="flex flex-col">
@@ -135,28 +161,9 @@ export default function MyListingsPage() {
             </div>
           ))}
         </div>
+        */
       )}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2 text-destructive" />Confirm Deletion</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete the listing "{listingToDelete?.title}"? This action cannot be undone.
-              {firebaseInitializationError && " (This will remove the listing from the current preview.)"}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setListingToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteListing} className="bg-destructive hover:bg-destructive/90">Delete Listing</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Feature Coming Soon</AlertDialogTitle><AlertDialogDescription>The ability to edit listings is currently under development and will be available in a future update.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogAction onClick={() => setShowEditDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* AlertDialogs temporarily removed for clarity during this debug step */}
     </div>
   );
 }
