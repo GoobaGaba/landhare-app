@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,7 +71,7 @@ export default function MessagesPage() {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversationId) return;
     // Simulate sending message
-    console.log(`Sending message: "${newMessage}" to conversation ${selectedConversationId}`);
+    // console.log(`Sending message: "${newMessage}" to conversation ${selectedConversationId}`);
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
       conversationId: selectedConversationId,
@@ -113,7 +114,7 @@ export default function MessagesPage() {
             >
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${getOtherParticipantName(conv).charAt(0)}`} />
+                  <AvatarImage src={`https://placehold.co/40x40.png?text=${getOtherParticipantName(conv).charAt(0)}`} data-ai-hint="person initial" />
                   <AvatarFallback>{getOtherParticipantName(conv).substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
@@ -139,7 +140,7 @@ export default function MessagesPage() {
           <>
             <div className="p-4 border-b bg-card flex items-center gap-3">
                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://placehold.co/40x40.png?text=${getOtherParticipantName(selectedConversation).charAt(0)}`} />
+                  <AvatarImage src={`https://placehold.co/40x40.png?text=${getOtherParticipantName(selectedConversation).charAt(0)}`} data-ai-hint="person initial" />
                   <AvatarFallback>{getOtherParticipantName(selectedConversation).substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
               <div>

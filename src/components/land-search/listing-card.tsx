@@ -28,6 +28,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     }
   };
   const displayPriceInfo = getPriceDisplay();
+  const fallbackImageSrc = "https://placehold.co/600x400.png";
 
   if (viewMode === 'list') {
     return (
@@ -37,9 +38,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
       )}>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
-            src={listing.images[0] || "https://placehold.co/600x400.png"}
+            src={listing.images[0] || fallbackImageSrc}
             alt={listing.title}
-            data-ai-hint="landscape nature"
+            data-ai-hint={listing.images[0] ? "landscape nature" : "property placeholder"}
             fill
             sizes="(max-width: 640px) 100vw, 33vw"
             className="object-cover"
@@ -115,9 +116,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
           <Image
-            src={listing.images[0] || "https://placehold.co/600x400.png"}
+            src={listing.images[0] || fallbackImageSrc}
             alt={listing.title}
-            data-ai-hint="landscape nature"
+            data-ai-hint={listing.images[0] ? "landscape nature" : "property placeholder"}
             fill
             sizes={isCompact ? "(max-width: 768px) 50vw, 256px" : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
             className="object-cover"

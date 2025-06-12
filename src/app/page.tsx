@@ -36,7 +36,6 @@ export default function HomePage() {
             });
           setRecentListings(sortedAvailable.slice(0, 4));
         } else {
-          console.error("getListings did not return an array:", allListingsData);
           setRecentListings([]);
         }
       } catch (error) {
@@ -91,8 +90,7 @@ export default function HomePage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
-                   {/* This Link will be handled by the header's logic for redirection if not logged in */}
-                  <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>
+                  <Link href="/login?redirect=%2Flistings%2Fnew">
                     <Home className="mr-2 h-5 w-5" /> List Your Land
                   </Link>
                 </Button>

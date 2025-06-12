@@ -246,8 +246,9 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   }
 
   const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
-  const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png?text=Listing+Image";
-  const otherImages = listing?.images ? listing.images.slice(1,3) : []; 
+  const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
+  const otherImages = listing?.images ? listing.images.slice(1,3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
+
 
   const getPriceDisplay = () => {
     if (!listing) return { amount: "0", unit: "month", model: 'monthly' as PricingModel };
@@ -266,11 +267,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
         <div className="relative w-full h-72 md:h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
-          <Image src={mainImage} alt={listing.title} data-ai-hint="landscape field" fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
+          <Image src={mainImage} alt={listing.title} data-ai-hint={listing?.images && listing.images.length > 0 ? "landscape field" : "listing placeholder"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
         </div>
         {otherImages.map((img, index) => (
           <div key={index} className="relative w-full h-48 md:h-72 rounded-lg overflow-hidden shadow-md">
-            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint="nature detail" fill sizes="50vw" className="object-cover" />
+            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint={listing?.images && listing.images.length > (index+1) ? "nature detail" : "detail placeholder"} fill sizes="50vw" className="object-cover" />
           </div>
         ))}
       </div>
@@ -495,7 +496,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 {landowner && (
                   <div className="flex items-center gap-3 w-full pt-2 border-t border-dashed">
                     <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={landowner.avatarUrl} alt={landowner.name} />
+                      <AvatarImage src={landowner.avatarUrl} alt={landowner.name} data-ai-hint="person portrait" />
                       <AvatarFallback>{landowner.name ? landowner.name[0].toUpperCase() : 'L'}</AvatarFallback>
                     </Avatar>
                     <div className="text-sm">
