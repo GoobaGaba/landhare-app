@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -27,11 +27,11 @@ import { buttonVariants } from '@/components/ui/button';
 
 
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(paramsPromise); // Resolve the promise for params
+  const resolvedParams = use(paramsPromise); 
   const { id } = resolvedParams;
-  console.log(`[ListingDetailPage] Page loaded for ID: ${id}`);
+  // console.log(`[ListingDetailPage] Page loaded for ID: ${id}`);
 
-  const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
+  const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
   const [landowner, setLandowner] = useState<User | null>(null);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
@@ -40,18 +40,21 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [isBookingRequested, setIsBookingRequested] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  
+  const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
 
   useEffect(() => {
     async function fetchData() {
-      console.log(`[ListingDetailPage] fetchData triggered for ID: ${id}`);
+      // console.log(`[ListingDetailPage] fetchData triggered for ID: ${id}`);
       if (!id) {
-        console.error("[ListingDetailPage] No ID provided to fetchData.");
+        // console.error("[ListingDetailPage] No ID provided to fetchData.");
         toast({ title: "Error", description: "Listing ID is missing.", variant: "destructive" });
         setIsLoading(false);
-        setListing(null); // Explicitly set to null if no ID
+        setListing(null); 
         return;
       }
       
@@ -65,37 +68,37 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       }
       setIsLoading(true);
       try {
-        console.log(`[ListingDetailPage] Calling getListingById with ID: ${id}`);
+        // console.log(`[ListingDetailPage] Calling getListingById with ID: ${id}`);
         const listingData = await getListingById(id);
-        console.log(`[ListingDetailPage] getListingById returned:`, listingData);
+        // console.log(`[ListingDetailPage] getListingById returned:`, listingData);
         setListing(listingData || null);
 
         if (listingData) {
-          console.log(`[ListingDetailPage] Fetching landowner for ID: ${listingData.landownerId}`);
+          // console.log(`[ListingDetailPage] Fetching landowner for ID: ${listingData.landownerId}`);
           const landownerData = await getUserById(listingData.landownerId);
           setLandowner(landownerData || null);
-          console.log(`[ListingDetailPage] Fetched landowner:`, landownerData);
+          // console.log(`[ListingDetailPage] Fetched landowner:`, landownerData);
 
-          console.log(`[ListingDetailPage] Fetching reviews for listing ID: ${listingData.id}`);
+          // console.log(`[ListingDetailPage] Fetching reviews for listing ID: ${listingData.id}`);
           const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
-          console.log(`[ListingDetailPage] Fetched reviews:`, reviewsData);
+          // console.log(`[ListingDetailPage] Fetched reviews:`, reviewsData);
         } else {
-          console.warn(`[ListingDetailPage] No listing data found for ID: ${id} after fetch.`);
+          // console.warn(`[ListingDetailPage] No listing data found for ID: ${id} after fetch.`);
         }
       } catch (error: any) {
-        console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
+        // console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
-        setListing(null); // Ensure listing is null on error
+        setListing(null); 
       } finally {
-        console.log(`[ListingDetailPage] fetchData finished for ID: ${id}. isLoading set to false.`);
+        // console.log(`[ListingDetailPage] fetchData finished for ID: ${id}. isLoading set to false.`);
         setIsLoading(false);
       }
     }
-    if (id) { // Only fetch if ID is present
+    if (id) { 
         fetchData();
     } else {
-        console.log("[ListingDetailPage] ID is missing in useEffect, skipping fetch.");
+        // console.log("[ListingDetailPage] ID is missing in useEffect, skipping fetch.");
         setIsLoading(false);
         setListing(null);
     }
@@ -113,6 +116,32 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     }
     router.push(`/messages?contact=${listing?.landownerId}&listing=${listing?.id}`);
   };
+
+  const handleBookmarkToggle = async () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to bookmark listings." });
+      router.push(`/login?redirect=${pathname}`);
+      return;
+    }
+    if (!listing || listing.landownerId === currentUser.uid) {
+      toast({ title: "Action Not Allowed", description: "You cannot bookmark your own listing."});
+      return;
+    }
+
+    setIsBookmarking(true);
+    try {
+      if (isBookmarked) {
+        await removeBookmark(listing.id);
+      } else {
+        await addBookmark(listing.id);
+      }
+    } catch (error: any) {
+      // Error toast is handled by AuthContext
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
 
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -133,7 +162,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
       durationUnitText = durationValue === 1 ? 'night' : 'nights';
       baseRate = (listing.price || 0) * durationValue;
-      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s','')}`; // Use singular form
+      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s','')}`; 
     } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
       durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
       if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
@@ -241,7 +270,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     }
   };
 
-  console.log(`[ListingDetailPage] Rendering. isLoading: ${isLoading}, authLoading: ${authLoading}, listing found: ${!!listing}`);
+  // console.log(`[ListingDetailPage] Rendering. isLoading: ${isLoading}, authLoading: ${authLoading}, listing found: ${!!listing}`);
 
   if (isLoading || authLoading) {
     return (
@@ -252,8 +281,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     );
   }
 
-  if (!listing) { // Check if listing is null after loading has completed
-    console.warn(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
+  if (!listing) { 
+    // console.warn(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -296,6 +325,21 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
         <div className="relative w-full h-72 md:h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
           <Image src={mainImage} alt={listing.title} data-ai-hint={listing?.images && listing.images.length > 0 ? "landscape field" : "listing placeholder"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
+           {currentUser && !isCurrentUserLandowner && (
+            <Button
+              size="icon"
+              variant="secondary"
+              className={cn(
+                "absolute top-4 right-4 z-10 rounded-full h-10 w-10 shadow-md",
+                isBookmarked ? "text-primary bg-primary/20 hover:bg-primary/30" : "text-muted-foreground bg-background/80 hover:bg-background"
+              )}
+              onClick={handleBookmarkToggle}
+              disabled={isBookmarking}
+              title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+            >
+              {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary")} />}
+            </Button>
+          )}
         </div>
         {otherImages.map((img, index) => (
           <div key={index} className="relative w-full h-48 md:h-72 rounded-lg overflow-hidden shadow-md">

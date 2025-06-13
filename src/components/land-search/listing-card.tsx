@@ -4,9 +4,12 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, Home, Plus } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/auth-context';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ListingCardProps {
   listing: Listing;
@@ -15,7 +18,41 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default' }: ListingCardProps) {
+  const { currentUser, addBookmark, removeBookmark } = useAuth();
+  const { toast } = useToast();
+  const [isBookmarking, setIsBookmarking] = useState(false);
+
   const isCompact = sizeVariant === 'compact';
+
+  const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(listing.id) || false;
+
+  const handleBookmarkToggle = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation if card is wrapped in Link
+    e.stopPropagation();
+
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to bookmark listings.", variant: "default" });
+      return;
+    }
+    if (listing.landownerId === currentUser.uid) {
+      toast({ title: "Action Not Allowed", description: "You cannot bookmark your own listing.", variant: "default"});
+      return;
+    }
+
+    setIsBookmarking(true);
+    try {
+      if (isBookmarked) {
+        await removeBookmark(listing.id);
+      } else {
+        await addBookmark(listing.id);
+      }
+    } catch (error: any) {
+      // Toast for error is handled by AuthContext's bookmark functions
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
 
   const getPriceDisplay = () => {
     if (!listing) return { amount: "N/A", unit: "", model: 'monthly' };
@@ -52,6 +89,21 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               title="Boosted Listing"
             />
           )}
+           {currentUser && listing.landownerId !== currentUser.uid && (
+             <Button
+                size="icon"
+                variant="ghost"
+                className={cn(
+                  "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
+                  isBookmarked ? "text-primary" : "text-muted-foreground"
+                )}
+                onClick={handleBookmarkToggle}
+                disabled={isBookmarking}
+                title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+              >
+                {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary")} />}
+              </Button>
+           )}
         </div>
         <div className="flex flex-col flex-grow">
           <CardHeader className="p-4 pb-2">
@@ -133,6 +185,22 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               title="Boosted Listing"
             />
           )}
+          {currentUser && listing.landownerId !== currentUser.uid && (
+             <Button
+                size="icon"
+                variant="ghost"
+                className={cn(
+                  "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
+                  isBookmarked ? "text-primary" : "text-muted-foreground",
+                  isCompact ? "h-7 w-7" : ""
+                )}
+                onClick={handleBookmarkToggle}
+                disabled={isBookmarking}
+                title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+              >
+                {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary", isCompact ? "h-4 w-4" : "")} />}
+              </Button>
+           )}
         </div>
       </CardHeader>
       <CardContent className={cn("p-3 flex-grow space-y-1", isCompact ? "py-2" : "p-4")}>

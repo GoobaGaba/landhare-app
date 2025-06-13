@@ -24,7 +24,9 @@ import {
   mockUsers, 
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
   MOCK_USER_FOR_UI_TESTING,
-  incrementMockDataVersion 
+  incrementMockDataVersion,
+  addBookmarkToList,
+  removeBookmarkFromList
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -50,6 +52,8 @@ interface AuthContextType {
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   updateCurrentAppUserProfile: (data: Partial<AppUserType>) => Promise<CurrentUser | null>;
+  addBookmark: (listingId: string) => Promise<void>;
+  removeBookmark: (listingId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,24 +83,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appProfileData: AppUserType | undefined;
 
       if (firebaseInitializationError) {
-          // MOCK MODE
           if (firebaseUser.uid === MOCK_USER_FOR_UI_TESTING.id) {
-              appProfileData = MOCK_USER_FOR_UI_TESTING; // Use the direct constant for primary mock user
+              appProfileData = MOCK_USER_FOR_UI_TESTING;
           } else if (firebaseUser.uid === MOCK_GOOGLE_USER_FOR_UI_TESTING.id) {
-              appProfileData = MOCK_GOOGLE_USER_FOR_UI_TESTING; // Use the direct constant for Google mock user
+              appProfileData = MOCK_GOOGLE_USER_FOR_UI_TESTING;
           } else {
              appProfileData = mockUsers.find(u => u.id === firebaseUser.uid);
           }
           
           if (!appProfileData && firebaseUser.email) {
-            // Attempt to "create" if not found in initial mocks - useful for dynamic mock user creation
             appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.displayName, firebaseUser.photoURL);
           }
       } else {
-         // LIVE MODE
          appProfileData = await getUserById(firebaseUser.uid);
          if (!appProfileData && firebaseUser.email) { 
-            // console.log(`[AuthContext] fetchAndSetAppProfile (live mode): Profile for ${firebaseUser.uid} not in DB, creating.`);
             appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.displayName, firebaseUser.photoURL);
          }
       }
@@ -104,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentSubStatus = appProfileData?.subscriptionStatus || 'free';
       setSubscriptionStatus(currentSubStatus); 
       
-      // Construct the appProfile with fallbacks if some Firestore fields are missing
       const finalAppProfile: AppUserType = {
         id: firebaseUser.uid,
         name: appProfileData?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "User",
@@ -120,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ...firebaseUser, appProfile: finalAppProfile } as CurrentUser;
 
     } catch (profileError: any) {
-      console.error("[AuthContext] Error fetching/creating user profile:", profileError.message, profileError.stack);
       setSubscriptionStatus('free'); 
       toast({ title: "Profile Error", description: "Could not load or create your user profile.", variant: "destructive"});
       const minimalAppProfile: AppUserType = {
@@ -141,7 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null); 
 
     if (firebaseInitializationError) {
-      // console.warn("[AuthContext] onAuthStateChanged: Firebase not available. Operating in Preview Mode. No real auth listener.");
       setCurrentUser(null); 
       setSubscriptionStatus('free'); 
       setAuthError(firebaseInitializationError); 
@@ -153,9 +150,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true); 
       const userWithProfile = await fetchAndSetAppProfile(user);
       setCurrentUser(userWithProfile);
+      // Only increment mockDataVersion if a mock user is identified from onAuthStateChanged
+      // This avoids incrementing when live Firebase auth state changes, which shouldn't affect mock data displays
+      if (firebaseInitializationError && user && (user.uid === MOCK_USER_FOR_UI_TESTING.id || user.uid === MOCK_GOOGLE_USER_FOR_UI_TESTING.id)) {
+         // This path might be less common now as mock users are set directly in signIn functions
+         // incrementMockDataVersion('onAuthStateChanged_mock_user_identified');
+      }
       setLoading(false); 
     }, (error) => {
-      console.error("[AuthContext] Auth State Listener Error:", error);
       setAuthError(error.message || "Error in auth state listener.");
       setCurrentUser(null);
       setSubscriptionStatus('free');
@@ -169,7 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     if (firebaseInitializationError || !firebaseAuthInstance) {
       const mockId = `mock-user-${Date.now()}`;
-      // Create profile in mockUsers array via dbCreateUserProfile's mock path
       const newMockAppUser = await dbCreateUserProfile(mockId, credentials.email, credentials.displayName); 
       const newMockCurrentUser: CurrentUser = {
         uid: mockId,
@@ -196,9 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateFirebaseProfile(firebaseUser, { 
         displayName: credentials.displayName || credentials.email.split('@')[0],
       });
-      // Firestore profile creation is handled by onAuthStateChanged -> fetchAndSetAppProfile if it doesn't exist
-      // No need to call setLoading(false) here, onAuthStateChanged will handle it.
-      return null; // Let onAuthStateChanged handle setting the currentUser
+      return null; 
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message || "Error during sign up.");
@@ -223,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (userToSignInAppProfile && firebaseUserPart.uid) {
         const fullMockUser: CurrentUser = {
-            ...(firebaseUserPart as FirebaseUserType), // Cast to satisfy FirebaseUserType part
+            ...(firebaseUserPart as FirebaseUserType), 
             emailVerified: true, isAnonymous: false, 
             getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
             reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
@@ -247,8 +246,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
-      // onAuthStateChanged will handle setting user and profile.
-      // No need to call setLoading(false) here, onAuthStateChanged will handle it.
       return null; 
     } catch (err) {
       const firebaseErr = err as AuthError;
@@ -289,8 +286,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(firebaseAuthInstance, provider);
-      // onAuthStateChanged will handle setting user and profile.
-      // No need to call setLoading(false) here, onAuthStateChanged will handle it.
       return null; 
     } catch (err) {
       const firebaseErr = err as AuthError;
@@ -319,7 +314,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       await firebaseSignOut(firebaseAuthInstance);
-      // onAuthStateChanged will handle setting currentUser to null, loading to false, and subscriptionStatus to 'free'.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message || "Error during logout.");
@@ -364,32 +358,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
-        // Update Firestore profile first
         const updatedAppProfileFromDb = await updateAppUserProfileDb(currentUser.uid, data);
         if (!updatedAppProfileFromDb) {
             throw new Error("Failed to update user profile in the database.");
         }
         
-        // If live mode, and name/avatarUrl changed, update Firebase Auth profile
-        if (!firebaseInitializationError && firebaseAuthInstance) {
+        if (!firebaseInitializationError && firebaseAuthInstance && firebaseAuthInstance.currentUser) {
             const firebaseProfileUpdates: { displayName?: string; photoURL?: string } = {};
             if (data.name && currentUser.displayName !== data.name) {
                firebaseProfileUpdates.displayName = data.name;
             }
-            // Assuming avatarUrl updates are handled by directly setting photoURL in Firebase Auth
+            // Firebase photoURL updates are usually more complex if direct file uploads are involved.
+            // If avatarUrl is just a URL string, it can be updated.
             // if (data.avatarUrl && currentUser.photoURL !== data.avatarUrl) {
             //    firebaseProfileUpdates.photoURL = data.avatarUrl;
             // }
             if (Object.keys(firebaseProfileUpdates).length > 0) {
-              await updateFirebaseProfile(currentUser, firebaseProfileUpdates);
+              await updateFirebaseProfile(firebaseAuthInstance.currentUser, firebaseProfileUpdates);
             }
         }
         
-        // Construct the new currentUser state, prioritizing the fresh data from Firestore
         const newCurrentUserState: CurrentUser = {
-            ...(currentUser as FirebaseUserType), // Base Firebase user object
-            appProfile: updatedAppProfileFromDb, // The latest profile from Firestore
-            // Update FirebaseUserType fields if they changed in appProfile
+            ...(currentUser as FirebaseUserType), 
+            appProfile: updatedAppProfileFromDb, 
             displayName: updatedAppProfileFromDb.name || currentUser.displayName,
             photoURL: updatedAppProfileFromDb.avatarUrl || currentUser.photoURL,
             email: updatedAppProfileFromDb.email || currentUser.email, 
@@ -413,6 +404,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addBookmark = async (listingId: string): Promise<void> => {
+    if (!currentUser || !currentUser.appProfile) {
+      toast({ title: "Login Required", description: "Please log in to bookmark listings.", variant: "default" });
+      return;
+    }
+    try {
+      const updatedUser = await addBookmarkToList(currentUser.uid, listingId);
+      if (updatedUser && updatedUser.bookmarkedListingIds) {
+        setCurrentUser(prev => prev ? ({ ...prev, appProfile: { ...prev.appProfile!, bookmarkedListingIds: updatedUser.bookmarkedListingIds } }) : null);
+        toast({ title: "Bookmarked!", description: "Listing added to your bookmarks." });
+      }
+    } catch (error: any) {
+      toast({ title: "Error Bookmarking", description: error.message || "Could not add bookmark.", variant: "destructive" });
+    }
+  };
+
+  const removeBookmark = async (listingId: string): Promise<void> => {
+    if (!currentUser || !currentUser.appProfile) {
+      // Should not happen if UI is correct, but good to check
+      return;
+    }
+    try {
+      const updatedUser = await removeBookmarkFromList(currentUser.uid, listingId);
+      if (updatedUser && updatedUser.bookmarkedListingIds) {
+         setCurrentUser(prev => prev ? ({ ...prev, appProfile: { ...prev.appProfile!, bookmarkedListingIds: updatedUser.bookmarkedListingIds } }) : null);
+        toast({ title: "Bookmark Removed", description: "Listing removed from your bookmarks." });
+      }
+    } catch (error: any) {
+      toast({ title: "Error Removing Bookmark", description: error.message || "Could not remove bookmark.", variant: "destructive" });
+    }
+  };
+
 
   const value: AuthContextType = {
     currentUser,
@@ -426,6 +449,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sendPasswordReset,
     refreshUserProfile,
     updateCurrentAppUserProfile,
+    addBookmark,
+    removeBookmark,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
