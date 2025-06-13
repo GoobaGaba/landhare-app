@@ -31,36 +31,44 @@ export default function ProfilePage() {
   const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
+  // This local state will hold the data for display and editing, synced from currentUser.appProfile
+  const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
+  
+  // This derived state is for displaying non-editable info or info directly from auth context
   const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
 
-  const [nameInput, setNameInput] = useState('');
-  const [emailDisplay, setEmailDisplay] = useState('');
-  const [bioInput, setBioInput] = useState('');
+
   const [isSaving, setIsSaving] = useState(false);
   const [isSwitchingSubscription, setIsSwitchingSubscription] = useState(false);
 
 
   useEffect(() => {
-    if (currentUser && currentUser.appProfile) { // Ensure appProfile exists
+    if (currentUser && currentUser.appProfile) {
       const currentAppProfile = currentUser.appProfile;
       const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
 
-      const currentProfile: ProfileDisplayData = {
+      const displayData: ProfileDisplayData = {
         name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentAppProfile?.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentAppProfile?.name || currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' ? "I am the main mock user." : "Welcome to my LandShare profile!"),
+        bio: currentAppProfile?.bio || (currentUser.uid === MOCK_USER_FOR_UI_TESTING.id ? MOCK_USER_FOR_UI_TESTING.bio || "I am the main mock user." : "Welcome to my LandShare profile!"),
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
         subscriptionTier: currentSubscription,
       };
-      setProfileDisplayData(currentProfile);
-      setNameInput(currentProfile.name);
-      setEmailDisplay(currentProfile.email);
-      setBioInput(currentProfile.bio);
-    } else if (!currentUser && !authLoading) { // If no current user and not loading, clear profile
+      setProfileDisplayData(displayData);
+      
+      // Initialize form data only if not currently editing to avoid overwriting user input
+      if (!isEditing) {
+        setProfileFormData({
+            name: displayData.name,
+            bio: displayData.bio,
+        });
+      }
+    } else if (!currentUser && !authLoading) { 
       setProfileDisplayData(null);
+      setProfileFormData({name: '', bio: ''});
     }
-  }, [currentUser, authLoading, subscriptionStatus]); 
+  }, [currentUser, authLoading, subscriptionStatus, isEditing]); // Add isEditing to dependencies
 
   const handleSave = async () => {
     if (!currentUser || !profileDisplayData) {
@@ -70,15 +78,12 @@ export default function ProfilePage() {
     setIsSaving(true);
 
     const updateData: Partial<Pick<AppUserType, 'name' | 'bio'>> = {};
-    if (nameInput !== profileDisplayData.name) updateData.name = nameInput;
-    if (bioInput !== profileDisplayData.bio) updateData.bio = bioInput;
+    if (profileFormData.name !== profileDisplayData.name) updateData.name = profileFormData.name;
+    if (profileFormData.bio !== profileDisplayData.bio) updateData.bio = profileFormData.bio;
 
     if (Object.keys(updateData).length > 0) {
-        const updatedUserResult = await updateCurrentAppUserProfile(updateData);
-        if (!updatedUserResult) {
-             // Error toast is already handled by updateCurrentAppUserProfile
-        }
-        // ProfileDisplayData will update via useEffect listening to currentUser & subscriptionStatus
+        await updateCurrentAppUserProfile(updateData);
+        // AuthContext will update currentUser, and useEffect will refresh profileDisplayData and profileFormData
     } else {
         toast({ title: "No Changes", description: "No information was changed."});
     }
@@ -89,15 +94,20 @@ export default function ProfilePage() {
 
   const handleCancelEdit = () => {
     if (profileDisplayData) {
-      setNameInput(profileDisplayData.name);
-      setBioInput(profileDisplayData.bio);
+      setProfileFormData({
+          name: profileDisplayData.name,
+          bio: profileDisplayData.bio
+      });
     }
     setIsEditing(false);
   };
 
   const handleRefreshProfile = async () => {
+    setIsSaving(true); // Use isSaving to disable buttons during refresh
     toast({ title: "Refreshing...", description: "Fetching latest profile information."});
     await refreshUserProfile();
+    // Data will update via useEffect listening to currentUser
+    setIsSaving(false);
     toast({ title: "Profile Refreshed", description: "Latest data loaded."});
   }
 
@@ -109,30 +119,22 @@ export default function ProfilePage() {
     try {
         await sendPasswordReset(currentUser.email);
     } catch (error: any) {
-        toast({ title: "Password Reset Failed", description: error.message || "Could not send password reset email.", variant: "destructive"});
+        // Toast for error is handled by sendPasswordReset in AuthContext if it throws
     }
   }
 
   const handleSubscriptionToggle = async () => {
-    if (!currentUser || !profileDisplayData || !profileDisplayData.subscriptionTier || profileDisplayData.subscriptionTier === 'loading') {
+    if (!currentUser || !profileDisplayData || profileDisplayData.subscriptionTier === 'loading') {
         toast({ title: "Action Unavailable", description: "Subscription status is still loading or user data is incomplete.", variant: "default"});
         return;
     }
     setIsSwitchingSubscription(true);
     const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
     try {
-      const updatedUserResult = await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
-      if (updatedUserResult) { // updatedUserResult can be CurrentUser | null
-        toast({ title: "Subscription Updated (Simulation)", description: `Your account is now simulated as ${newStatus}.` });
-        // The profileDisplayData state here will also update via its own useEffect listening to currentUser changes from AuthContext.
-      } else {
-        // Error toast is handled by updateCurrentAppUserProfile if it returns null
-        // No need for an additional toast here unless specific to this toggle action
-      }
+      await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
+      // AuthContext handles success toast and updates currentUser, which useEffect will pick up.
     } catch (error: any) {
-      // This catch block is unlikely to be hit if updateCurrentAppUserProfile handles its own errors and returns null.
-      // But as a fallback:
-      toast({ title: "Subscription Switch Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
+      // Error already handled by updateCurrentAppUserProfile
     } finally {
       setIsSwitchingSubscription(false);
     }
@@ -148,7 +150,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (firebaseInitializationError && !currentUser) {
+  if (firebaseInitializationError && !currentUser && !authLoading) { // More specific check for this scenario
      return (
       <Card>
         <CardHeader>
@@ -176,7 +178,7 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Please <Link href="/login" className="underline text-primary hover:text-primary/80">log in</Link> to view your profile.
+            Please <Link href={`/login?redirect=${encodeURIComponent("/profile")}`} className="underline text-primary hover:text-primary/80">log in</Link> to view your profile.
           </p>
         </CardContent>
       </Card>
@@ -225,19 +227,19 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               <div>
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} disabled={!isEditing || isSaving} />
+                <Input id="name" value={profileFormData.name} onChange={(e) => setProfileFormData(prev => ({...prev, name: e.target.value}))} disabled={!isEditing || isSaving} />
               </div>
               <div>
                 <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" value={emailDisplay} disabled />
+                <Input id="email" type="email" value={profileDisplayData.email} disabled />
                  <p className="text-xs text-muted-foreground mt-1">Email address cannot be changed here. Contact support for assistance.</p>
               </div>
               <div>
                 <Label htmlFor="bio">Bio</Label>
                 <Textarea
                   id="bio"
-                  value={bioInput}
-                  onChange={(e) => setBioInput(e.target.value)}
+                  value={profileFormData.bio}
+                  onChange={(e) => setProfileFormData(prev => ({...prev, bio: e.target.value}))}
                   disabled={!isEditing || isSaving}
                   rows={4}
                   placeholder="Tell us a bit about yourself or your land interests..."
@@ -264,9 +266,12 @@ export default function ProfilePage() {
               <CardDescription>Manage your account security, like password and two-factor authentication.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError}>
+              <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError || currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)}>
                 <KeyRound className="mr-2 h-4 w-4" /> Change Password
               </Button>
+               {currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID) && (
+                <p className="text-xs text-muted-foreground">Password changes are managed through your Google account.</p>
+              )}
               <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. <Button variant="link" className="p-0 h-auto" onClick={() => toast({title: "Coming Soon!", description: "Two-factor authentication (2FA) setup is not yet implemented."})}>Enable 2FA</Button></p>
             </CardContent>
           </Card>
@@ -302,7 +307,7 @@ export default function ProfilePage() {
                 <h3 className="text-md font-semibold mb-1">Current Plan: <span className={`capitalize ${profileDisplayData.subscriptionTier === 'premium' ? 'text-primary font-bold' : ''}`}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
-                    <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.99% vs 3%).</p>
+                    <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
                     <Button asChild disabled={!!firebaseInitializationError}>
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
