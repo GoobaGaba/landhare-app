@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, Settings as SettingsIcon, Sun, Moon, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark } from 'lucide-react'; // Added Bookmark
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark } from 'lucide-react'; // Removed SettingsIcon
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -44,14 +44,14 @@ export default function AppHeader() {
   };
 
   const userNavLinks: NavLink[] = [
-    { href: '/profile', label: 'Profile', icon: UserCircle },
+    { href: '/profile', label: 'Profile & Settings', icon: UserCircle }, // Combined Profile & Settings conceptually
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/my-listings', label: 'My Listings', icon: ListChecks },
-    { href: '/bookings', label: 'My Bookings', icon: Landmark }, // Changed icon & label slightly
-    { href: '/bookmarks', label: 'My Bookmarks', icon: Bookmark }, // Added Bookmarks
+    { href: '/bookings', label: 'My Bookings', icon: Landmark },
+    { href: '/bookmarks', label: 'My Bookmarks', icon: Bookmark },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
-    { href: '/settings', label: 'Settings', icon: SettingsIcon },
+    // { href: '/settings', label: 'Settings', icon: SettingsIcon }, // Removed separate Settings link
   ];
 
   const guestNavLinks: NavLink[] = [

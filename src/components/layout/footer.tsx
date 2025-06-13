@@ -12,7 +12,6 @@ export default function AppFooter() {
           <Link href="/terms" className="hover:text-primary">Terms</Link>
           <Link href="/privacy" className="hover:text-primary">Privacy</Link>
           <Link href="/pricing" className="hover:text-primary">Pricing</Link>
-          {/* <Link href="/faq" className="hover:text-primary">FAQ</Link> */}
         </div>
         <p className="text-xs">Disrupting housing, one plot at a time.</p>
       </div>
