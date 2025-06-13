@@ -73,7 +73,7 @@ export async function createListingAction(
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
 
   if (!validatedFields.success) {
-    console.log("Server validation errors:", validatedFields.error.flatten().fieldErrors);
+    console.log("[createListingAction] Server validation errors:", validatedFields.error.flatten().fieldErrors);
     return {
       message: "Validation failed. Please check your input.",
       errors: validatedFields.error.flatten().fieldErrors,
@@ -82,8 +82,11 @@ export async function createListingAction(
   }
 
   const currentUserId = validatedFields.data.landownerId;
+  console.log(`[createListingAction] Attempting to create listing for landownerId (currentUserId from form): ${currentUserId}`);
+
 
   if (!currentUserId || currentUserId.trim() === '') {
+    console.error("[createListingAction] Authentication error: Landowner ID is invalid or missing after validation.");
     return {
       message: "Authentication error: Could not determine landowner. Landowner ID is invalid or missing after validation.",
       success: false,
@@ -92,50 +95,79 @@ export async function createListingAction(
 
   let landownerProfile: User | undefined;
   try {
+    // This call also relies on Firestore permissions for reading users.
+    // If this fails, the listing creation won't proceed anyway.
+    console.log(`[createListingAction] Fetching landowner profile for ID: ${currentUserId}`);
     landownerProfile = await getUserById(currentUserId);
-  } catch (e) {
-    console.error("Failed to fetch landowner profile:", e);
-    return { message: "Could not verify landowner status.", success: false };
+    if (!landownerProfile) {
+      console.error(`[createListingAction] Landowner profile not found for ID: ${currentUserId}. This could also be a permission issue for reading users collection.`);
+       // If in live mode and user not found, it's an issue. In mock mode, getUserById might create one.
+      // For production, if getUserById returns undefined when it shouldn't, it's a problem.
+      // However, the user should exist if they are logged in.
+      // This could indicate a permission issue reading the /users collection.
+    }
+  } catch (e: any) {
+    console.error("[createListingAction] Failed to fetch landowner profile:", e.message);
+    return { message: `Could not verify landowner status: ${e.message}`, success: false };
   }
 
   const isPremiumUser = landownerProfile?.subscriptionStatus === 'premium';
+  console.log(`[createListingAction] Landowner ID: ${currentUserId}, Premium Status: ${isPremiumUser}`);
+
 
   if (!isPremiumUser) {
     try {
       const listingsCount = await getListingsByLandownerCount(currentUserId);
+      console.log(`[createListingAction] Current listings count for user ${currentUserId}: ${listingsCount}`);
       if (listingsCount >= FREE_TIER_LISTING_LIMIT) {
         return {
           message: `Free accounts can only create ${FREE_TIER_LISTING_LIMIT} listing(s). Upgrade to Premium for unlimited listings.`,
           success: false,
         };
       }
-    } catch (e) {
-      console.error("Failed to check listing count:", e);
-      return { message: "Could not verify your current listing count.", success: false };
+    } catch (e: any) {
+      console.error("[createListingAction] Failed to check listing count:", e.message);
+      return { message: `Could not verify your current listing count: ${e.message}`, success: false };
     }
   }
 
   try {
+    // landownerId from validatedFields.data is used as currentUserId above.
+    // We explicitly remove it from listingDataForDb because dbAddListing takes landownerId as a separate param.
     const { landownerId: _, ...listingDataForDb } = validatedFields.data;
     
     const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {
         ...listingDataForDb,
-        pricingModel: listingDataForDb.pricingModel as Listing['pricingModel'],
+        pricingModel: listingDataForDb.pricingModel as Listing['pricingModel'], // Ensure type correctness
         leaseTerm: listingDataForDb.leaseTerm as LeaseTerm | undefined,
-        minLeaseDurationMonths: listingDataForDb.minLeaseDurationMonths ?? undefined,
+        minLeaseDurationMonths: listingDataForDb.minLeaseDurationMonths ?? undefined, // Handle null/undefined
     };
-
+    
+    console.log(`[createListingAction] Calling dbAddListing with landownerId: ${currentUserId}`);
     const newListing = await dbAddListing(newListingPayload, currentUserId, isPremiumUser);
 
+    console.log(`[createListingAction] Listing "${newListing.title}" (ID: ${newListing.id}) created successfully by landowner ${currentUserId}.`);
     return {
       message: `Listing "${newListing.title}" created successfully!`,
       listingId: newListing.id,
       success: true,
     };
   } catch (error) {
-    console.error("Error in createListingAction:", error);
+    console.error("[createListingAction] Error during dbAddListing:", error);
+    // Check if the error object has a 'code' property (Firebase errors often do)
+    const errorCode = (error as any)?.code;
+    const errorMessageText = (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.";
+    
+    if (errorCode === 'permission-denied' || (typeof errorMessageText === 'string' && errorMessageText.toLowerCase().includes('permission'))) {
+        console.error("[createListingAction] DETECTED PERMISSION DENIED during dbAddListing. Check Firestore rules for 'listings' collection 'create' operation.");
+        return {
+             message: `Firestore Permission Denied: ${errorMessageText}. Please check your Firestore security rules for the 'listings' collection.`,
+             success: false,
+        };
+    }
+    
     return {
-      message: (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.",
+      message: errorMessageText,
       success: false,
     };
   }
