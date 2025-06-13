@@ -87,31 +87,36 @@ export async function createListingAction(
   const currentUserId = validatedFields.data.landownerId;
   console.log(`[createListingAction] Validated landownerId (currentUserId from form): ${currentUserId}`);
   
-  // Log current auth state from Firebase SDK instance available in server action context
   const serverAuthUserUid = firebaseAuthInstance?.currentUser?.uid;
   console.log(`[createListingAction] Auth state in server action: firebaseAuthInstance.currentUser?.uid is '${serverAuthUserUid}'`);
 
 
   if (!currentUserId || currentUserId.trim() === '') {
-    // This case should ideally be caught by Zod validation, but as a safeguard:
     console.error("[createListingAction] Critical error: Landowner ID is invalid or missing AFTER validation.");
     return {
       message: "Critical error: Landowner ID missing. Please ensure you are logged in.",
       success: false,
     };
   }
+  
+  if (serverAuthUserUid === undefined) {
+    console.warn("[createListingAction] The Firebase client SDK instance in this server action does not have an authenticated user. This will likely cause Firestore 'PERMISSION_DENIED' if rules require 'request.auth != null'.");
+  } else if (serverAuthUserUid !== currentUserId) {
+     console.warn(`[createListingAction] Mismatch: Server action auth UID ('${serverAuthUserUid}') does not match landownerId from form ('${currentUserId}'). This could lead to permission issues or incorrect data ownership.`);
+  }
+
 
   let landownerProfile: User | undefined;
   try {
     console.log(`[createListingAction] Fetching landowner profile for ID: ${currentUserId}`);
-    landownerProfile = await getUserById(currentUserId);
+    landownerProfile = await getUserById(currentUserId); // This will use Firestore if configured, or mock
     if (!landownerProfile) {
-      console.warn(`[createListingAction] Landowner profile not found in DB for ID: ${currentUserId}. This might be okay if it's a new user whose profile creation is pending or if mock data is used.`);
+      console.warn(`[createListingAction] Landowner profile not found in DB for ID: ${currentUserId}. Ensure user profile exists.`);
+       // Potentially create it here if it's truly a new user who just signed up.
+       // For now, we assume profile creation is handled reliably at signup.
     }
   } catch (e: any) {
     console.error("[createListingAction] Failed to fetch landowner profile:", e.message);
-    // Decide if this is a fatal error. If landownerProfile is only for checks like premium status,
-    // maybe proceed with a default or log a warning. For now, let's be strict.
     return { message: `Could not verify landowner status: ${e.message}`, success: false };
   }
 
@@ -160,9 +165,10 @@ export async function createListingAction(
     const errorMessageText = (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.";
     
     if (errorCode === 'permission-denied' || errorMessageText.toLowerCase().includes('permission')) {
-        console.error(`[createListingAction] DETECTED PERMISSION DENIED. LandownerID from form: ${currentUserId}. Server action auth UID: ${serverAuthUserUid}.`);
+        const detailedMessage = `Firestore Permission Denied. This often means the server action's request to Firestore was seen as unauthenticated (request.auth was null in rules), or the landownerId ('${currentUserId}') did not match an authenticated user in rules. Server-side auth state (firebaseAuthInstance.currentUser?.uid): '${serverAuthUserUid}'. Review Firestore security rules for 'listings' and ensure the server action has a valid authentication context if rules require it.`;
+        console.error(`[createListingAction] PERMISSION_DENIED details: ${detailedMessage}`);
         return {
-             message: `Firestore Permission Denied: ${errorMessageText}. This often means the server action's request to Firestore was seen as unauthenticated (request.auth was null in rules), or the landownerId '${currentUserId}' did not match the authenticated user in rules. Server-side auth state (currentUser.uid): '${serverAuthUserUid}'. Please check Firestore security rules for 'listings'.`,
+             message: detailedMessage,
              success: false,
         };
     }
@@ -173,3 +179,4 @@ export async function createListingAction(
     };
   }
 }
+
