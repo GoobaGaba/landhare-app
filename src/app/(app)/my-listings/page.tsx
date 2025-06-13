@@ -8,7 +8,7 @@ import { ListChecks, PlusCircle, Search, AlertTriangle, Loader2, UserCircle, Tra
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
-import { firebaseInitializationError } from '@/lib/firebase'; 
+import { firebaseInitializationError } from '@/lib/firebase';
 import { useEffect, useState } from 'react';
 import { ListingCard } from '@/components/land-search/listing-card';
 import {
@@ -26,7 +26,10 @@ import type { Listing } from '@/lib/types';
 
 export default function MyListingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
+  // console.log("[MyListingsPage] Render. currentUser from useAuth():", currentUser?.uid, "Auth Loading:", authLoading);
   const { myListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
+  // console.log(`[MyListingsPage] Render. From useListingsData - myListings count: ${myListings.length}, isLoading: ${listingsLoading}, error: ${listingsError}`);
+
   const { toast } = useToast();
 
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
@@ -51,7 +54,7 @@ export default function MyListingsPage() {
 
     if (result.success) {
       toast({ title: "Listing Deleted", description: result.message });
-      refreshListings(); // Explicitly refresh after delete
+      refreshListings();
     } else {
       toast({ title: "Deletion Failed", description: result.message, variant: "destructive" });
     }
@@ -80,7 +83,7 @@ export default function MyListingsPage() {
     );
   }
   
-  if (listingsError) {
+  if (listingsError && !listingsLoading) { // Only show error if not also loading
      return (
       <Card>
         <CardHeader>
@@ -105,14 +108,14 @@ export default function MyListingsPage() {
         </Button>
       </div>
 
-      {myListings.length === 0 ? (
+      {myListings.length === 0 && !listingsLoading ? ( // Ensure not loading when showing "no listings"
         <>
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet</CardTitle></CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
                 You haven't created any listings yet.
-                {firebaseInitializationError && " (Note: Firebase may not be configured, ensure .env.local is set.)"}
+                {firebaseInitializationError && " (Note: Firebase features may be limited if not configured. Ensure .env.local is set.)"}
               </p>
               <Button asChild className="mt-4">
                   <Link href="/listings/new">Create Your First Listing</Link>
@@ -127,17 +130,16 @@ export default function MyListingsPage() {
               <Card key={listing.id} className="flex flex-col">
                 <ListingCard listing={listing} viewMode="grid" />
                 <CardFooter className="mt-auto pt-4 border-t flex justify-end gap-2">
-                  <Button variant="outline" size="sm" asChild title="Edit this listing (Feature coming soon)">
-                    {/* For now, link to listing detail page, edit page to be implemented */}
-                    <Link href={`/listings/${listing.id}`} aria-disabled="true">
+                  <Button variant="outline" size="sm" asChild title="Edit this listing">
+                    <Link href={`/listings/edit/${listing.id}`}>
                       <Edit className="mr-2 h-3 w-3" /> Edit
                     </Link>
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => handleDeleteConfirmation(listing)}
-                    disabled={isDeleting}
+                    disabled={isDeleting && listingToDelete?.id === listing.id}
                   >
                     {isDeleting && listingToDelete?.id === listing.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Trash2 className="mr-2 h-3 w-3" />}
                     Delete
