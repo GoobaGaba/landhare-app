@@ -4,6 +4,7 @@
 import { z } from 'zod';
 import type { Listing, LeaseTerm, User } from '@/lib/types';
 import { addListing as dbAddListing, getUserById, getListingsByLandownerCount, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Now uses Firestore
+import { auth as firebaseAuthInstance } from '@/lib/firebase'; // Import auth instance
 
 // Server-side schema: landownerId is expected from FormData and coerced to string
 const ListingFormSchema = z.object({
@@ -70,10 +71,12 @@ export async function createListingAction(
     landownerId: formData.get('landownerId'),
   };
 
+  console.log("[createListingAction] Raw form data received:", rawFormData);
+
   const validatedFields = ListingFormSchema.safeParse(rawFormData);
 
   if (!validatedFields.success) {
-    console.log("[createListingAction] Server validation errors:", validatedFields.error.flatten().fieldErrors);
+    console.error("[createListingAction] Server validation failed:", validatedFields.error.flatten().fieldErrors);
     return {
       message: "Validation failed. Please check your input.",
       errors: validatedFields.error.flatten().fieldErrors,
@@ -82,37 +85,38 @@ export async function createListingAction(
   }
 
   const currentUserId = validatedFields.data.landownerId;
-  console.log(`[createListingAction] Attempting to create listing for landownerId (currentUserId from form): ${currentUserId}`);
+  console.log(`[createListingAction] Validated landownerId (currentUserId from form): ${currentUserId}`);
+  
+  // Log current auth state from Firebase SDK instance available in server action context
+  const serverAuthUserUid = firebaseAuthInstance?.currentUser?.uid;
+  console.log(`[createListingAction] Auth state in server action: firebaseAuthInstance.currentUser?.uid is '${serverAuthUserUid}'`);
 
 
   if (!currentUserId || currentUserId.trim() === '') {
-    console.error("[createListingAction] Authentication error: Landowner ID is invalid or missing after validation.");
+    // This case should ideally be caught by Zod validation, but as a safeguard:
+    console.error("[createListingAction] Critical error: Landowner ID is invalid or missing AFTER validation.");
     return {
-      message: "Authentication error: Could not determine landowner. Landowner ID is invalid or missing after validation.",
+      message: "Critical error: Landowner ID missing. Please ensure you are logged in.",
       success: false,
     };
   }
 
   let landownerProfile: User | undefined;
   try {
-    // This call also relies on Firestore permissions for reading users.
-    // If this fails, the listing creation won't proceed anyway.
     console.log(`[createListingAction] Fetching landowner profile for ID: ${currentUserId}`);
     landownerProfile = await getUserById(currentUserId);
     if (!landownerProfile) {
-      console.error(`[createListingAction] Landowner profile not found for ID: ${currentUserId}. This could also be a permission issue for reading users collection.`);
-       // If in live mode and user not found, it's an issue. In mock mode, getUserById might create one.
-      // For production, if getUserById returns undefined when it shouldn't, it's a problem.
-      // However, the user should exist if they are logged in.
-      // This could indicate a permission issue reading the /users collection.
+      console.warn(`[createListingAction] Landowner profile not found in DB for ID: ${currentUserId}. This might be okay if it's a new user whose profile creation is pending or if mock data is used.`);
     }
   } catch (e: any) {
     console.error("[createListingAction] Failed to fetch landowner profile:", e.message);
+    // Decide if this is a fatal error. If landownerProfile is only for checks like premium status,
+    // maybe proceed with a default or log a warning. For now, let's be strict.
     return { message: `Could not verify landowner status: ${e.message}`, success: false };
   }
 
   const isPremiumUser = landownerProfile?.subscriptionStatus === 'premium';
-  console.log(`[createListingAction] Landowner ID: ${currentUserId}, Premium Status: ${isPremiumUser}`);
+  console.log(`[createListingAction] Landowner ID: ${currentUserId}, Determined Premium Status: ${isPremiumUser}`);
 
 
   if (!isPremiumUser) {
@@ -132,18 +136,16 @@ export async function createListingAction(
   }
 
   try {
-    // landownerId from validatedFields.data is used as currentUserId above.
-    // We explicitly remove it from listingDataForDb because dbAddListing takes landownerId as a separate param.
     const { landownerId: _, ...listingDataForDb } = validatedFields.data;
     
     const newListingPayload: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'> = {
         ...listingDataForDb,
-        pricingModel: listingDataForDb.pricingModel as Listing['pricingModel'], // Ensure type correctness
+        pricingModel: listingDataForDb.pricingModel as Listing['pricingModel'], 
         leaseTerm: listingDataForDb.leaseTerm as LeaseTerm | undefined,
-        minLeaseDurationMonths: listingDataForDb.minLeaseDurationMonths ?? undefined, // Handle null/undefined
+        minLeaseDurationMonths: listingDataForDb.minLeaseDurationMonths ?? undefined, 
     };
     
-    console.log(`[createListingAction] Calling dbAddListing with landownerId: ${currentUserId}`);
+    console.log(`[createListingAction] Calling dbAddListing with landownerId: ${currentUserId} and payload:`, newListingPayload);
     const newListing = await dbAddListing(newListingPayload, currentUserId, isPremiumUser);
 
     console.log(`[createListingAction] Listing "${newListing.title}" (ID: ${newListing.id}) created successfully by landowner ${currentUserId}.`);
@@ -154,14 +156,13 @@ export async function createListingAction(
     };
   } catch (error) {
     console.error("[createListingAction] Error during dbAddListing:", error);
-    // Check if the error object has a 'code' property (Firebase errors often do)
     const errorCode = (error as any)?.code;
     const errorMessageText = (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.";
     
-    if (errorCode === 'permission-denied' || (typeof errorMessageText === 'string' && errorMessageText.toLowerCase().includes('permission'))) {
-        console.error("[createListingAction] DETECTED PERMISSION DENIED during dbAddListing. Check Firestore rules for 'listings' collection 'create' operation.");
+    if (errorCode === 'permission-denied' || errorMessageText.toLowerCase().includes('permission')) {
+        console.error(`[createListingAction] DETECTED PERMISSION DENIED. LandownerID from form: ${currentUserId}. Server action auth UID: ${serverAuthUserUid}.`);
         return {
-             message: `Firestore Permission Denied: ${errorMessageText}. Please check your Firestore security rules for the 'listings' collection.`,
+             message: `Firestore Permission Denied: ${errorMessageText}. This often means the server action's request to Firestore was seen as unauthenticated (request.auth was null in rules), or the landownerId '${currentUserId}' did not match the authenticated user in rules. Server-side auth state (currentUser.uid): '${serverAuthUserUid}'. Please check Firestore security rules for 'listings'.`,
              success: false,
         };
     }
@@ -172,4 +173,3 @@ export async function createListingAction(
     };
   }
 }
-
