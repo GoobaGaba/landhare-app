@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } from '@/lib/types';
+import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, Booking } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -39,6 +39,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [isBookingRequested, setIsBookingRequested] = useState(false);
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
   const { toast } = useToast();
@@ -59,12 +60,12 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       }
       
       if (firebaseInitializationError) {
-        toast({
-            title: "Preview Mode Active",
-            description: "Firebase not configured. Displaying sample listing data.",
-            variant: "default",
-            duration: 5000
-        });
+        // toast({
+        //     title: "Preview Mode Active",
+        //     description: "Firebase not configured. Displaying sample listing data.",
+        //     variant: "default",
+        //     duration: 5000
+        // });
       }
       setIsLoading(true);
       try {
@@ -87,7 +88,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           // console.warn(`[ListingDetailPage] No listing data found for ID: ${id} after fetch.`);
         }
       } catch (error: any) {
-        // console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
+        console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
         setListing(null); 
       } finally {
@@ -222,6 +223,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 title: "Minimum Lease Duration",
                 description: `This monthly listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. Your selection is ${selectedDays} days.`,
                 variant: "destructive",
+                duration: 7000,
             });
             return;
         }
@@ -230,7 +232,10 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   };
 
   const handleConfirmBooking = async () => {
-    if (!currentUser || !listing) return;
+    if (!currentUser || !listing) {
+      toast({ title: "Error", description: "User or listing data missing.", variant: "destructive"});
+      return;
+    }
     if (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) {
         toast({ title: "Error", description: "Date range is missing for this booking type.", variant: "destructive"});
         return;
@@ -241,17 +246,18 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
       setShowBookingDialog(false);
       return;
     }
-
+    
+    setIsSubmittingBooking(true);
     try {
-       const bookingData = {
+       const bookingDataPayload: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}} = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId,
+        landownerId: listing.landownerId, 
         dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
                      : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }, 
       };
-      await addBookingRequest(bookingData);
+      await addBookingRequest(bookingDataPayload);
 
       setShowBookingDialog(false);
       setIsBookingRequested(true);
@@ -267,10 +273,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         description: error.message || "Could not submit request.",
         variant: "destructive",
       });
+    } finally {
+        setIsSubmittingBooking(false);
     }
   };
 
-  // console.log(`[ListingDetailPage] Rendering. isLoading: ${isLoading}, authLoading: ${authLoading}, listing found: ${!!listing}`);
 
   if (isLoading || authLoading) {
     return (
@@ -282,7 +289,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   }
 
   if (!listing) { 
-    // console.warn(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
+    // console.log(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -291,7 +298,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           </CardHeader>
           <CardContent>
             <p>The listing you are looking for does not exist or could not be loaded.
-                {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
+                {firebaseInitializationError && " (Firebase features may be limited if not configured.)"}
             </p>
             <Button asChild className="mt-4">
               <Link href="/search">Back to Search</Link>
@@ -556,10 +563,11 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     disabled={
                         !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
-                        isBookingRequested ||
+                        isBookingRequested || isSubmittingBooking ||
                         (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)
                     }
                     >
+                     {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                     {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Requested")
                         : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
                         : "Currently Unavailable")}
@@ -655,11 +663,13 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
           )}
            <p className="text-xs text-muted-foreground px-6">The landowner service fee (currently {currentUser?.appProfile?.subscriptionStatus === 'premium' ? "0.49%" : "2%"} of lease value) will be deducted from the landowner's payout for successful bookings.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowBookingDialog(false)} disabled={isSubmittingBooking}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
+                isSubmittingBooking ||
                 !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile) ||
                 (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && (differenceInDays(dateRange?.to || new Date(), dateRange?.from || new Date()) + 1) < (listing.minLeaseDurationMonths * 28))
             }>
+                {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Submit Request"}
             </Button>
           </DialogFooter>

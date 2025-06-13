@@ -28,7 +28,8 @@ export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState(false);
+  const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState<Record<string, boolean>>({}); // Track loading per booking
+  const [isStatusUpdating, setIsStatusUpdating] = useState<Record<string, boolean>>({}); // Track status update per booking
   const [leaseTermsModalOpen, setLeaseTermsModalOpen] = useState(false);
   const [currentLeaseTerms, setCurrentLeaseTerms] = useState<string | null>(null);
   const [currentLeaseSummary, setCurrentLeaseSummary] = useState<string[] | null>(null);
@@ -39,23 +40,23 @@ export default function BookingsPage() {
       setIsLoading(false);
       setUserBookings([]);
       if (firebaseInitializationError) {
-          toast({
-            title: "Preview Mode Active",
-            description: "Firebase not configured. Cannot load live bookings.",
-            variant: "default",
-            duration: 5000
-          });
+          // toast({ // Commented out to reduce noise, already handled elsewhere
+          //   title: "Preview Mode Active",
+          //   description: "Firebase not configured. Cannot load live bookings.",
+          //   variant: "default",
+          //   duration: 5000
+          // });
       }
       return;
     }
 
     if (firebaseInitializationError && currentUser?.appProfile) {
-         toast({
-            title: "Preview Mode Active",
-            description: "Firebase not configured. Displaying sample bookings for preview.",
-            variant: "default",
-            duration: 5000
-        });
+        //  toast({ // Commented out for less noise
+        //     title: "Preview Mode Active",
+        //     description: "Firebase not configured. Displaying sample bookings for preview.",
+        //     variant: "default",
+        //     duration: 5000
+        // });
     }
 
     setIsLoading(true);
@@ -81,6 +82,7 @@ export default function BookingsPage() {
       loadBookings();
     } else if (!authLoading && !currentUser) {
       setIsLoading(false);
+      setUserBookings([]); // Clear bookings if user logs out
     }
   }, [authLoading, currentUser, loadBookings]);
 
@@ -90,11 +92,12 @@ export default function BookingsPage() {
         toast({title: "Missing Data", description: "Cannot generate lease terms due to missing booking details.", variant: "destructive"});
         return;
     }
-    setIsLeaseTermsLoading(true);
+    setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: true }));
+    
     const listingDetails = await getListingById(booking.listingId);
     if (!listingDetails) {
         toast({title: "Error", description: "Could not fetch listing details for lease terms.", variant: "destructive"});
-        setIsLeaseTermsLoading(false);
+        setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: false }));
         return;
     }
 
@@ -107,19 +110,17 @@ export default function BookingsPage() {
     if (listingDetails.pricingModel === 'nightly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         durationDesc = `${days} day(s)`;
-        priceForLease = listingDetails.price * days; // Total for term, AI prompt asks for monthly equivalent, adjust if needed
+        priceForLease = listingDetails.price * days; 
     } else if (listingDetails.pricingModel === 'monthly') {
         const days = differenceInDays(toDate, fromDate) + 1;
-        const approxMonths = parseFloat((days / 30.4375).toFixed(2)); // Average days in month
-        if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) { // If less than a month but monthly listing
-            durationDesc = `${days} day(s) (Note: This is a short-term rental of a monthly-priced plot)`;
-             priceForLease = (listingDetails.price / 30) * days; // Prorated
+        if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) {
+            durationDesc = `${days} day(s) (Note: Short-term rental of a monthly plot)`;
+             priceForLease = (listingDetails.price / 30) * days; 
         } else {
              const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
              durationDesc = `${fullMonths} month(s)`;
-             priceForLease = listingDetails.price; // The monthly rate
+             priceForLease = listingDetails.price; 
         }
-
     } else if (listingDetails.pricingModel === 'lease-to-own') {
         const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
         durationDesc = `${fullMonths} month(s) (Lease-to-Own)`;
@@ -137,7 +138,7 @@ export default function BookingsPage() {
     };
 
     const result = await getGeneratedLeaseTermsAction(input);
-    setIsLeaseTermsLoading(false);
+    setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: false }));
 
     if (result.data) {
         setCurrentLeaseTerms(result.data.leaseAgreementText);
@@ -163,10 +164,12 @@ export default function BookingsPage() {
         return;
     }
 
-    const originalBookings = [...userBookings];
-    setUserBookings(prevBookings =>
-      prevBookings.map(b => b.id === booking.id ? { ...b, status: newStatus } : b)
-    );
+    setIsStatusUpdating(prev => ({ ...prev, [booking.id]: true }));
+    // Optimistic UI update (commented out to rely on loadBookings after success)
+    // const originalBookings = [...userBookings];
+    // setUserBookings(prevBookings =>
+    //   prevBookings.map(b => b.id === booking.id ? { ...b, status: newStatus } : b)
+    // );
 
     try {
       const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
@@ -175,12 +178,12 @@ export default function BookingsPage() {
           title: "Booking Updated",
           description: `Booking status changed to ${newStatus}.`,
         });
-        await loadBookings();
+        await loadBookings(); // Reload all bookings to get fresh state
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
             await handleGenerateAndShowLeaseTerms(updatedBooking);
         }
       } else {
-        throw new Error("Update operation returned undefined.");
+        throw new Error("Update operation returned undefined or failed.");
       }
     } catch (error: any) {
       toast({
@@ -188,7 +191,10 @@ export default function BookingsPage() {
         description: error.message || "Could not update booking status.",
         variant: "destructive",
       });
-      setUserBookings(originalBookings);
+      // setUserBookings(originalBookings); // Revert optimistic update if it was used
+      await loadBookings(); // Reload to ensure UI consistency on error
+    } finally {
+        setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }
   };
 
@@ -214,7 +220,7 @@ export default function BookingsPage() {
     );
   }
 
-  if (!currentUser && !isLoading) {
+  if (!currentUser && !authLoading && !isLoading) { // Ensure not loading and no current user
      return (
       <Card>
         <CardHeader>
@@ -260,7 +266,7 @@ export default function BookingsPage() {
           <CardContent>
             <p className="text-muted-foreground">
              You don't have any active bookings or requests at the moment.
-            {firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}
+            {firebaseInitializationError && " (Firebase features may be limited if not configured.)"}
             </p>
             <div className="flex gap-2 mt-4">
                 <Button asChild>
@@ -301,18 +307,19 @@ export default function BookingsPage() {
                       size="sm"
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
-                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isLeaseTermsLoading}
+                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
                     >
-                      {isLeaseTermsLoading && booking.status === 'Pending Confirmation' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                      {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                        Approve
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => handleUpdateBookingStatus(booking, 'Declined')}
-                      disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
+                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
                     >
-                      <XCircle className="mr-2 h-4 w-4" /> Decline
+                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> }
+                       Decline
                     </Button>
                   </>
                 )}
@@ -321,14 +328,15 @@ export default function BookingsPage() {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')}
-                    disabled={firebaseInitializationError !== null && !currentUser!.appProfile}
+                    disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id]}
                   >
-                    <AlertTriangle className="mr-2 h-4 w-4" /> Cancel Request
+                    {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
+                     Cancel Request
                   </Button>
                 )}
                 {booking.status === 'Confirmed' && (
-                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading}>
-                        {isLeaseTermsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id]}>
+                        {isLeaseTermsLoading[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                         View Lease Suggestion
                     </Button>
                 )}
