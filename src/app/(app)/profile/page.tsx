@@ -18,6 +18,7 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
 import { GoogleAuthProvider } from 'firebase/auth';
 
+export const dynamic = 'force-dynamic'; // Add this line
 
 interface ProfileDisplayData {
   name: string;
