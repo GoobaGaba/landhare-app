@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings } from 'lucide-react'; // Added Settings
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -70,7 +70,7 @@ export default function AppHeader() {
           </Link>
         </div>
 
-        {/* Center Part (Desktop): Search Bar + List your Land */}
+        {/* Center Part (Desktop): Search Bar + Browse + List your Land */}
         <div className="hidden md:flex items-center justify-center gap-3 flex-1 min-w-0 px-4">
           <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -81,6 +81,11 @@ export default function AppHeader() {
               onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${encodeURIComponent(e.currentTarget.value)}`); }}
             />
           </div>
+          <Button variant="ghost" className="h-10 px-4 text-muted-foreground hover:text-primary" asChild>
+            <Link href="/search">
+                <Search className="mr-2 h-4 w-4 hidden lg:inline-block" /> Browse Land
+            </Link>
+          </Button>
           <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
             <Link href={listYourLandHref}>
                 <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
@@ -179,6 +184,11 @@ export default function AppHeader() {
                 </div>
 
                 <nav className="flex flex-col gap-1 px-4 flex-grow">
+                  <SheetClose asChild>
+                    <Button asChild variant="ghost" className="w-full justify-start text-base py-3">
+                      <Link href="/search"><Search className="mr-2 h-4 w-4" />Browse Land</Link>
+                    </Button>
+                  </SheetClose>
                   <SheetClose asChild>
                     <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon text-neon hover:bg-neon/10 hover:text-neon">
                       <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
