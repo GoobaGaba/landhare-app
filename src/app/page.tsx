@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight, ShieldCheck, ClipboardList, Feather, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
@@ -132,6 +132,97 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* How LandShare Works Section */}
+      <section className="w-full py-16 md:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">How LandShare Works</h2>
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                  <SearchIcon className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-xl font-semibold">Find Land</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm">Browse diverse listings with our interactive map and powerful filters. Find the perfect spot for your needs.</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                  <ShieldCheck className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-xl font-semibold">Book Securely</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing and secure payments. (Payment integration coming soon!)</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                  <ClipboardList className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-xl font-semibold">List Your Land</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm">Turn your unused land into income. Create listings easily and reach a wide audience of potential renters.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* What Makes Us Special Section */}
+      <section className="w-full py-16 md:py-24">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 text-primary">What Makes Us Special</h2>
+          <p className="text-lg text-muted-foreground text-center max-w-3xl mx-auto mb-12">
+            We're more than just a listing site. We're a community empowering new ways of living and land use.
+          </p>
+          <div className="space-y-16">
+            <div className="grid md:grid-cols-2 gap-10 items-center">
+              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
+                <Image src="https://placehold.co/600x450.png" alt="Diverse group of people collaborating over a map of land plots" data-ai-hint="community collaboration" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+              </div>
+              <div>
+                <Users className="h-8 w-8 text-accent mb-3" />
+                <h3 className="text-2xl font-semibold text-primary mb-3">Empowerment for Landowners</h3>
+                <p className="text-foreground/90 leading-relaxed">
+                  Unlock the potential of your idle land. Generate income, support alternative lifestyles, and contribute to a growing community focused on sustainable and flexible land use.
+                </p>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-10 items-center">
+              <div className="md:order-2 relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
+                <Image src="https://placehold.co/600x450.png" alt="Individual enjoying expansive view from their plot of land" data-ai-hint="freedom outdoors" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+              </div>
+              <div className="md:order-1">
+                <Feather className="h-8 w-8 text-accent mb-3" />
+                <h3 className="text-2xl font-semibold text-primary mb-3">Freedom for Land-Seekers</h3>
+                <p className="text-foreground/90 leading-relaxed">
+                  Find flexible, affordable land options for your tiny home, RV, or unique project. Our "Bring Your Own Home" (BYOH) model offers unparalleled freedom to live life on your terms.
+                </p>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-10 items-center">
+              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
+                <Image src="https://placehold.co/600x450.png" alt="Blueprint of a home on a plot of land, symbolizing planning for ownership" data-ai-hint="home ownership planning" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+              </div>
+              <div>
+                <TrendingUp className="h-8 w-8 text-accent mb-3" />
+                <h3 className="text-2xl font-semibold text-primary mb-3">Pathways to Ownership</h3>
+                <p className="text-foreground/90 leading-relaxed">
+                  Discover unique Lease-to-Own (LTO) opportunities. Take incremental steps towards owning your piece of land and building your future, with clear terms and community support.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Change the Game?</h2>
