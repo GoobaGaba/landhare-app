@@ -190,11 +190,11 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             {/* Real data for active listings count would come from backend */}
             <p>You have <strong>X active listings</strong>. (Count from Firestore needed)</p> 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button asChild variant="outline" className="w-full sm:w-auto">
+            <div className="flex flex-col gap-2">
+              <Button asChild variant="outline" className="w-full">
                 <Link href="/my-listings">View My Listings</Link>
               </Button>
-              <Button asChild className="w-full sm:w-auto">
+              <Button asChild className="w-full">
                 {/* Placeholder: This button might be disabled or prompt for upgrade if user is free and at listing limit */}
                 <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
               </Button>
@@ -290,5 +290,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
