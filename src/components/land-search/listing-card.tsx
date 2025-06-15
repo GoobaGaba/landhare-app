@@ -4,12 +4,18 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2 } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
+import { ToastAction } from '@/components/ui/toast';
+import { useRouter } from 'next/navigation'; // Added for redirecting to pricing
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { firebaseInitializationError } from '@/lib/firebase';
+
 
 interface ListingCardProps {
   listing: Listing;
@@ -18,24 +24,36 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default' }: ListingCardProps) {
-  const { currentUser, addBookmark, removeBookmark } = useAuth();
+  const { currentUser, addBookmark, removeBookmark, subscriptionStatus } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [isBookmarking, setIsBookmarking] = useState(false);
 
   const isCompact = sizeVariant === 'compact';
-
   const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(listing.id) || false;
+  const atBookmarkLimit = subscriptionStatus === 'free' && (currentUser?.appProfile?.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT;
 
   const handleBookmarkToggle = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigation if card is wrapped in Link
+    e.preventDefault(); 
     e.stopPropagation();
 
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to bookmark listings.", variant: "default" });
+      router.push('/login'); // Redirect to login
       return;
     }
     if (listing.landownerId === currentUser.uid) {
       toast({ title: "Action Not Allowed", description: "You cannot bookmark your own listing.", variant: "default"});
+      return;
+    }
+
+    if (!isBookmarked && atBookmarkLimit) {
+      toast({
+        title: "Bookmark Limit Reached",
+        description: `Free accounts can save up to ${FREE_TIER_BOOKMARK_LIMIT} listings. Upgrade for unlimited bookmarks!`,
+        variant: "default", 
+        action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction>,
+      });
       return;
     }
 
@@ -66,6 +84,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
   };
   const displayPriceInfo = getPriceDisplay();
   const fallbackImageSrc = "https://placehold.co/600x400.png";
+  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
 
   if (viewMode === 'list') {
     return (
@@ -90,19 +109,29 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             />
           )}
            {currentUser && listing.landownerId !== currentUser.uid && (
-             <Button
-                size="icon"
-                variant="ghost"
-                className={cn(
-                  "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
-                  isBookmarked ? "text-primary" : "text-muted-foreground"
-                )}
-                onClick={handleBookmarkToggle}
-                disabled={isBookmarking}
-                title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
-              >
-                {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary")} />}
-              </Button>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn(
+                        "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
+                        isBookmarked ? "text-primary" : "text-muted-foreground",
+                        (!isBookmarked && atBookmarkLimit) && "opacity-60 cursor-not-allowed"
+                      )}
+                      onClick={handleBookmarkToggle}
+                      disabled={isBookmarking || isMockModeNoUser}
+                    >
+                      {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary")} />}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
+                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-amber-500" />}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
            )}
         </div>
         <div className="flex flex-col flex-grow">
@@ -149,7 +178,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               <span className="text-xs text-muted-foreground ml-1">/ {displayPriceInfo.unit}</span>
                {displayPriceInfo.model === 'lease-to-own' && <Badge variant="outline" className="ml-2 text-primary border-primary/70">LTO</Badge>}
             </div>
-            <Button asChild size="sm">
+            <Button asChild size="sm" disabled={isMockModeNoUser}>
               <Link href={`/listings/${listing.id}`}>View Details</Link>
             </Button>
           </CardFooter>
@@ -186,20 +215,30 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             />
           )}
           {currentUser && listing.landownerId !== currentUser.uid && (
-             <Button
-                size="icon"
-                variant="ghost"
-                className={cn(
-                  "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
-                  isBookmarked ? "text-primary" : "text-muted-foreground",
-                  isCompact ? "h-7 w-7" : ""
-                )}
-                onClick={handleBookmarkToggle}
-                disabled={isBookmarking}
-                title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
-              >
-                {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary", isCompact ? "h-4 w-4" : "")} />}
-              </Button>
+             <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={cn(
+                        "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
+                        isBookmarked ? "text-primary" : "text-muted-foreground",
+                        (!isBookmarked && atBookmarkLimit) && "opacity-60 cursor-not-allowed",
+                        isCompact ? "h-7 w-7" : ""
+                      )}
+                      onClick={handleBookmarkToggle}
+                      disabled={isBookmarking || isMockModeNoUser}
+                    >
+                      {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary", isCompact ? "h-4 w-4" : "")} />}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
+                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-amber-500" />}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
            )}
         </div>
       </CardHeader>
@@ -231,7 +270,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <span className={cn("text-muted-foreground ml-0.5", isCompact ? "text-[0.65rem]" : "text-xs")}>/ {displayPriceInfo.unit}</span>
           {displayPriceInfo.model === 'lease-to-own' && <Badge variant="outline" className={cn("ml-1 text-primary border-primary/70", isCompact ? "text-[0.6rem] px-1 py-0" : "text-xs")}>LTO</Badge>}
         </div>
-        <Button asChild size="sm" className={cn(isCompact ? "h-7 px-2 text-xs rounded-sm" : "")}>
+        <Button asChild size="sm" className={cn(isCompact ? "h-7 px-2 text-xs rounded-sm" : "")} disabled={isMockModeNoUser}>
           <Link href={`/listings/${listing.id}`}>Details</Link>
         </Button>
       </CardFooter>

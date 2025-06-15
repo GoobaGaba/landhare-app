@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bookmark, Search, Loader2, UserCircle, AlertTriangle } from "lucide-react";
+import { Bookmark, Search, Loader2, UserCircle, AlertTriangle, Crown } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
@@ -12,9 +12,12 @@ import type { Listing } from '@/lib/types';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useMemo, useState } from 'react';
 import { firebaseInitializationError } from '@/lib/firebase';
+import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
+import { Alert, AlertDescription } from '@/components/ui/alert'; // Added AlertTitle, AlertDescription
+import { ToastAction } from '@/components/ui/toast';
 
 export default function MyBookmarksPage() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const { allAvailableListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
   const { toast } = useToast();
   const [bookmarkedListings, setBookmarkedListings] = useState<Listing[]>([]);
@@ -35,6 +38,7 @@ export default function MyBookmarksPage() {
     }
   }, [currentUser, allAvailableListings]);
 
+  const atBookmarkLimit = subscriptionStatus === 'free' && bookmarkedListings.length >= FREE_TIER_BOOKMARK_LIMIT;
 
   if (authLoading || listingsLoading) {
     return (
@@ -87,6 +91,19 @@ export default function MyBookmarksPage() {
           <Link href="/search"><Search className="mr-2 h-4 w-4" /> Find More Land</Link>
         </Button>
       </div>
+
+      {atBookmarkLimit && (
+         <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-700">
+            <Crown className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-amber-700">Bookmark Limit Reached</CardTitle> {/* Changed AlertTitle to CardTitle for consistency */}
+            <AlertDescription>
+                Free accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} listings.
+                <Button variant="link" asChild className="p-0 h-auto ml-1 text-amber-700 hover:text-amber-800">
+                    <Link href="/pricing">Upgrade to Premium</Link>
+                </Button> for unlimited bookmarks!
+            </AlertDescription>
+        </Alert>
+      )}
 
       {bookmarkedListings.length === 0 ? (
         <Card>

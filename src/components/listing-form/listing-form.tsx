@@ -17,17 +17,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown } from 'lucide-react'; // Added Crown
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
+import { useListingsData } from '@/hooks/use-listings-data'; // For listing limit check
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Import limit
 
-import { db } from '@/lib/firebase';
+import { db, firebaseInitializationError } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 const amenitiesList = [
@@ -72,6 +74,7 @@ type ListingFormData = z.infer<typeof listingFormSchema>;
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
+  const { myListings, isLoading: listingsDataLoading } = useListingsData();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -110,7 +113,7 @@ export function ListingForm() {
     },
   });
 
-  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
+  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors, isDirty } } = form;
 
   useEffect(() => {
     if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
@@ -127,6 +130,9 @@ export function ListingForm() {
   const watchedLeaseTerm = watch('leaseTerm');
   const watchedPricingModel = watch('pricingModel');
 
+  const isPremiumUser = subscriptionStatus === 'premium';
+  const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
+
   const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
     const amenitiesString = watchedAmenities?.join(', ');
@@ -138,15 +144,15 @@ export function ListingForm() {
       const result = await getSuggestedPriceAction(input);
       if (result.data) {
         setPriceSuggestion(result.data);
-        setValue('suggestedPrice', result.data.suggestedPrice);
+        setValue('suggestedPrice', result.data.suggestedPrice, { shouldDirty: true });
         toast({ title: "Price Suggestion!", description: `Suggested: $${result.data.suggestedPrice.toFixed(0)}/month. You can set your actual price below.` });
       } else { toast({ title: "Suggestion Error", description: result.error, variant: "destructive" }); }
     });
   };
 
   const handleSuggestTitle = async () => {
-    if (subscriptionStatus !== 'premium') {
-      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+    if (!isPremiumUser) {
+      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature. Upgrade to unlock.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
     setTitleSuggestion(null);
@@ -164,8 +170,8 @@ export function ListingForm() {
   };
 
   const handleSuggestDescription = async () => {
-     if (subscriptionStatus !== 'premium') {
-      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+     if (!isPremiumUser) {
+      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature. Upgrade to unlock.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
     setDescriptionSuggestion(null);
@@ -217,6 +223,10 @@ export function ListingForm() {
     if (authLoading || !currentUser?.uid) {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" }); return;
     }
+    if (atListingLimit) {
+      toast({ title: "Listing Limit Reached", description: `Free accounts can only create ${FREE_TIER_LISTING_LIMIT} listing. Please upgrade to Premium.`, variant: "destructive", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      return;
+    }
     const finalImageUrls = imagePreviews; 
     if (finalImageUrls.some(url => url.startsWith("blob:")) && selectedFiles.length > 0) {
       toast({ title: "Image Upload Note (Prototype)", description: "Using image preview URLs. Full app would upload to cloud storage.", duration: 7000 });
@@ -246,21 +256,30 @@ export function ListingForm() {
     } finally { setIsSubmitting(false); }
   };
 
-  if (authLoading || (!currentUser && subscriptionStatus === 'loading') ) {
-    return <div className="flex justify-center items-center min-h-[300px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading...</p></div>;
+  if (authLoading || (!currentUser && subscriptionStatus === 'loading') || listingsDataLoading ) {
+    return <div className="flex justify-center items-center min-h-[300px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading form...</p></div>;
   }
   if (!currentUser) {
     return <Card className="w-full max-w-2xl mx-auto"><CardHeader><CardTitle>Create New Listing</CardTitle></CardHeader><CardContent><Alert variant="destructive"><UserCircle className="h-4 w-4" /><AlertTitle>Login Required</AlertTitle><AlertDescription>You must be <Link href={`/login?redirect=${encodeURIComponent("/listings/new")}`} className="underline">logged in</Link>.</AlertDescription></Alert></CardContent></Card>;
   }
   
   const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)" : watchedPricingModel === 'monthly' ? "Price per Month ($)" : "Est. Monthly Payment ($) for LTO";
-  const isActualSubmitButtonDisabled = isSubmitting || authLoading || !currentUser?.uid;
+  const isActualSubmitButtonDisabled = isSubmitting || authLoading || !currentUser?.uid || atListingLimit || (firebaseInitializationError !== null && !currentUser.appProfile);
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader><CardTitle>Create New Land Listing</CardTitle><CardDescription>Fill details to list your land.</CardDescription></CardHeader>
+      {atListingLimit && (
+        <Alert variant="destructive" className="mx-6 mb-0">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Listing Limit Reached</AlertTitle>
+            <AlertDescription>
+              Free accounts can create {FREE_TIER_LISTING_LIMIT} listing. <Button variant="link" asChild className="p-0 h-auto text-destructive hover:text-destructive/80"><Link href="/pricing">Upgrade to Premium</Link></Button> for unlimited listings.
+            </AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-6">
           <div>
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
@@ -273,22 +292,19 @@ export function ListingForm() {
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation}
-                      className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed")}
-                      title={subscriptionStatus !== 'premium' ? "AI Title Assistant (Premium)" : "Suggest Title with AI"}
+                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser.appProfile)}
+                      className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                       {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                       {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
                     </Button>
                   </TooltipTrigger>
-                  {subscriptionStatus !== 'premium' && (
-                    <TooltipContent side="top"><p>AI Title Assistant (Premium Feature)</p></TooltipContent>
-                  )}
+                  <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
-            {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle)}>Use</Button></AlertDescription></Alert>}
+            {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
           </div>
 
           <div>
@@ -303,22 +319,19 @@ export function ListingForm() {
                         variant="outline"
                         size="icon"
                         onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice}
-                        className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed")}
-                        title={subscriptionStatus !== 'premium' ? "AI Description Generator (Premium)" : "Suggest Description with AI"}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser.appProfile)}
+                        className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
                         {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
-                        {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
                         </Button>
                     </TooltipTrigger>
-                    {subscriptionStatus !== 'premium' && (
-                        <TooltipContent side="top"><p>AI Description Generator (Premium Feature)</p></TooltipContent>
-                    )}
+                    <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
             </div>
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
-            {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription)}>Use</Button></AlertDescription></Alert>}
+            {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
           </div>
           
           <div className="grid md:grid-cols-2 gap-6">
@@ -349,12 +362,13 @@ export function ListingForm() {
               </div>
             )}
              {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+             <input type="hidden" {...register('suggestedPrice')} />
           </div>
 
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
-            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
-                    {(['nightly', 'monthly', 'lease-to-own'] as const).map(model => (<Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span className="capitalize">{model.replace('-', ' ')}</span></Label>))}
+            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); setValue('leaseToOwnDetails', '', {shouldDirty: isDirty }); }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                    {(['nightly', 'monthly', 'lease-to-own'] as PricingModel[]).map(model => (<Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span className="capitalize">{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
             {errors.pricingModel && <p className="text-sm text-destructive mt-1">{errors.pricingModel.message}</p>}
           </div>
@@ -365,15 +379,15 @@ export function ListingForm() {
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} aria-invalid={errors.price ? "true" : "false"} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
+              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser.appProfile)} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
-            {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)))}>Use</Button></AlertDescription></Alert>}
+            {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
           </div>
 
           <div>
             <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label>
-            <Controller name="leaseTerm" control={control} render={({ field }) => (<RadioGroup onValueChange={field.onChange} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
+            <Controller name="leaseTerm" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
                     <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short" /><Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long" /><Label htmlFor="term-long" className="font-normal">Long Term (6+ mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible" /><Label htmlFor="term-flexible" className="font-normal">Flexible</Label></div>
@@ -392,14 +406,13 @@ export function ListingForm() {
         <CardFooter className="flex justify-between items-center gap-2">
           <div></div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => {form.reset({title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: null,}); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset</Button>
+            <Button variant="outline" type="button" onClick={() => {form.reset({title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: null, suggestedPrice: null }); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset Form</Button>
             <Button type="submit" disabled={isActualSubmitButtonDisabled}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Create Listing</Button>
           </div>
         </CardFooter>
       </form>
       {submissionSuccess?.listingId && formSubmittedSuccessfully && <div className="p-4"><Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/30"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /><AlertTitle className="text-green-700 dark:text-green-300">Listing Created!</AlertTitle><AlertDescription className="text-green-600 dark:text-green-400">{submissionSuccess.message}<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700 dark:text-green-300"><Link href={`/listings/${submissionSuccess.listingId}`}>View Your Listing</Link></Button></AlertDescription></Alert></div>}
-      {submissionError && <div className="p-4 mt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{submissionError}</AlertDescription></Alert></div>}
+      {submissionError && <div className="p-4 mt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error Creating Listing</AlertTitle><AlertDescription>{submissionError}</AlertDescription></Alert></div>}
     </Card>
   );
 }
-

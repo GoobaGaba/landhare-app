@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -12,8 +12,11 @@ import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
 import type { Listing } from '@/lib/types';
-import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
-
+import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { firebaseInitializationError } from '@/lib/firebase';
 
 // Mock data for the earnings graph
 const chartData = [
@@ -35,9 +38,11 @@ const chartConfig = {
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
-  const { allAvailableListings, isLoading: listingsLoading } = useListingsData();
+  const { allAvailableListings, myListings, isLoading: listingsLoading } = useListingsData();
   const [userName, setUserName] = useState("Guest");
   const [bookmarkedItems, setBookmarkedItems] = useState<Listing[]>([]);
+  const router = useRouter();
+  const { toast } = useToast();
   
   useEffect(() => {
     if (currentUser) {
@@ -86,13 +91,29 @@ export default function DashboardPage() {
   
   const currentMonthEarnings = chartData[chartData.length - 1].earnings;
   const isPremiumUser = subscriptionStatus === 'premium';
+  const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
+  const atBookmarkLimit = !isPremiumUser && bookmarkedItems.length >= FREE_TIER_BOOKMARK_LIMIT;
+
+  const handleCreateListingClick = () => {
+    if (atListingLimit) {
+      toast({
+        title: "Listing Limit Reached",
+        description: `Free accounts can create ${FREE_TIER_LISTING_LIMIT} listing. Upgrade to Premium for more.`,
+        action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction>,
+      });
+    } else if (firebaseInitializationError && !currentUser.appProfile) {
+        toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
+    }
+    else {
+      router.push('/listings/new');
+    }
+  };
 
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Earnings Overview - Potentially enhanced for premium users or based on actual earnings data */}
         <Card className="md:col-span-2 lg:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -153,13 +174,12 @@ export default function DashboardPage() {
                   </LineChart>
                 </ChartContainer>
               </div>
-              <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Button asChild variant="outline" className="w-full sm:w-auto" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
                 <Link href="/earnings">View Full Earnings Report</Link>
               </Button>
             </CardContent>
           </Card>
         
-        {/* Market Insights - Placeholder for Premium users */}
         {isPremiumUser && (
           <Card className="md:col-span-2 lg:col-span-3 border-primary ring-1 ring-primary/30">
             <CardHeader>
@@ -181,27 +201,24 @@ export default function DashboardPage() {
           </Card>
         )}
 
-
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Home className="h-6 w-6 text-primary"/> My Listings</CardTitle>
             <CardDescription>Manage your active and past land listings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Real data for active listings count would come from backend */}
-            <p>You have <strong>X active listings</strong>. (Count from Firestore needed)</p> 
+            <p>You have <strong>{myListings.length} active listing{myListings.length === 1 ? '' : 's'}</strong>.</p> 
             <div className="flex flex-col gap-2">
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
                 <Link href="/my-listings">View My Listings</Link>
               </Button>
-              <Button asChild className="w-full">
-                {/* Placeholder: This button might be disabled or prompt for upgrade if user is free and at listing limit */}
-                <Link href="/listings/new"><PlusCircle className="mr-2 h-4 w-4" /> Create New Listing</Link>
+              <Button onClick={handleCreateListingClick} className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Create New Listing
               </Button>
             </div>
-            {!isPremiumUser && (
-                 <p className="text-xs text-muted-foreground mt-2">
-                    Free accounts can list 1 property. <Link href="/pricing" className="text-primary hover:underline">Upgrade to Premium</Link> for unlimited listings.
+            {atListingLimit && (
+                 <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                    <Crown className="h-3 w-3"/> Limit reached. <Link href="/pricing" className="text-primary hover:underline">Upgrade</Link> for more.
                 </p>
             )}
           </CardContent>
@@ -213,9 +230,9 @@ export default function DashboardPage() {
             <CardDescription>View and manage your land rental bookings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-             {/* Real data for bookings count would come from backend */}
-            <p>You have <strong>Y upcoming bookings/rentals</strong>. (Count from Firestore needed)</p>
-            <Button asChild variant="outline" className="w-full">
+            {/* Real data for bookings count would come from backend/context */}
+            <p>You have <strong>Y upcoming bookings/rentals</strong>. (Dynamic count needed)</p>
+            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/bookings">View Bookings</Link>
             </Button>
           </CardContent>
@@ -227,9 +244,9 @@ export default function DashboardPage() {
             <CardDescription>Check your conversations with renters/landowners.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Real data for unread messages would come from backend */}
-            <p>You have <strong>Z unread messages</strong>. (Count from Firestore needed)</p>
-            <Button asChild variant="outline" className="w-full">
+            {/* Real data for unread messages would come from backend/context */}
+            <p>You have <strong>Z unread messages</strong>. (Dynamic count needed)</p>
+            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/messages">Go to Messages</Link>
             </Button>
           </CardContent>
@@ -249,7 +266,7 @@ export default function DashboardPage() {
               <>
                 <p>You have <strong>{bookmarkedItems.length} bookmarked listing{bookmarkedItems.length === 1 ? '' : 's'}</strong>.</p>
                 <ul className="space-y-1 text-sm max-h-24 overflow-y-auto custom-scrollbar pr-2">
-                  {bookmarkedItems.slice(0, 5).map(listing => ( // Show up to 5 directly
+                  {bookmarkedItems.slice(0, 5).map(listing => (
                     <li key={listing.id}>
                       <Link href={`/listings/${listing.id}`} className="text-primary hover:underline truncate block">
                         {listing.title}
@@ -264,12 +281,12 @@ export default function DashboardPage() {
             ) : (
               <p className="text-sm text-muted-foreground">You have no listings bookmarked yet.</p>
             )}
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/bookmarks">View All Bookmarks</Link>
             </Button>
-            {subscriptionStatus === 'free' && bookmarkedItems.length >= FREE_TIER_BOOKMARK_LIMIT && (
-              <p className="text-xs text-destructive mt-2">
-                Standard accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} bookmarks. <Link href="/pricing" className="text-primary hover:underline">Upgrade to Premium</Link> for unlimited.
+            {atBookmarkLimit && (
+              <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                <Crown className="h-3 w-3"/> Limit reached. <Link href="/pricing" className="text-primary hover:underline">Upgrade</Link> for more.
               </p>
             )}
           </CardContent>
@@ -281,7 +298,7 @@ export default function DashboardPage() {
             <CardDescription>Update your personal information and preferences.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full">
+            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/profile">Edit Profile</Link>
             </Button>
           </CardContent>
@@ -290,7 +307,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    

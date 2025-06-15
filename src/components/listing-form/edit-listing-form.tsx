@@ -18,11 +18,12 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown } from 'lucide-react'; // Added Crown
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
+import { firebaseInitializationError } from '@/lib/firebase';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import { updateListingAction } from '@/app/(app)/listings/edit/[id]/actions';
@@ -81,7 +82,7 @@ interface EditListingFormProps {
 export function EditListingForm({ listing, currentUserId }: EditListingFormProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { subscriptionStatus } = useAuth();
+  const { currentUser, subscriptionStatus } = useAuth(); // Added currentUser
   
   const [formState, formAction] = useActionState(
     (prevState: ListingFormState, formData: FormData) => updateListingAction(listing.id, currentUserId, prevState, formData),
@@ -129,6 +130,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const watchedPricingModel = watch('pricingModel');
   const watchedLeaseTerm = watch('leaseTerm');
 
+  const isPremiumUser = subscriptionStatus === 'premium';
+
   useEffect(() => {
     form.reset({
       title: listing.title || '',
@@ -165,8 +168,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   };
 
   const handleSuggestTitle = async () => {
-    if (subscriptionStatus !== 'premium') {
-      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+    if (!isPremiumUser) {
+      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature. Upgrade to unlock.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
     setTitleSuggestion(null);
@@ -182,8 +185,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   };
 
   const handleSuggestDescription = async () => {
-    if (subscriptionStatus !== 'premium') {
-      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+    if (!isPremiumUser) {
+      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature. Upgrade to unlock.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
     setDescriptionSuggestion(null);
@@ -209,7 +212,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           title: "Success!", description: formState.message,
           action: formState.listingId ? (<ToastAction altText="View Listing" onClick={() => router.push(`/listings/${formState.listingId}`)}>View</ToastAction>) : undefined,
         });
-        router.refresh(); // Refresh current route to reflect updated data
+        router.refresh(); 
       } else {
         toast({ title: "Error Updating Listing", description: formState.message || "An unknown error occurred.", variant: "destructive" });
       }
@@ -259,7 +262,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         formDataForAction.append(key, ""); 
       }
     });
-    formDataForAction.set('isAvailable', String(data.isAvailable)); // Ensure boolean is stringified
+    formDataForAction.set('isAvailable', String(data.isAvailable));
     startFormTransition(() => { formAction(formDataForAction); });
   };
   
@@ -282,17 +285,14 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation}
-                      className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed relative")}
-                      title={subscriptionStatus !== 'premium' ? "AI Title Assistant (Premium)" : "Suggest Title with AI"}
+                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                      className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                      {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                      {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
                     </Button>
                   </TooltipTrigger>
-                  {subscriptionStatus !== 'premium' && (
-                    <TooltipContent side="top"><p>AI Title Assistant (Premium Feature)</p></TooltipContent>
-                  )}
+                   <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
@@ -312,17 +312,14 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                         variant="outline"
                         size="icon"
                         onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice}
-                        className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed relative")}
-                        title={subscriptionStatus !== 'premium' ? "AI Description Generator (Premium)" : "Suggest Description with AI"}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
                         {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
-                        {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
                         </Button>
                     </TooltipTrigger>
-                    {subscriptionStatus !== 'premium' && (
-                        <TooltipContent side="top"><p>AI Description Generator (Premium Feature)</p></TooltipContent>
-                    )}
+                    <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
             </div>
@@ -358,6 +355,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               </div>
             )}
             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+            <input type="hidden" {...register('suggestedPrice')} />
           </div>
           
           <div>
@@ -378,12 +376,11 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="price">{priceLabel} (Landowner Set Price)</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
+              {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser?.appProfile)} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
             {getValues("suggestedPrice") !== null && getValues("suggestedPrice") !== undefined && <p className="text-xs text-muted-foreground mt-1">Current AI Suggested Price (for reference): ${getValues("suggestedPrice")?.toFixed(0)}</p>}
-             <input type="hidden" {...register('suggestedPrice')} />
           </div>
 
           <div>
@@ -415,8 +412,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
-          <Button variant="outline" type="button" asChild><Link href={`/listings/${listing.id}`}><ArrowLeft className="mr-2 h-4 w-4"/> Cancel</Link></Button>
-          <Button type="submit" disabled={isFormSubmitting || !isDirty}>{isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
+          <Button variant="outline" type="button" asChild><Link href={`/my-listings`}><ArrowLeft className="mr-2 h-4 w-4"/> Back to My Listings</Link></Button>
+          <Button type="submit" disabled={isFormSubmitting || !isDirty || (firebaseInitializationError !== null && !currentUser?.appProfile)}>{isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
         </CardFooter>
       </form>
       {formState.success && formState.listingId && <div className="p-4 mt-4"><Alert variant="default" className="border-green-500 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Updated!</AlertTitle><AlertDescription className="text-green-600">{formState.message}<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${formState.listingId}`}>View Listing</Link></Button></AlertDescription></Alert></div>}
@@ -424,4 +421,3 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     </Card>
   );
 }
-

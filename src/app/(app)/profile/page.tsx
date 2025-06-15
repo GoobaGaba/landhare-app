@@ -1,7 +1,7 @@
 
 'use client';
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -18,7 +19,7 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
 import { GoogleAuthProvider } from 'firebase/auth';
 
-export const dynamic = 'force-dynamic'; // Add this line
+export const dynamic = 'force-dynamic';
 
 interface ProfileDisplayData {
   name: string;
@@ -29,17 +30,10 @@ interface ProfileDisplayData {
   subscriptionTier: SubscriptionStatus;
 }
 
-export default function ProfilePage() {
-  const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
-  const { toast } = useToast();
+function StripeStatusHandler() {
   const searchParams = useSearchParams();
-  const router = useRouter(); // Added for potentially cleaning URL
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
-  const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSwitchingSubscription, setIsSwitchingSubscription] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const stripeSessionId = searchParams.get('session_id');
@@ -52,8 +46,7 @@ export default function ProfilePage() {
         variant: "default",
         duration: 8000,
       });
-      // Optionally, clear the query params from URL
-      // router.replace('/profile', { shallow: true }); // Use with caution, check Next.js version behavior
+      router.replace('/profile', { shallow: true });
     } else if (stripeStatus === 'cancelled') {
       toast({
         title: "Subscription Process Cancelled",
@@ -61,10 +54,22 @@ export default function ProfilePage() {
         variant: "default",
         duration: 7000,
       });
-      // router.replace('/pricing', { shallow: true });
+      router.replace('/pricing', { shallow: true });
     }
   }, [searchParams, toast, router]);
 
+  return null;
+}
+
+export default function ProfilePage() {
+  const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
+  const { toast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
+  const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSwitchingSubscription, setIsSwitchingSubscription] = useState(false);
 
   useEffect(() => {
     if (currentUser && currentUser.appProfile) {
@@ -137,6 +142,10 @@ export default function ProfilePage() {
         toast({ title: "Error", description: "Email address not found.", variant: "destructive"});
         return;
     }
+    if (firebaseInitializationError && !currentUser.appProfile) {
+        toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
+        return;
+    }
     try {
         await sendPasswordReset(currentUser.email);
     } catch (error: any) {
@@ -147,6 +156,10 @@ export default function ProfilePage() {
   const handleSubscriptionToggle = async () => {
     if (!currentUser || !profileDisplayData || profileDisplayData.subscriptionTier === 'loading') {
         toast({ title: "Action Unavailable", description: "Subscription status is still loading or user data is incomplete.", variant: "default"});
+        return;
+    }
+    if (firebaseInitializationError && !currentUser.appProfile) {
+        toast({ title: "Preview Mode", description: "Subscription simulation is disabled in full preview mode.", variant: "default" });
         return;
     }
     setIsSwitchingSubscription(true);
@@ -206,9 +219,13 @@ export default function ProfilePage() {
   }
 
   const avatarFallback = (profileDisplayData.name || profileDisplayData.email || 'U').split(' ').map(n=>n[0]).join('').toUpperCase() || 'U';
+  const isMockUserNoProfile = firebaseInitializationError !== null && !currentUser.appProfile;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <Suspense fallback={<></>}>
+        <StripeStatusHandler />
+      </Suspense>
       <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
         <Avatar className="h-24 w-24 border-2 border-primary">
           <AvatarImage src={profileDisplayData.avatarUrl} alt={profileDisplayData.name} data-ai-hint="person portrait" />
@@ -220,7 +237,7 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
           <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}</span></p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription}>
+        <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription || isMockUserNoProfile}>
           {authLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>} Refresh Profile
         </Button>
       </div>
@@ -240,14 +257,14 @@ export default function ProfilePage() {
                 <CardTitle>Personal Information</CardTitle>
                 <CardDescription>Manage your personal details and preferences.</CardDescription>
               </div>
-              <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => isEditing ? handleSave() : setIsEditing(true)} disabled={isSaving || authLoading || isSwitchingSubscription}>
+              <Button variant={isEditing ? "default" : "outline"} size="sm" onClick={() => isEditing ? handleSave() : setIsEditing(true)} disabled={isSaving || authLoading || isSwitchingSubscription || isMockUserNoProfile}>
                 {isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (isEditing ? <><Save className="mr-2 h-4 w-4" /> Save Changes</> : <><Edit3 className="mr-2 h-4 w-4" /> Edit Profile</>)}
               </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" value={profileFormData.name} onChange={(e) => setProfileFormData(prev => ({...prev, name: e.target.value}))} disabled={!isEditing || isSaving} />
+                <Input id="name" value={profileFormData.name} onChange={(e) => setProfileFormData(prev => ({...prev, name: e.target.value}))} disabled={!isEditing || isSaving || isMockUserNoProfile} />
               </div>
               <div>
                 <Label htmlFor="email">Email Address</Label>
@@ -260,7 +277,7 @@ export default function ProfilePage() {
                   id="bio"
                   value={profileFormData.bio}
                   onChange={(e) => setProfileFormData(prev => ({...prev, bio: e.target.value}))}
-                  disabled={!isEditing || isSaving}
+                  disabled={!isEditing || isSaving || isMockUserNoProfile}
                   rows={4}
                   placeholder="Tell us a bit about yourself or your land interests..."
                 />
@@ -286,13 +303,17 @@ export default function ProfilePage() {
               <CardDescription>Manage your account security, like password and two-factor authentication.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError || currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)}>
+              <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError || currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID) || isMockUserNoProfile}>
                 <KeyRound className="mr-2 h-4 w-4" /> Change Password
               </Button>
                {currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID) && (
                 <p className="text-xs text-muted-foreground">Password changes are managed through your Google account.</p>
               )}
-              <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. <Button variant="link" className="p-0 h-auto" onClick={() => toast({title: "Coming Soon!", description: "Two-factor authentication (2FA) setup is not yet implemented."})}>Enable 2FA</Button></p>
+              <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. 
+                <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                  <Button variant="link" className="p-0 h-auto ml-1" onClick={() => toast({title: "Coming Soon!", description: "Two-factor authentication (2FA) setup is not yet implemented."})} disabled={isMockUserNoProfile}>Enable 2FA</Button>
+                </TooltipTrigger><TooltipContent><p>Feature coming soon</p></TooltipContent></Tooltip></TooltipProvider>
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -304,14 +325,20 @@ export default function ProfilePage() {
               <CardDescription>Choose how you want to be notified.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 border rounded-md">
-                <Label htmlFor="email-notifications" className="cursor-pointer">Email Notifications for New Messages</Label>
-                <Switch id="email-notifications" defaultChecked onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `New message emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} />
-              </div>
-               <div className="flex items-center justify-between p-3 border rounded-md">
-                <Label htmlFor="promo-emails" className="cursor-pointer">Promotional Emails & Updates</Label>
-                <Switch id="promo-emails" onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `Promotional emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} />
-              </div>
+              <TooltipProvider delayDuration={100}>
+                <div className="flex items-center justify-between p-3 border rounded-md">
+                  <Label htmlFor="email-notifications" className="cursor-pointer">Email Notifications for New Messages</Label>
+                  <Tooltip><TooltipTrigger asChild>
+                    <Switch id="email-notifications" defaultChecked onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `New message emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} disabled={isMockUserNoProfile} />
+                  </TooltipTrigger><TooltipContent><p>This is a placeholder setting.</p></TooltipContent></Tooltip>
+                </div>
+                 <div className="flex items-center justify-between p-3 border rounded-md">
+                  <Label htmlFor="promo-emails" className="cursor-pointer">Promotional Emails & Updates</Label>
+                  <Tooltip><TooltipTrigger asChild>
+                    <Switch id="promo-emails" onCheckedChange={(checked) => toast({title: "Notification Setting (Mock)", description: `Promotional emails ${checked ? 'enabled' : 'disabled'}. Full functionality coming soon.`})} disabled={isMockUserNoProfile}/>
+                  </TooltipTrigger><TooltipContent><p>This is a placeholder setting.</p></TooltipContent></Tooltip>
+                </div>
+              </TooltipProvider>
             </CardContent>
           </Card>
         </TabsContent>
@@ -328,16 +355,18 @@ export default function ProfilePage() {
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
-                    <Button asChild disabled={!!firebaseInitializationError}>
+                    <Button asChild disabled={!!firebaseInitializationError || isMockUserNoProfile}>
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
                   </>
                 ) : profileDisplayData.subscriptionTier === 'premium' ? (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
-                  <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={!!firebaseInitializationError}>
-                    Manage Subscription
-                  </Button>
+                  <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>
+                      Manage Subscription
+                    </Button>
+                  </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip></TooltipProvider>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
@@ -353,13 +382,13 @@ export default function ProfilePage() {
                     <Button
                         onClick={handleSubscriptionToggle}
                         variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || profileDisplayData.subscriptionTier === 'loading' || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={isSwitchingSubscription || authLoading || profileDisplayData.subscriptionTier === 'loading' || isMockUserNoProfile}
                         className="w-full sm:w-auto"
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
                         Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
                     </Button>
-                    {firebaseInitializationError && !currentUser?.appProfile &&
+                    {isMockUserNoProfile &&
                         <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in Firebase preview mode without a mock user.</p>
                     }
                      <p className="text-xs text-muted-foreground mt-2">
@@ -371,10 +400,16 @@ export default function ProfilePage() {
               <div>
                 <h4 className="font-medium mb-2">Payment Methods</h4>
                 <p className="text-sm text-muted-foreground">Your payment methods are managed securely via Stripe. (Placeholder)</p>
+                <TooltipProvider delayDuration={100}>
                 <div className="mt-3 flex gap-2">
-                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for updating payment methods is not yet implemented."})} disabled={!!firebaseInitializationError}>Update Payment Method</Button>
-                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for viewing billing history is not yet implemented."})} disabled={!!firebaseInitializationError}>View Billing History</Button>
+                    <Tooltip><TooltipTrigger asChild>
+                        <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for updating payment methods is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>Update Payment Method</Button>
+                    </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip>
+                    <Tooltip><TooltipTrigger asChild>
+                        <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for viewing billing history is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>View Billing History</Button>
+                    </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip>
                 </div>
+                </TooltipProvider>
               </div>
             </CardContent>
           </Card>

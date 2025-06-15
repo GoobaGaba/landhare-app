@@ -29,7 +29,6 @@ import { buttonVariants } from '@/components/ui/button';
 export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(paramsPromise); 
   const { id } = resolvedParams;
-  // console.log(`[ListingDetailPage] Page loaded for ID: ${id}`);
 
   const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -40,7 +39,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [isBookingRequested, setIsBookingRequested] = useState(false);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
-  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [showReviewPlaceholderDialog, setShowReviewPlaceholderDialog] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -50,56 +49,35 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
 
   useEffect(() => {
     async function fetchData() {
-      // console.log(`[ListingDetailPage] fetchData triggered for ID: ${id}`);
       if (!id) {
-        // console.error("[ListingDetailPage] No ID provided to fetchData.");
         toast({ title: "Error", description: "Listing ID is missing.", variant: "destructive" });
         setIsLoading(false);
         setListing(null); 
         return;
       }
       
-      if (firebaseInitializationError) {
-        // toast({
-        //     title: "Preview Mode Active",
-        //     description: "Firebase not configured. Displaying sample listing data.",
-        //     variant: "default",
-        //     duration: 5000
-        // });
-      }
       setIsLoading(true);
       try {
-        // console.log(`[ListingDetailPage] Calling getListingById with ID: ${id}`);
         const listingData = await getListingById(id);
-        // console.log(`[ListingDetailPage] getListingById returned:`, listingData);
         setListing(listingData || null);
 
         if (listingData) {
-          // console.log(`[ListingDetailPage] Fetching landowner for ID: ${listingData.landownerId}`);
           const landownerData = await getUserById(listingData.landownerId);
           setLandowner(landownerData || null);
-          // console.log(`[ListingDetailPage] Fetched landowner:`, landownerData);
-
-          // console.log(`[ListingDetailPage] Fetching reviews for listing ID: ${listingData.id}`);
           const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
-          // console.log(`[ListingDetailPage] Fetched reviews:`, reviewsData);
-        } else {
-          // console.warn(`[ListingDetailPage] No listing data found for ID: ${id} after fetch.`);
         }
       } catch (error: any) {
         console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
         setListing(null); 
       } finally {
-        // console.log(`[ListingDetailPage] fetchData finished for ID: ${id}. isLoading set to false.`);
         setIsLoading(false);
       }
     }
     if (id) { 
         fetchData();
     } else {
-        // console.log("[ListingDetailPage] ID is missing in useEffect, skipping fetch.");
         setIsLoading(false);
         setListing(null);
     }
@@ -156,7 +134,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     let durationValue = 0;
     let durationUnitText: PriceDetails['durationUnit'] = 'days';
     let displayRateString = "";
-    const taxRate = 0.05; // 5% tax
+    const taxRate = 0.05; 
 
     if (listing.pricingModel === 'nightly' && dateRange?.from && dateRange?.to) {
       durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
@@ -289,7 +267,6 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
   }
 
   if (!listing) { 
-    // console.log(`[ListingDetailPage] Render: No listing data. Displaying 'Not Found' card. Listing ID was: ${id}`);
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -341,7 +318,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 isBookmarked ? "text-primary bg-primary/20 hover:bg-primary/30" : "text-muted-foreground bg-background/80 hover:bg-background"
               )}
               onClick={handleBookmarkToggle}
-              disabled={isBookmarking}
+              disabled={isBookmarking || (firebaseInitializationError !== null && !currentUser.appProfile)}
               title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
             >
               {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary")} />}
@@ -430,20 +407,20 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                   </CardContent>
                 </Card>
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
-               <AlertDialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+               <AlertDialog open={showReviewPlaceholderDialog} onOpenChange={setShowReviewPlaceholderDialog}>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="mt-4" disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}>
+                    <Button variant="outline" className="mt-4" onClick={() => setShowReviewPlaceholderDialog(true)} disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}>
                          <Edit className="mr-2 h-4 w-4" /> Write a Review
                     </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Feature Coming Soon</AlertDialogTitle>
+                    <AlertDialogTitle>Feature Coming Soon!</AlertDialogTitle>
                     <AlertDialogDescription>
                        The ability to write and submit reviews is currently a placeholder. Full review functionality will be added in a future update. This action would require login.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
+                  <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewPlaceholderDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             </CardContent>
