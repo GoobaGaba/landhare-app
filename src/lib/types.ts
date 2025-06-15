@@ -11,7 +11,8 @@ export interface Listing {
   location: string;
   sizeSqft: number;
   amenities: string[];
-  price: number; // Unified price field (per night, per month, or indicative LTO)
+  price: number; // Price set by landowner
+  suggestedPrice?: number; // AI suggested price
   pricingModel: PricingModel;
   leaseToOwnDetails?: string;
   images: string[];
@@ -19,11 +20,16 @@ export interface Listing {
   isAvailable: boolean;
   rating?: number;
   numberOfRatings?: number;
-  leaseTerm?: LeaseTerm; // Primarily for monthly/LTO for longer terms
-  minLeaseDurationMonths?: number; // Min full months for 'monthly' or 'LTO'
+  leaseTerm?: LeaseTerm;
+  minLeaseDurationMonths?: number | null; // Can be null if not applicable
   isBoosted?: boolean;
   createdAt?: Date | Timestamp;
-  bookmarkedBy?: string[]; // List of user IDs who bookmarked this
+  bookmarkedBy?: string[];
+
+  // Fields for later phases
+  ltoEligible?: boolean;
+  zoningInfo?: any; // Replace 'any' with a proper type in Phase 3
+  leaseContractPath?: string;
 }
 
 export type SubscriptionStatus = 'free' | 'premium' | 'loading';
@@ -37,7 +43,7 @@ export interface User {
   createdAt?: Date | Timestamp;
   subscriptionStatus?: SubscriptionStatus;
   stripeCustomerId?: string;
-  bookmarkedListingIds?: string[]; // List of listing IDs bookmarked by user
+  bookmarkedListingIds?: string[];
 }
 
 export interface Review {
@@ -107,6 +113,22 @@ export type SuggestListingTitleOutput = {
   suggestedTitle: string;
   reasoning: string;
 };
+
+export type GenerateListingDescriptionInput = {
+  listingTitle: string;
+  location: string;
+  sizeSqft: number;
+  amenities: string[];
+  pricingModel: PricingModel;
+  price: number;
+  leaseTerm?: LeaseTerm | null;
+  keywords?: string; // Optional user-provided keywords
+};
+
+export type GenerateListingDescriptionOutput = {
+  suggestedDescription: string;
+};
+
 
 // Input for the AI lease generation flow
 export type GenerateLeaseTermsInput = {

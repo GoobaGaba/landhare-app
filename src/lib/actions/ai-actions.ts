@@ -4,6 +4,7 @@
 import { suggestListingPrice, type SuggestListingPriceInput, type SuggestListingPriceOutput } from '@/ai/flows/suggest-listing-price';
 import { suggestListingTitle, type SuggestListingTitleInput, type SuggestListingTitleOutput } from '@/ai/flows/suggest-listing-title';
 import { generateLeaseTerms, type GenerateLeaseTermsInput, type GenerateLeaseTermsOutput } from '@/ai/flows/generate-lease-terms-flow';
+import { generateListingDescription, type GenerateListingDescriptionInput, type GenerateListingDescriptionOutput } from '@/ai/flows/generate-listing-description-flow';
 
 export async function getSuggestedPriceAction(
   input: SuggestListingPriceInput
@@ -63,5 +64,23 @@ export async function getGeneratedLeaseTermsAction(
       return { error: error.message };
     }
     return { error: "An unknown error occurred while generating lease terms." };
+  }
+}
+
+export async function getGeneratedDescriptionAction(
+  input: GenerateListingDescriptionInput
+): Promise<{ data?: GenerateListingDescriptionOutput; error?: string }> {
+  try {
+    if (!input.listingTitle || !input.location || !input.sizeSqft || input.sizeSqft <= 0 || !input.pricingModel || input.price <= 0) {
+      return { error: "Title, location, size, pricing model, and price are required for description generation." };
+    }
+    const result = await generateListingDescription(input);
+    return { data: result };
+  } catch (error) {
+    console.error("Error generating listing description:", error);
+    if (error instanceof Error) {
+      return { error: error.message };
+    }
+    return { error: "An unknown error occurred while generating a listing description." };
   }
 }

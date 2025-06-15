@@ -89,6 +89,7 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'road access', 'pet friendly', 'fenced'],
     pricingModel: 'monthly',
     price: 350,
+    suggestedPrice: 375,
     images: ['https://placehold.co/800x600.png?text=Sunny+Meadow', 'https://placehold.co/400x300.png?text=Meadow+View+1', 'https://placehold.co/400x300.png?text=Meadow+View+2'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -108,6 +109,7 @@ export let mockListings: Listing[] = [
     amenities: ['septic system', 'fenced', 'fire pit'],
     pricingModel: 'monthly',
     price: 200,
+    suggestedPrice: 210,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
@@ -126,6 +128,7 @@ export let mockListings: Listing[] = [
     amenities: ['power access', 'road access'],
     pricingModel: 'monthly',
     price: 150,
+    suggestedPrice: 160,
     images: ['https://placehold.co/800x600.png?text=Desert+Oasis'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -145,6 +148,7 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'fire pit', 'lake access', 'pet friendly'],
     pricingModel: 'monthly',
     price: 400,
+    suggestedPrice: 420,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
@@ -164,6 +168,7 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access', 'septic system'],
     pricingModel: 'nightly',
     price: 45,
+    suggestedPrice: 50,
     images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -181,7 +186,8 @@ export let mockListings: Listing[] = [
     sizeSqft: 45000,
     amenities: ['road access', 'septic system' ],
     pricingModel: 'lease-to-own',
-    price: 650,
+    price: 650, // LTO monthly payment
+    suggestedPrice: 675, // LTO suggested monthly
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
@@ -189,8 +195,8 @@ export let mockListings: Listing[] = [
     rating: 4.3,
     numberOfRatings: 5,
     isBoosted: true,
-    leaseTerm: 'long-term',
-    minLeaseDurationMonths: 60,
+    leaseTerm: 'long-term', // LTO is inherently long-term
+    minLeaseDurationMonths: 60, // Example: 5 years
     createdAt: new Date('2024-05-15T11:00:00Z'),
   },
   {
@@ -202,6 +208,7 @@ export let mockListings: Listing[] = [
     amenities: [],
     pricingModel: 'monthly',
     price: 75,
+    suggestedPrice: 80,
     images: ['https://placehold.co/800x600.png?text=Basic+Plot'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -220,6 +227,7 @@ export let mockListings: Listing[] = [
     amenities: ['power access', 'water hookup', 'fenced', 'wifi available', 'septic system'],
     pricingModel: 'monthly',
     price: 1200,
+    suggestedPrice: 1250,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: false,
@@ -391,6 +399,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
     price: data.price || 0,
+    suggestedPrice: data.suggestedPrice === null ? undefined : data.suggestedPrice, // Handle null from Firestore
     leaseToOwnDetails: data.leaseToOwnDetails || '',
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent((data.title || 'Listing').substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
     landownerId: data.landownerId || 'unknown_owner',
@@ -398,7 +407,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     rating: data.rating === null ? undefined : (typeof data.rating === 'number' ? data.rating : undefined),
     numberOfRatings: data.numberOfRatings || 0,
     leaseTerm: data.leaseTerm || 'flexible',
-    minLeaseDurationMonths: data.minLeaseDurationMonths || undefined,
+    minLeaseDurationMonths: data.minLeaseDurationMonths === null ? null : (data.minLeaseDurationMonths || undefined),
     isBoosted: data.isBoosted || false,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
   };
@@ -594,7 +603,7 @@ export const getListingById = async (id: string): Promise<Listing | undefined> =
 };
 
 export const addListing = async (
-  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'>,
+  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'suggestedPrice' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'>,
   landownerId: string,
   isLandownerPremium: boolean = false
 ): Promise<Listing> => {
@@ -604,10 +613,11 @@ export const addListing = async (
     landownerId: landownerId,
     isAvailable: true,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    rating: undefined, // Firestore expects null for empty number, not undefined here
+    rating: undefined,
     numberOfRatings: 0,
     isBoosted: isLandownerPremium,
     createdAt: creationTimestamp,
+    suggestedPrice: data.suggestedPrice === null ? undefined : data.suggestedPrice,
   };
 
   if (firebaseInitializationError || !db) {
@@ -624,10 +634,11 @@ export const addListing = async (
     const listingsCol = collection(db, "listings");
     const firestoreReadyData = {
       ...newListingData,
-      rating: null, // Use null for Firestore if rating is undefined
+      rating: null, 
       createdAt: Timestamp.fromDate(creationTimestamp),
       leaseToOwnDetails: data.leaseToOwnDetails || null,
-      minLeaseDurationMonths: data.minLeaseDurationMonths || null,
+      minLeaseDurationMonths: data.minLeaseDurationMonths === undefined ? null : data.minLeaseDurationMonths,
+      suggestedPrice: data.suggestedPrice === null || data.suggestedPrice === undefined ? null : data.suggestedPrice,
     };
 
     const docRef = await addDoc(listingsCol, firestoreReadyData);
@@ -653,6 +664,7 @@ export const updateListing = async (
         ...data,
         price: data.price ?? mockListings[listingIndex].price,
         sizeSqft: data.sizeSqft ?? mockListings[listingIndex].sizeSqft,
+        suggestedPrice: data.suggestedPrice === null ? undefined : (data.suggestedPrice ?? mockListings[listingIndex].suggestedPrice),
       };
       incrementMockDataVersion('updateListing_mock');
       return mockListings[listingIndex];
@@ -663,20 +675,21 @@ export const updateListing = async (
   // Live Mode
   try {
     const listingDocRef = doc(db, "listings", listingId);
-    const updateData: any = { ...data }; // Create a mutable copy
+    const updateData: any = { ...data }; 
 
-    // Remove fields that should not be directly updated this way or are managed systemically
     delete updateData.id;
     delete updateData.landownerId;
     delete updateData.createdAt;
-    delete updateData.rating; // Rating and numberOfRatings are updated via addReview
+    delete updateData.rating;
     delete updateData.numberOfRatings;
-    // isBoosted might be updated separately based on subscription status
 
     if (updateData.price !== undefined) updateData.price = Number(updateData.price); else delete updateData.price;
     if (updateData.sizeSqft !== undefined) updateData.sizeSqft = Number(updateData.sizeSqft); else delete updateData.sizeSqft;
+    if (updateData.suggestedPrice === undefined) { delete updateData.suggestedPrice; } 
+    else { updateData.suggestedPrice = updateData.suggestedPrice === null ? null : Number(updateData.suggestedPrice); }
 
-    updateData.minLeaseDurationMonths = data.minLeaseDurationMonths === undefined || data.minLeaseDurationMonths === null ? null : Number(data.minLeaseDurationMonths);
+
+    updateData.minLeaseDurationMonths = data.minLeaseDurationMonths === undefined ? null : (data.minLeaseDurationMonths === null ? null : Number(data.minLeaseDurationMonths));
     updateData.leaseToOwnDetails = data.leaseToOwnDetails === undefined ? null : (data.leaseToOwnDetails || null);
 
 
