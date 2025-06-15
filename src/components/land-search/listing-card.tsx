@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
 import { ToastAction } from '@/components/ui/toast';
-import { useRouter } from 'next/navigation'; // Added for redirecting to pricing
+import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { firebaseInitializationError } from '@/lib/firebase';
 
@@ -39,7 +39,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
 
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to bookmark listings.", variant: "default" });
-      router.push('/login'); // Redirect to login
+      router.push(`/login?redirect=${window.location.pathname}`);
       return;
     }
     if (listing.landownerId === currentUser.uid) {
@@ -136,9 +136,14 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
         </div>
         <div className="flex flex-col flex-grow">
           <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-lg font-semibold hover:text-primary">
-              <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold hover:text-primary">
+                  <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
+                </CardTitle>
+                {listing.pricingModel === 'lease-to-own' && (
+                    <Badge variant="secondary" className="ml-2 text-xs bg-accent text-accent-foreground border-accent/50">LTO</Badge>
+                )}
+            </div>
             <div className="text-sm text-muted-foreground flex items-center mt-1">
               <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
               <span>{listing.location}</span>
@@ -148,7 +153,6 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             <div className="text-sm text-muted-foreground mb-2 flex items-center">
               <Maximize className="h-4 w-4 mr-1 flex-shrink-0" />
               <span>{listing.sizeSqft.toLocaleString()} sq ft</span>
-               {listing.pricingModel === 'lease-to-own' && <Home className="h-4 w-4 ml-3 mr-1 text-primary" />}
             </div>
             {listing.rating !== undefined && listing.rating > 0 && (
               <div className="text-sm text-muted-foreground mb-2 flex items-center">
@@ -176,7 +180,6 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               <DollarSign className="h-5 w-5 text-primary mr-0.5" />
               <span className="text-xl font-bold text-primary">{displayPriceInfo.amount}</span>
               <span className="text-xs text-muted-foreground ml-1">/ {displayPriceInfo.unit}</span>
-               {displayPriceInfo.model === 'lease-to-own' && <Badge variant="outline" className="ml-2 text-primary border-primary/70">LTO</Badge>}
             </div>
             <Button asChild size="sm" disabled={isMockModeNoUser}>
               <Link href={`/listings/${listing.id}`}>View Details</Link>
@@ -214,6 +217,11 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               title="Boosted Listing"
             />
           )}
+          {listing.pricingModel === 'lease-to-own' && (
+            <Badge variant="secondary" className={cn("absolute top-2 right-2 z-10 text-xs bg-accent text-accent-foreground border-accent/50", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
+              LTO
+            </Badge>
+          )}
           {currentUser && listing.landownerId !== currentUser.uid && (
              <TooltipProvider delayDuration={100}>
               <Tooltip>
@@ -222,7 +230,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                       size="icon"
                       variant="ghost"
                       className={cn(
-                        "absolute top-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background",
+                        "absolute bottom-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background", // Changed to bottom-1 for less overlap with LTO badge
                         isBookmarked ? "text-primary" : "text-muted-foreground",
                         (!isBookmarked && atBookmarkLimit) && "opacity-60 cursor-not-allowed",
                         isCompact ? "h-7 w-7" : ""
@@ -253,7 +261,6 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
         <div className={cn("text-muted-foreground flex items-center", isCompact ? "text-xs" : "text-sm")}>
           <Maximize className="h-3 w-3 mr-1 flex-shrink-0" />
           <span>{listing.sizeSqft.toLocaleString()} sq ft</span>
-          {listing.pricingModel === 'lease-to-own' && <Home className="h-3 w-3 ml-2 mr-0.5 text-primary" />}
         </div>
         {listing.rating !== undefined && listing.rating > 0 && (
            <div className={cn("text-muted-foreground flex items-center", isCompact ? "text-xs" : "text-sm")}>
@@ -268,7 +275,6 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <DollarSign className={cn("text-primary mr-0.5", isCompact ? "h-4 w-4" : "h-5 w-5")} />
           <span className={cn("font-bold text-primary", isCompact ? "text-base" : "text-lg")}>{displayPriceInfo.amount}</span>
           <span className={cn("text-muted-foreground ml-0.5", isCompact ? "text-[0.65rem]" : "text-xs")}>/ {displayPriceInfo.unit}</span>
-          {displayPriceInfo.model === 'lease-to-own' && <Badge variant="outline" className={cn("ml-1 text-primary border-primary/70", isCompact ? "text-[0.6rem] px-1 py-0" : "text-xs")}>LTO</Badge>}
         </div>
         <Button asChild size="sm" className={cn(isCompact ? "h-7 px-2 text-xs rounded-sm" : "")} disabled={isMockModeNoUser}>
           <Link href={`/listings/${listing.id}`}>Details</Link>

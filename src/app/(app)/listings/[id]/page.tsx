@@ -227,7 +227,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     
     setIsSubmittingBooking(true);
     try {
-       const bookingDataPayload: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}} = {
+       const bookingDataPayload: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName' | 'leaseContractPath' | 'leaseContractUrl'> & {dateRange: {from: Date; to: Date}} = {
         listingId: listing.id,
         renterId: currentUser.uid,
         landownerId: listing.landownerId, 
@@ -336,14 +336,16 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         <div className="md:col-span-2 space-y-6">
           <Card className="overflow-hidden">
             <CardHeader className="pb-4">
-              <CardTitle className="text-3xl font-headline">{listing.title}</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-3xl font-headline">{listing.title}</CardTitle>
+                {listing.pricingModel === 'lease-to-own' && (
+                    <Badge variant="secondary" className="ml-2 text-sm bg-accent text-accent-foreground border-accent/50 whitespace-nowrap">Lease-to-Own</Badge>
+                )}
+              </div>
               <div className="flex items-center text-muted-foreground mt-1">
                 <MapPin className="h-5 w-5 mr-2 text-primary" />
                 <span>{listing.location}</span>
               </div>
-               {listing.pricingModel === 'lease-to-own' && (
-                  <Badge variant="secondary" className="mt-2 w-fit bg-accent/20 text-accent-foreground border-accent">Lease-to-Own Opportunity</Badge>
-              )}
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-foreground/90 leading-relaxed">{listing.description}</p>
@@ -417,7 +419,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                   <AlertDialogHeader>
                     <AlertDialogTitle>Feature Coming Soon!</AlertDialogTitle>
                     <AlertDialogDescription>
-                       The ability to write and submit reviews is currently a placeholder. Full review functionality will be added in a future update. This action would require login.
+                       The ability to write and submit reviews is currently a placeholder. Full review functionality will be added in a future update. Thank you for your patience!
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogAction onClick={() => setShowReviewPlaceholderDialog(false)}>OK</AlertDialogAction></AlertDialogFooter>
