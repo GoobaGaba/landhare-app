@@ -18,9 +18,11 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown } from 'lucide-react'; // Added Crown
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
+import { useAuth } from '@/contexts/auth-context';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import { updateListingAction } from '@/app/(app)/listings/edit/[id]/actions';
@@ -79,12 +81,13 @@ interface EditListingFormProps {
 export function EditListingForm({ listing, currentUserId }: EditListingFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { subscriptionStatus } = useAuth();
   
   const [formState, formAction] = useActionState(
     (prevState: ListingFormState, formData: FormData) => updateListingAction(listing.id, currentUserId, prevState, formData),
     initialFormState
   );
-  const [isFormSubmitting, startFormTransition] = useTransition(); // Renamed for clarity
+  const [isFormSubmitting, startFormTransition] = useTransition();
   const [isAiLoading, startAiTransition] = useTransition();
 
 
@@ -162,6 +165,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   };
 
   const handleSuggestTitle = async () => {
+    if (subscriptionStatus !== 'premium') {
+      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      return;
+    }
     setTitleSuggestion(null);
     const input: SuggestListingTitleInput = { location: watchedLocation, sizeSqft: Number(watchedSizeSqft) || undefined, keywords: watchedAmenities?.slice(0,3).join(', ') || 'land for rent', existingDescription: watchedDescription.substring(0,200) };
     if (!input.location || !input.keywords) {
@@ -175,6 +182,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   };
 
   const handleSuggestDescription = async () => {
+    if (subscriptionStatus !== 'premium') {
+      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      return;
+    }
     setDescriptionSuggestion(null);
     const input: GenerateListingDescriptionInput = {
         listingTitle: watchedTitle, location: watchedLocation, sizeSqft: Number(watchedSizeSqft),
@@ -198,7 +209,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           title: "Success!", description: formState.message,
           action: formState.listingId ? (<ToastAction altText="View Listing" onClick={() => router.push(`/listings/${formState.listingId}`)}>View</ToastAction>) : undefined,
         });
-        router.refresh();
+        router.refresh(); // Refresh current route to reflect updated data
       } else {
         toast({ title: "Error Updating Listing", description: formState.message || "An unknown error occurred.", variant: "destructive" });
       }
@@ -241,14 +252,14 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
       } else if (key === 'images' && Array.isArray(value)) {
         value.forEach(imgUrl => formDataForAction.append(key, imgUrl as string));
       } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append if null/undefined unless leaseTerm IS flexible (edge case, schema handles null)
+        // Don't append if null/undefined unless leaseTerm IS flexible
       } else if (value !== undefined && value !== null) {
         formDataForAction.append(key, String(value));
       } else if (key === 'suggestedPrice' && value === null) {
-        formDataForAction.append(key, ""); // Send empty for null suggestedPrice to clear it if needed
+        formDataForAction.append(key, ""); 
       }
     });
-    formDataForAction.set('isAvailable', String(data.isAvailable));
+    formDataForAction.set('isAvailable', String(data.isAvailable)); // Ensure boolean is stringified
     startFormTransition(() => { formAction(formDataForAction); });
   };
   
@@ -263,7 +274,27 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
               <Input id="title" {...register('title')} className="flex-grow" />
-              <Button type="button" variant="outline" size="icon" onClick={handleSuggestTitle} disabled={isAiLoading || !watchedLocation} title="Suggest Title"><Lightbulb className="h-4 w-4 text-yellow-500" /></Button>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSuggestTitle}
+                      disabled={isAiLoading || !watchedLocation}
+                      className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed relative")}
+                      title={subscriptionStatus !== 'premium' ? "AI Title Assistant (Premium)" : "Suggest Title with AI"}
+                    >
+                      {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
+                      {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                    </Button>
+                  </TooltipTrigger>
+                  {subscriptionStatus !== 'premium' && (
+                    <TooltipContent side="top"><p>AI Title Assistant (Premium Feature)</p></TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
             {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -273,7 +304,27 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="description">Description</Label>
             <div className="flex items-center gap-2">
                 <Textarea id="description" {...register('description')} rows={5} className="flex-grow"/>
-                <Button type="button" variant="outline" size="icon" onClick={handleSuggestDescription} disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice} title="Suggest Description"><FileText className="h-4 w-4 text-purple-500" /></Button>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleSuggestDescription}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice}
+                        className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed relative")}
+                        title={subscriptionStatus !== 'premium' ? "AI Description Generator (Premium)" : "Suggest Description with AI"}
+                        >
+                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
+                        {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        </Button>
+                    </TooltipTrigger>
+                    {subscriptionStatus !== 'premium' && (
+                        <TooltipContent side="top"><p>AI Description Generator (Premium Feature)</p></TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
             </div>
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
             {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -373,3 +424,4 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     </Card>
   );
 }
+

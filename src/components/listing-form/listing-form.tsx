@@ -17,7 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown } from 'lucide-react'; // Added Crown
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip components
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
@@ -144,6 +145,10 @@ export function ListingForm() {
   };
 
   const handleSuggestTitle = async () => {
+    if (subscriptionStatus !== 'premium') {
+      toast({ title: "Premium Feature", description: "AI Title Assistant is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      return;
+    }
     setTitleSuggestion(null);
     const descriptionSnippet = watchedDescription.substring(0, 200); 
     const keywords = watchedAmenities?.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
@@ -159,6 +164,10 @@ export function ListingForm() {
   };
 
   const handleSuggestDescription = async () => {
+     if (subscriptionStatus !== 'premium') {
+      toast({ title: "Premium Feature", description: "AI Description Generator is a premium feature.", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      return;
+    }
     setDescriptionSuggestion(null);
     const input: GenerateListingDescriptionInput = {
         listingTitle: watchedTitle, location: watchedLocation, sizeSqft: Number(watchedSizeSqft),
@@ -221,7 +230,7 @@ export function ListingForm() {
         createdAt: Timestamp.fromDate(new Date()),
         leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : '',
         minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : null,
-        suggestedPrice: data.suggestedPrice || undefined, // Save suggested price if available
+        suggestedPrice: data.suggestedPrice || undefined,
       };
       const { id, ...payloadForFirestore } = newListingPayload as Omit<Listing, 'id'>;
       const docRef = await addDoc(collection(db, "listings"), payloadForFirestore);
@@ -256,7 +265,27 @@ export function ListingForm() {
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
               <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="flex-grow" />
-              <Button type="button" variant="outline" size="icon" onClick={handleSuggestTitle} disabled={isAiLoading || !watchedLocation} title="Suggest Title"><Lightbulb className="h-4 w-4 text-yellow-500" /></Button>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSuggestTitle}
+                      disabled={isAiLoading || !watchedLocation}
+                      className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed")}
+                      title={subscriptionStatus !== 'premium' ? "AI Title Assistant (Premium)" : "Suggest Title with AI"}
+                    >
+                      {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
+                       {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                    </Button>
+                  </TooltipTrigger>
+                  {subscriptionStatus !== 'premium' && (
+                    <TooltipContent side="top"><p>AI Title Assistant (Premium Feature)</p></TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
             {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle)}>Use</Button></AlertDescription></Alert>}
@@ -266,7 +295,27 @@ export function ListingForm() {
             <Label htmlFor="description">Description</Label>
              <div className="flex items-center gap-2">
                 <Textarea id="description" {...register('description')} rows={5} aria-invalid={errors.description ? "true" : "false"} className="flex-grow"/>
-                <Button type="button" variant="outline" size="icon" onClick={handleSuggestDescription} disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice} title="Suggest Description"><FileText className="h-4 w-4 text-purple-500" /></Button>
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={handleSuggestDescription}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice}
+                        className={cn(subscriptionStatus !== 'premium' && "opacity-70 cursor-not-allowed")}
+                        title={subscriptionStatus !== 'premium' ? "AI Description Generator (Premium)" : "Suggest Description with AI"}
+                        >
+                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
+                        {subscriptionStatus !== 'premium' && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        </Button>
+                    </TooltipTrigger>
+                    {subscriptionStatus !== 'premium' && (
+                        <TooltipContent side="top"><p>AI Description Generator (Premium Feature)</p></TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
             </div>
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
             {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription)}>Use</Button></AlertDescription></Alert>}
@@ -280,9 +329,9 @@ export function ListingForm() {
           <div>
             <Label>Images (up to {MAX_IMAGES})</Label>
             <div className="mt-2">
-              <label htmlFor="image-upload" className={cn("flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary", imageUploadError && "border-destructive")}>
+              <label htmlFor="image-upload" className={cn("flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors", imageUploadError ? "border-destructive" : "border-border")}>
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-                <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag & drop</span>
+                <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</span>
                 <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
                 <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= MAX_IMAGES} />
               </label>
@@ -293,44 +342,38 @@ export function ListingForm() {
                 {imagePreviews.map((previewUrl, index) => (
                   <div key={index} className="relative aspect-square group">
                     <Image src={previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
-                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /></Button>
+                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /><span className="sr-only">Remove image</span></Button>
                   </div>
                 ))}
-                {imagePreviews.length < MAX_IMAGES && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
+                {imagePreviews.length < MAX_IMAGES && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
               </div>
             )}
-            {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+             {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
 
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
-            <Controller name="pricingModel" control={control} render={({ field }) => (
-                <RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
-                    {(['nightly', 'monthly', 'lease-to-own'] as const).map(model => (
-                         <Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span>{model.replace('-', ' ')}</span></Label>))}
+            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={field.onChange} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                    {(['nightly', 'monthly', 'lease-to-own'] as const).map(model => (<Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span className="capitalize">{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
             {errors.pricingModel && <p className="text-sm text-destructive mt-1">{errors.pricingModel.message}</p>}
           </div>
           
-          {watchedPricingModel === 'lease-to-own' && (
-            <div><Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label><Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Down payment, term, purchase price, etc." aria-invalid={errors.leaseToOwnDetails ? "true" : "false"} />{errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}</div>
-          )}
+          {watchedPricingModel === 'lease-to-own' && (<div><Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label><Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." aria-invalid={errors.leaseToOwnDetails ? "true" : "false"} />{errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}</div>)}
 
           <div>
-            <Label htmlFor="price">{priceLabel} (Landowner Set Price)</Label>
+            <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} aria-invalid={errors.price ? "true" : "false"} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
+              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
-            {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)))}>Use Suggestion</Button></AlertDescription></Alert>}
-            {getValues("suggestedPrice") !== null && getValues("suggestedPrice") !== undefined && <p className="text-xs text-muted-foreground mt-1">AI Suggested Price (for reference): ${getValues("suggestedPrice")?.toFixed(0)}</p>}
+            {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)))}>Use</Button></AlertDescription></Alert>}
           </div>
 
           <div>
             <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label>
-            <Controller name="leaseTerm" control={control} render={({ field }) => (
-                <RadioGroup onValueChange={field.onChange} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
+            <Controller name="leaseTerm" control={control} render={({ field }) => (<RadioGroup onValueChange={field.onChange} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
                     <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short" /><Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long" /><Label htmlFor="term-long" className="font-normal">Long Term (6+ mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible" /><Label htmlFor="term-flexible" className="font-normal">Flexible</Label></div>
@@ -338,14 +381,10 @@ export function ListingForm() {
             {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
           </div>
 
-          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
-            <div><Label htmlFor="minLeaseDurationMonths">Minimum Lease (Months)</Label><Input id="minLeaseDurationMonths" type="number" placeholder="e.g., 1, 6, 12" {...register('minLeaseDurationMonths')} aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"} />{errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}</div>
-          )}
+          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (<div><Label htmlFor="minLeaseDurationMonths">Minimum Lease (Months)</Label><Input id="minLeaseDurationMonths" type="number" placeholder="e.g., 1, 6, 12" {...register('minLeaseDurationMonths')} aria-invalid={errors.minLeaseDurationMonths ? "true" : "false"} />{errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}</div>)}
           
-           <div><Label>Amenities</Label><Controller name="amenities" control={control} render={({ field }) => (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2 p-4 border rounded-md">
-                  {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2">
-                      <Checkbox id={`amenity-${amenity.id}`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}`} className="font-normal">{amenity.label}</Label></div>))}
+           <div><Label>Amenities</Label><Controller name="amenities" control={control} render={({ field }) => (<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2 p-4 border rounded-md">
+                  {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2"><Checkbox id={`amenity-${amenity.id}`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}`} className="font-normal">{amenity.label}</Label></div>))}
                 </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
           </div>
           <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{currentSubscriptionOnMount === 'premium' ? "Premium: 0.49% on payouts." : "Free: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
@@ -353,13 +392,14 @@ export function ListingForm() {
         <CardFooter className="flex justify-between items-center gap-2">
           <div></div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => {form.reset(); setSelectedFiles([]); setImagePreviews([]); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset</Button>
+            <Button variant="outline" type="button" onClick={() => {form.reset({title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: null,}); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset</Button>
             <Button type="submit" disabled={isActualSubmitButtonDisabled}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Create Listing</Button>
           </div>
         </CardFooter>
       </form>
-      {submissionSuccess?.listingId && formSubmittedSuccessfully && <div className="p-4"><Alert variant="default" className="border-green-500"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Created!</AlertTitle><AlertDescription className="text-green-600">{submissionSuccess.message}<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${submissionSuccess.listingId}`}>View Listing</Link></Button></AlertDescription></Alert></div>}
+      {submissionSuccess?.listingId && formSubmittedSuccessfully && <div className="p-4"><Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/30"><CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" /><AlertTitle className="text-green-700 dark:text-green-300">Listing Created!</AlertTitle><AlertDescription className="text-green-600 dark:text-green-400">{submissionSuccess.message}<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700 dark:text-green-300"><Link href={`/listings/${submissionSuccess.listingId}`}>View Your Listing</Link></Button></AlertDescription></Alert></div>}
       {submissionError && <div className="p-4 mt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{submissionError}</AlertDescription></Alert></div>}
     </Card>
   );
 }
+
