@@ -4,12 +4,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3 } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useListingsData } from '@/hooks/use-listings-data';
+import type { Listing } from '@/lib/types';
+import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
 
 
 // Mock data for the earnings graph
@@ -32,7 +35,9 @@ const chartConfig = {
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
+  const { allAvailableListings, isLoading: listingsLoading } = useListingsData();
   const [userName, setUserName] = useState("Guest");
+  const [bookmarkedItems, setBookmarkedItems] = useState<Listing[]>([]);
   
   useEffect(() => {
     if (currentUser) {
@@ -42,7 +47,17 @@ export default function DashboardPage() {
     }
   }, [currentUser]);
 
-  if (authLoading || subscriptionStatus === 'loading') {
+  useEffect(() => {
+    if (currentUser?.appProfile?.bookmarkedListingIds && allAvailableListings.length > 0) {
+      const userBookmarkIds = currentUser.appProfile.bookmarkedListingIds;
+      const filtered = allAvailableListings.filter(listing => userBookmarkIds.includes(listing.id));
+      setBookmarkedItems(filtered);
+    } else {
+      setBookmarkedItems([]);
+    }
+  }, [currentUser, allAvailableListings]);
+
+  if (authLoading || subscriptionStatus === 'loading' || (currentUser && listingsLoading)) {
      return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -222,6 +237,46 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Bookmark className="h-6 w-6 text-primary"/> My Bookmarks</CardTitle>
+            <CardDescription>Access your saved land listings.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {listingsLoading && !bookmarkedItems.length ? (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading bookmarks...
+              </div>
+            ) : bookmarkedItems.length > 0 ? (
+              <>
+                <p>You have <strong>{bookmarkedItems.length} bookmarked listing{bookmarkedItems.length === 1 ? '' : 's'}</strong>.</p>
+                <ul className="space-y-1 text-sm max-h-24 overflow-y-auto custom-scrollbar pr-2">
+                  {bookmarkedItems.slice(0, 5).map(listing => ( // Show up to 5 directly
+                    <li key={listing.id}>
+                      <Link href={`/listings/${listing.id}`} className="text-primary hover:underline truncate block">
+                        {listing.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {bookmarkedItems.length > 5 && (
+                  <p className="text-xs text-muted-foreground">...and {bookmarkedItems.length - 5} more.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">You have no listings bookmarked yet.</p>
+            )}
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/bookmarks">View All Bookmarks</Link>
+            </Button>
+            {subscriptionStatus === 'free' && bookmarkedItems.length >= FREE_TIER_BOOKMARK_LIMIT && (
+              <p className="text-xs text-destructive mt-2">
+                Standard accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} bookmarks. <Link href="/pricing" className="text-primary hover:underline">Upgrade to Premium</Link> for unlimited.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary"/> Profile Settings</CardTitle>
             <CardDescription>Update your personal information and preferences.</CardDescription>
           </CardHeader>
@@ -235,3 +290,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
