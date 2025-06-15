@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download } from "lucide-react";
+import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download, ExternalLink } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
-import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById } from '@/lib/mock-data';
+import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById, populateBookingDetails } from '@/lib/mock-data';
 import { format, differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
-import { firebaseInitializationError } from '@/lib/firebase';
+import { firebaseInitializationError, db as firestoreDb } from '@/lib/firebase'; // Added firestoreDb
 import { getGeneratedLeaseTermsAction } from '@/lib/actions/ai-actions';
 import {
   AlertDialog,
@@ -24,6 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import jsPDF from 'jspdf';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // Storage imports
+import { doc, updateDoc } from 'firebase/firestore'; // Firestore update import
 
 export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -52,7 +54,11 @@ export default function BookingsPage() {
         setIsLoading(false);
         return;
       }
-      const bookingsFromDb = await getBookingsForUser(currentUser.uid);
+      let bookingsFromDb = await getBookingsForUser(currentUser.uid);
+      // Ensure booking details are populated for display, especially in mock mode
+      if (firebaseInitializationError) {
+        bookingsFromDb = await Promise.all(bookingsFromDb.map(b => populateBookingDetails(b)));
+      }
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
@@ -75,6 +81,49 @@ export default function BookingsPage() {
       setUserBookings([]);
     }
   }, [authLoading, currentUser, loadBookings]);
+
+
+  const uploadLeaseToStorage = async (pdfBlob: Blob, booking: Booking) => {
+    if (!currentUser || !booking || !booking.listingId || !firestoreDb) {
+      toast({ title: "Error", description: "Cannot save lease without user, booking info, or DB connection.", variant: "destructive" });
+      return;
+    }
+    if (firebaseInitializationError && !currentUser.appProfile) {
+       toast({ title: "Preview Mode", description: "Lease upload is disabled in full preview mode (no mock user).", variant: "default" });
+       return;
+    }
+
+    toast({ title: "Saving Lease...", description: "Uploading lease to secure storage." });
+    try {
+      const storage = getStorage();
+      const filePath = `leaseContracts/${booking.id}/lease-agreement-${Date.now()}.pdf`;
+      const sRef = storageRef(storage, filePath);
+
+      const metadata = {
+        customMetadata: {
+          bookingId: booking.id,
+          renterId: booking.renterId,
+          landownerId: booking.landownerId,
+          listingId: booking.listingId,
+        }
+      };
+
+      const snapshot = await uploadBytes(sRef, pdfBlob, metadata);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const bookingDocRef = doc(firestoreDb, "bookings", booking.id);
+      await updateDoc(bookingDocRef, {
+        leaseContractPath: snapshot.ref.fullPath,
+        leaseContractUrl: downloadURL
+      });
+
+      toast({ title: "Lease Saved!", description: "The lease agreement has been securely saved to the cloud." });
+      loadBookings(); // Refresh bookings to show the new link
+    } catch (error: any) {
+      console.error("Error uploading lease:", error);
+      toast({ title: "Save Failed", description: `Could not save lease: ${error.message}`, variant: "destructive" });
+    }
+  };
 
 
   const handleGenerateAndShowLeaseTerms = async (booking: Booking) => {
@@ -141,9 +190,9 @@ export default function BookingsPage() {
     }
   };
 
-  const handleDownloadLeasePdf = () => {
+  const handleDownloadAndStoreLeasePdf = async () => {
     if (!currentLeaseTerms || !currentBookingForLease) {
-      toast({title: "Error", description: "No lease terms available to download.", variant: "destructive"});
+      toast({title: "Error", description: "No lease terms available to process.", variant: "destructive"});
       return;
     }
     try {
@@ -169,7 +218,6 @@ export default function BookingsPage() {
           doc.addPage();
           y = margin;
         }
-        // Basic bold detection for headings
         if (line.startsWith("**") && line.endsWith("**")) {
             doc.setFont("helvetica", "bold");
             doc.text(line.substring(2, line.length - 2), margin, y);
@@ -180,16 +228,18 @@ export default function BookingsPage() {
         y += lineHeight;
       });
 
+      // First, trigger download for the user
       doc.save(`LandShare_Lease_Suggestion_${currentBookingForLease.listingTitle?.replace(/\s+/g, '_') || currentBookingForLease.listingId}.pdf`);
       toast({title: "PDF Downloaded", description: "Lease suggestion PDF has been downloaded."});
 
-      // Placeholder for Firebase Storage upload in next step
-      // const pdfBlob = doc.output('blob');
-      // uploadLeaseToStorage(pdfBlob, currentBookingForLease.id);
+      // Then, upload to Firebase Storage
+      const pdfBlob = doc.output('blob');
+      await uploadLeaseToStorage(pdfBlob, currentBookingForLease);
+      // The uploadLeaseToStorage function will show its own toast and refresh bookings
 
     } catch (error: any) {
-      console.error("Error generating PDF:", error);
-      toast({title: "PDF Generation Failed", description: error.message || "Could not generate PDF.", variant: "destructive"});
+      console.error("Error processing PDF:", error);
+      toast({title: "PDF Processing Failed", description: error.message || "Could not process PDF.", variant: "destructive"});
     }
   };
 
@@ -209,12 +259,17 @@ export default function BookingsPage() {
       const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
       if (updatedBooking) {
         toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus}.` });
-        await loadBookings();
+        
+        // Await loadBookings to ensure UI state is up-to-date *before* trying to generate lease
+        await loadBookings(); 
+
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
+            // Find the booking from the freshly loaded state
             const freshlyLoadedBooking = userBookings.find(b => b.id === booking.id && b.status === 'Confirmed');
             if (freshlyLoadedBooking) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
             } else {
+                // Fallback if not found in state immediately (should be rare with await loadBookings)
                 const reloadedSpecificBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id));
                 if (reloadedSpecificBooking && reloadedSpecificBooking.status === 'Confirmed') {
                      await handleGenerateAndShowLeaseTerms(reloadedSpecificBooking);
@@ -226,7 +281,7 @@ export default function BookingsPage() {
       }
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message || "Could not update booking status.", variant: "destructive" });
-      await loadBookings();
+      await loadBookings(); // Ensure UI consistency even on failure
     } finally {
         setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }
@@ -301,6 +356,13 @@ export default function BookingsPage() {
                 <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
                 {currentUser && booking.landownerId === currentUser.uid && ( <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p> )}
                 {currentUser && booking.renterId === currentUser.uid && ( <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p> )}
+                {booking.leaseContractUrl && booking.status === 'Confirmed' && (
+                    <Button variant="link" size="sm" asChild className="p-0 h-auto text-primary">
+                        <Link href={booking.leaseContractUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1 h-3 w-3"/> View Stored Lease
+                        </Link>
+                    </Button>
+                )}
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild> <Link href={`/listings/${booking.listingId}`}>View Listing</Link> </Button>
@@ -319,10 +381,10 @@ export default function BookingsPage() {
                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />} Cancel Request
                   </Button>
                 )}
-                {booking.status === 'Confirmed' && (
+                {booking.status === 'Confirmed' && !booking.leaseContractUrl && ( // Show suggestion only if no stored lease yet
                      <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id] || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
                         {isLeaseTermsLoading[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                        View Lease Suggestion
+                        Get Lease Suggestion
                     </Button>
                 )}
               </CardFooter>
@@ -354,8 +416,8 @@ export default function BookingsPage() {
             </pre>
           </div>
           <AlertDialogFooter className="gap-2 flex-row justify-end">
-            <Button variant="outline" onClick={handleDownloadLeasePdf} disabled={!currentLeaseTerms || !currentBookingForLease}>
-                <Download className="mr-2 h-4 w-4"/> Download PDF
+            <Button variant="outline" onClick={handleDownloadAndStoreLeasePdf} disabled={!currentLeaseTerms || !currentBookingForLease || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
+                <Download className="mr-2 h-4 w-4"/> Download & Save to Cloud
             </Button>
             <AlertDialogAction onClick={() => setLeaseTermsModalOpen(false)}>Close</AlertDialogAction>
           </AlertDialogFooter>
@@ -364,9 +426,8 @@ export default function BookingsPage() {
 
       <Card className="mt-8 bg-muted/30">
         <CardHeader> <CardTitle className="text-lg">Booking Management Tip</CardTitle> </CardHeader>
-        <CardContent> <p className="text-sm text-muted-foreground"> Respond to booking requests promptly. Approved bookings show as 'Confirmed'. You can cancel 'Pending Confirmation' requests if your plans change. Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available. </p> </CardContent>
+        <CardContent> <p className="text-sm text-muted-foreground"> Respond to booking requests promptly. Approved bookings show as 'Confirmed'. You can cancel 'Pending Confirmation' requests if your plans change. Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available, which can then be downloaded and saved. Stored leases will be accessible via a direct link. </p> </CardContent>
       </Card>
     </div>
   );
 }
-

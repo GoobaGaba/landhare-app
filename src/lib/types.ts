@@ -70,6 +70,8 @@ export interface Booking {
   listingTitle?: string;
   landownerName?: string;
   renterName?: string;
+  leaseContractPath?: string; // Stores the gs:// path
+  leaseContractUrl?: string;  // Stores the public HTTPS download URL
 }
 
 
