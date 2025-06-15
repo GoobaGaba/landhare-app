@@ -81,16 +81,6 @@ export default function HomePage() {
         </div>
       </section>
       
-      <section className="w-full py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">The platform built to make affordable housing Great again</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
-            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
-          </div>
-        </div>
-      </section>
-
       {/* How LandShare Works Section */}
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
@@ -178,7 +168,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Key Features Section - Moved Here */}
+      {/* Key Features Section */}
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Key Features</h2>
@@ -207,6 +197,17 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* The platform built to make affordable housing Great again - MOVED SECTION */}
+      <section className="w-full py-16 md:py-24">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">The platform built to make affordable housing Great again</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
+            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
+          </div>
+        </div>
+      </section>
+
 
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
@@ -227,3 +228,4 @@ export default function HomePage() {
     </div>
   );
 }
+
