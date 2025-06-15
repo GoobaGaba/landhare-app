@@ -56,12 +56,14 @@ body {
     --neon-green: 120 100% 45%;
     --neon-green-foreground: 120 25% 10%;
 
+    /* Premium Purple - Light Mode (Vibrant) */
     --premium-feature-h: 275;
     --premium-feature-s: 90%;
     --premium-feature-l: 60%;
     --premium-feature-foreground-h: 275;
     --premium-feature-foreground-s: 80%;
     --premium-feature-foreground-l: 95%;
+    
     --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
     --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
   }
@@ -113,12 +115,16 @@ body {
     --neon-green: 120 100% 50%;
     --neon-green-foreground: 0 0% 5%;
 
-    --premium-feature-h: 275;
-    --premium-feature-s: 90%;
-    --premium-feature-l: 65%;
+    /* Premium Purple - Dark Mode (Softer Lavender) */
+    --premium-feature-h: 270;   /* Adjusted Hue */
+    --premium-feature-s: 65%;   /* Adjusted Saturation */
+    --premium-feature-l: 75%;   /* Adjusted Lightness */
+
+    /* Foreground for premium can remain the same, as it's very light */
     --premium-feature-foreground-h: 275;
     --premium-feature-foreground-s: 80%;
     --premium-feature-foreground-l: 97%;
+    
     --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
     --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
   }
