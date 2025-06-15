@@ -3,11 +3,15 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users, MessageSquare } from 'lucide-react';
+import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users, MessageSquare, AlertTriangle, ExternalLink, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { createCheckoutSessionAction } from '@/lib/actions/stripe-actions'; // New import
+import { useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert'; // For displaying Stripe messages
+import { isStripeEnabled } from '@/lib/stripe'; // Import client-side check if needed, though server action handles it
 
 const pricingPlans = [
   {
@@ -33,7 +37,7 @@ const pricingPlans = [
   {
     id: "premium",
     title: "Premium Subscription",
-    price: "$5",
+    price: "$5", // Example price
     period: "/month",
     description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
     renterFeatures: [
@@ -47,11 +51,12 @@ const pricingPlans = [
       { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true },
       { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true },
     ],
-    generalFeatures: [ // Features applicable to both renters and landowners under premium
+    generalFeatures: [ 
       { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true },
       { text: "Priority support", icon: Crown, isBenefit: true },
     ],
     cta: "Upgrade to Premium",
+    actionKey: "upgradePremium", // To identify this button's action
     hrefSelfIfPremium: "/profile?tab=billing", 
     highlight: true,
   },
@@ -60,22 +65,47 @@ const pricingPlans = [
 export default function PricingPage() {
   const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
 
-  const handlePremiumCTAClick = () => {
-    if (!currentUser) {
-        toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
-        return;
+  const handleCtaAction = async (actionKey?: string) => {
+    if (actionKey === "upgradePremium") {
+      if (!currentUser) {
+          toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
+          // Optionally redirect: router.push('/login?redirect=/pricing');
+          return;
+      }
+      if (subscriptionStatus === 'premium') {
+          // User is already premium, button should link to manage subscription or do nothing
+          // This case is handled by the ctaLink logic below
+          return;
+      }
+
+      setIsProcessing(true);
+      setStripeError(null);
+      try {
+        // The server action will handle the redirect to Stripe if successful
+        const result = await createCheckoutSessionAction(); 
+        if (result?.error) {
+          setStripeError(result.error);
+          toast({title: "Subscription Error", description: result.error, variant: "destructive"});
+        }
+        // If successful, createCheckoutSessionAction now handles the redirect itself.
+        // No need to handle result.url here on the client if the redirect is server-side.
+      } catch (error: any) {
+        setStripeError(error.message || "An unexpected error occurred.");
+        toast({title: "Subscription Error", description: error.message || "Could not initiate subscription.", variant: "destructive"});
+      } finally {
+        setIsProcessing(false);
+      }
     }
-    // In a real app, this would redirect to Stripe or similar payment flow.
-    // For now, it just shows a toast and directs to profile for simulation.
-    toast({ title: "Upgrade to Premium", description: "Stripe Checkout integration needed here. Subscription simulation available on Profile page."});
-    // router.push('/profile?tab=billing'); // Optional: redirect to profile page
   };
+
 
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        {/* Consider adding a Loader2 component here if you have one */}
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -91,24 +121,33 @@ export default function PricingPage() {
         </p>
       </header>
 
+      {stripeError && (
+        <Alert variant="destructive" className="max-w-xl mx-auto mb-8">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Payment Error</AlertTitle>
+          <AlertDescription>{stripeError}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
-          const ctaAction = plan.id === 'premium' ? handlePremiumCTAClick : undefined;
           
-          // Determine CTA link: If premium plan, and user is premium, link to profile. If not logged in, link to signup.
-          // If standard plan, and user is logged in, link to dashboard, else link to signup.
           let ctaLink = plan.id === 'premium'
-            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing")) // If premium plan: if user is premium, profile; if logged in but not premium, no link (button has action); if not logged in, signup.
-            : (currentUser ? "/dashboard" : plan.href); // If standard plan: if logged in, dashboard; else, signup.
+            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing"))
+            : (currentUser ? "/dashboard" : plan.href);
           
-          // If premium plan and user is logged in but not premium, ctaAction is used, so ctaLink should be undefined for <Button asChild>
           if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; 
           
           const ctaText = plan.id === 'premium'
             ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
             : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
           
+          const isButtonDisabled = isProcessing || 
+                                   (plan.id === 'premium' && authLoading) ||
+                                   (plan.id === 'premium' && !currentUser && !authLoading); // Disable premium if not logged in and auth check done
+                                  
+
           return (
             <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/30' : 'border-border')}>
               {plan.highlight && (
@@ -151,7 +190,7 @@ export default function PricingPage() {
                     </ul>
                   </div>
                 )}
-                 {plan.generalFeatures && plan.generalFeatures.length > 0 && ( // Display general premium benefits
+                 {plan.generalFeatures && plan.generalFeatures.length > 0 && ( 
                   <div className="mt-3">
                     <h4 className="text-sm font-semibold mb-2 text-accent">Premium Benefits:</h4>
                     <ul className="space-y-2 text-sm">
@@ -166,27 +205,20 @@ export default function PricingPage() {
                 )}
               </CardContent>
               <CardFooter className="mt-auto pt-4">
-                {ctaAction ? (
-                   <Button
-                    size="lg"
-                    variant={plan.highlight && !isCurrentUserPremium ? "default" : "outline"} // Premium CTA is default if user is not premium
-                    className="w-full"
-                    onClick={ctaAction}
-                    disabled={(plan.highlight && isCurrentUserPremium) || (plan.id === 'premium' && !currentUser)} // Disable premium CTA if user is already premium, or if not logged in for premium button
-                  >
-                    {plan.highlight && isCurrentUserPremium ? <Crown className="mr-2 h-4 w-4" /> : null}
-                    {plan.id === 'premium' && !currentUser ? "Sign Up to Go Premium" : ctaText}
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    variant={plan.highlight ? "default" : "outline"}
-                    className="w-full"
-                    asChild
-                  >
-                    <Link href={ctaLink!}>{ctaText}</Link>
-                  </Button>
-                )}
+                 <form action={() => handleCtaAction(plan.actionKey)} className="w-full">
+                    <Button
+                        type={plan.actionKey ? "submit" : "button"} // Submit if it's an action button
+                        size="lg"
+                        variant={plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) ? "default" : "outline"}
+                        className="w-full"
+                        disabled={isButtonDisabled || (plan.id === 'premium' && isCurrentUserPremium)}
+                        onClick={!plan.actionKey && ctaLink ? () => window.location.href = ctaLink : undefined}
+                    >
+                        {isProcessing && plan.actionKey ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : null}
+                        {plan.id === 'premium' && !currentUser && !authLoading ? "Sign Up to Go Premium" : ctaText}
+                    </Button>
+                 </form>
               </CardFooter>
             </Card>
           );
