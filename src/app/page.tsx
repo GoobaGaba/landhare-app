@@ -80,55 +80,13 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">The platform built to make affordable housing Great again</h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
             <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
-          </div>
-        </div>
-      </section>
-      <section className="w-full py-16 md:py-24 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-8 items-start">
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary">For Land Seekers</h3>
-              <p className="text-foreground/90">Searching for space for your tiny home, RV, or next big idea? Discover affordable land leases directly from property owners. Your perfect plot is just a click away.</p>
-              <Image src="https://placehold.co/600x400.png" alt="Happy person in a tiny home" data-ai-hint="tiny home lifestyle" width={600} height={400} className="rounded-lg shadow-md object-cover w-full" sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px" />
-            </div>
-            <div className="space-y-6">
-              <h3 className="text-2xl font-semibold text-primary">For Landowners</h3>
-              <p className="text-foreground/90">Have land sitting idle? List it on LandShare and start earning. We provide easy tools for listing, managing bookings, and secure payments. Turn your empty space into opportunity.</p>
-              <Image src="https://placehold.co/600x400.png" alt="Landowner managing listing on a tablet" data-ai-hint="landowner technology" width={600} height={400} className="rounded-lg shadow-md object-cover w-full" sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 600px" />
-            </div>
-          </div>
-        </div>
-      </section>
-      <section className="w-full py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Key Features</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
-              { icon: Home, title: 'Flexible Terms', description: 'Daily, monthly, or lease-to-own options with transparent pricing.' },
-              { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'In-app payments, ratings, and 24/7 support.' },
-              { icon: Users, title: 'Direct Communication', description: 'Connect directly with landowners or renters through our secure messaging.' },
-              { icon: DollarSign, title: 'Dynamic Pricing', description: 'AI-powered suggestions to help landowners price competitively.' },
-              { icon: MapPin, title: 'Lease-to-Own Pathway', description: 'Opportunities for renters to convert leases into property ownership.' },
-            ].map((feature) => (
-              <Card key={feature.title} className="text-center shadow-lg hover:shadow-xl transition-shadow">
-                <CardHeader>
-                  <div className="mx-auto bg-accent/20 p-3 rounded-full w-fit mb-4">
-                    <feature.icon className="h-8 w-8 text-accent" />
-                  </div>
-                  <CardTitle>{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>{feature.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </div>
       </section>
@@ -175,18 +133,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* What Makes Us Special Section */}
+      {/* What Makes Us Special Section - Revised Layout */}
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 text-primary">What Makes Us Special</h2>
           <p className="text-lg text-muted-foreground text-center max-w-3xl mx-auto mb-12">
             We're more than just a listing site. We're a community empowering new ways of living and land use.
           </p>
-          <div className="space-y-16">
-            <div className="grid md:grid-cols-2 gap-10 items-center">
-              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
-                <Image src="https://placehold.co/600x450.png" alt="Diverse group of people collaborating over a map of land plots" data-ai-hint="community collaboration" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
-              </div>
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
+              <Image 
+                src="https://placehold.co/600x450.png" 
+                alt="Collaborative community planning land use" 
+                data-ai-hint="community teamwork" 
+                fill 
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="space-y-8">
               <div>
                 <Users className="h-8 w-8 text-accent mb-3" />
                 <h3 className="text-2xl font-semibold text-primary mb-3">Empowerment for Landowners</h3>
@@ -194,22 +159,12 @@ export default function HomePage() {
                   Unlock the potential of your idle land. Generate income, support alternative lifestyles, and contribute to a growing community focused on sustainable and flexible land use.
                 </p>
               </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-10 items-center">
-              <div className="md:order-2 relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
-                <Image src="https://placehold.co/600x450.png" alt="Individual enjoying expansive view from their plot of land" data-ai-hint="freedom outdoors" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
-              </div>
-              <div className="md:order-1">
+              <div>
                 <Feather className="h-8 w-8 text-accent mb-3" />
                 <h3 className="text-2xl font-semibold text-primary mb-3">Freedom for Land-Seekers</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Find flexible, affordable land options for your tiny home, RV, or unique project. Our "Bring Your Own Home" (BYOH) model offers unparalleled freedom to live life on your terms.
                 </p>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-10 items-center">
-              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
-                <Image src="https://placehold.co/600x450.png" alt="Blueprint of a home on a plot of land, symbolizing planning for ownership" data-ai-hint="home ownership planning" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
               </div>
               <div>
                 <TrendingUp className="h-8 w-8 text-accent mb-3" />
@@ -222,6 +177,36 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Key Features Section - Moved Here */}
+      <section className="w-full py-16 md:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Key Features</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
+              { icon: Home, title: 'Flexible Terms', description: 'Daily, monthly, or lease-to-own options with transparent pricing.' },
+              { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'In-app payments, ratings, and 24/7 support.' },
+              { icon: Users, title: 'Direct Communication', description: 'Connect directly with landowners or renters through our secure messaging.' },
+              { icon: DollarSign, title: 'Dynamic Pricing', description: 'AI-powered suggestions to help landowners price competitively.' },
+              { icon: MapPin, title: 'Lease-to-Own Pathway', description: 'Opportunities for renters to convert leases into property ownership.' },
+            ].map((feature) => (
+              <Card key={feature.title} className="text-center shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                  <div className="mx-auto bg-accent/20 p-3 rounded-full w-fit mb-4">
+                    <feature.icon className="h-8 w-8 text-accent" />
+                  </div>
+                  <CardTitle>{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
 
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
