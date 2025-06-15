@@ -39,30 +39,18 @@ export default function BookingsPage() {
     if (firebaseInitializationError && !currentUser?.appProfile) {
       setIsLoading(false);
       setUserBookings([]);
-      if (firebaseInitializationError) {
-          // toast({ // Commented out to reduce noise, already handled elsewhere
-          //   title: "Preview Mode Active",
-          //   description: "Firebase not configured. Cannot load live bookings.",
-          //   variant: "default",
-          //   duration: 5000
-          // });
-      }
       return;
-    }
-
-    if (firebaseInitializationError && currentUser?.appProfile) {
-        //  toast({ // Commented out for less noise
-        //     title: "Preview Mode Active",
-        //     description: "Firebase not configured. Displaying sample bookings for preview.",
-        //     variant: "default",
-        //     duration: 5000
-        // });
     }
 
     setIsLoading(true);
 
     try {
-      const bookingsFromDb = await getBookingsForUser(currentUser!.uid);
+      if (!currentUser) { // Added check for currentUser before accessing uid
+        setUserBookings([]);
+        setIsLoading(false);
+        return;
+      }
+      const bookingsFromDb = await getBookingsForUser(currentUser.uid);
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
@@ -75,14 +63,14 @@ export default function BookingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, toast]);
+  }, [currentUser, toast]); // currentUser added to dependency array
 
   useEffect(() => {
     if (!authLoading && currentUser) {
       loadBookings();
     } else if (!authLoading && !currentUser) {
       setIsLoading(false);
-      setUserBookings([]); // Clear bookings if user logs out
+      setUserBookings([]); 
     }
   }, [authLoading, currentUser, loadBookings]);
 
@@ -105,36 +93,39 @@ export default function BookingsPage() {
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
 
     let durationDesc = "";
-    let priceForLease = listingDetails.price;
+    let priceForLeaseTerm = listingDetails.price; // Default to monthly/LTO price
 
     if (listingDetails.pricingModel === 'nightly') {
         const days = differenceInDays(toDate, fromDate) + 1;
-        durationDesc = `${days} day(s)`;
-        priceForLease = listingDetails.price * days; 
+        durationDesc = `${days} day(s) nightly rental`;
+        priceForLeaseTerm = listingDetails.price * days; // Total for the nightly stay
     } else if (listingDetails.pricingModel === 'monthly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) {
-            durationDesc = `${days} day(s) (Note: Short-term rental of a monthly plot)`;
-             priceForLease = (listingDetails.price / 30) * days; 
+             const approxMonths = (days / 30).toFixed(1);
+             durationDesc = `${days} day(s) (approx ${approxMonths} months) - Short-term on monthly plot`;
+             priceForLeaseTerm = (listingDetails.price / 30) * days; // Prorated
         } else {
              const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
              durationDesc = `${fullMonths} month(s)`;
-             priceForLease = listingDetails.price; 
+             priceForLeaseTerm = listingDetails.price * fullMonths; // Total for full months
         }
     } else if (listingDetails.pricingModel === 'lease-to-own') {
+        // For LTO, duration is typically long-term, price is monthly.
+        // The AI prompt might need to handle the concept of a longer commitment.
         const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-        durationDesc = `${fullMonths} month(s) (Lease-to-Own)`;
-        priceForLease = listingDetails.price;
+        durationDesc = `${fullMonths} month(s) (under Lease-to-Own terms)`;
+        priceForLeaseTerm = listingDetails.price * fullMonths; // Total price for the initial lease period being booked
     }
 
     const input: GenerateLeaseTermsInput = {
-        listingType: listingDetails.pricingModel === 'nightly' ? `Short-term rental for ${listingDetails.title}` : `Plot for ${listingDetails.title} (${listingDetails.pricingModel})`,
+        listingType: `${listingDetails.title} (${listingDetails.pricingModel})`,
         durationDescription: durationDesc,
-        pricePerMonthEquivalent: priceForLease,
+        pricePerMonthEquivalent: priceForLeaseTerm, // This is now total for the term, AI prompt updated.
         landownerName: booking.landownerName,
         renterName: booking.renterName,
         listingAddress: listingDetails.location,
-        additionalRules: listingDetails.leaseToOwnDetails || "No permanent structures without written consent. Maintain cleanliness of the plot."
+        additionalRules: listingDetails.leaseToOwnDetails || listingDetails.amenities.join(', ') || "Standard property usage rules apply. Maintain cleanliness."
     };
 
     const result = await getGeneratedLeaseTermsAction(input);
@@ -145,7 +136,7 @@ export default function BookingsPage() {
         setCurrentLeaseSummary(result.data.summaryPoints);
         setLeaseTermsModalOpen(true);
     } else {
-        toast({title: "AI Error", description: result.error || "Failed to generate lease terms.", variant: "destructive"});
+        toast({title: "AI Lease Generation Error", description: result.error || "Failed to generate lease terms. Please ensure all booking and listing details are complete.", variant: "destructive", duration: 7000});
     }
   };
 
@@ -165,12 +156,6 @@ export default function BookingsPage() {
     }
 
     setIsStatusUpdating(prev => ({ ...prev, [booking.id]: true }));
-    // Optimistic UI update (commented out to rely on loadBookings after success)
-    // const originalBookings = [...userBookings];
-    // setUserBookings(prevBookings =>
-    //   prevBookings.map(b => b.id === booking.id ? { ...b, status: newStatus } : b)
-    // );
-
     try {
       const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
       if (updatedBooking) {
@@ -180,7 +165,18 @@ export default function BookingsPage() {
         });
         await loadBookings(); // Reload all bookings to get fresh state
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
-            await handleGenerateAndShowLeaseTerms(updatedBooking);
+            // Call directly, as updatedBooking from dbUpdateBookingStatus might not have all denormalized fields yet
+            // Need to find the *just updated* booking from the reloaded userBookings list
+            const freshlyLoadedBooking = userBookings.find(b => b.id === booking.id && b.status === 'Confirmed');
+            if (freshlyLoadedBooking) {
+                 await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
+            } else {
+                // If not found immediately, try fetching it again (less ideal)
+                const reloadedSpecificBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id));
+                if (reloadedSpecificBooking && reloadedSpecificBooking.status === 'Confirmed') {
+                     await handleGenerateAndShowLeaseTerms(reloadedSpecificBooking);
+                }
+            }
         }
       } else {
         throw new Error("Update operation returned undefined or failed.");
@@ -191,8 +187,7 @@ export default function BookingsPage() {
         description: error.message || "Could not update booking status.",
         variant: "destructive",
       });
-      // setUserBookings(originalBookings); // Revert optimistic update if it was used
-      await loadBookings(); // Reload to ensure UI consistency on error
+      await loadBookings(); 
     } finally {
         setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }
@@ -220,7 +215,7 @@ export default function BookingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading && !isLoading) { // Ensure not loading and no current user
+  if (!currentUser && !authLoading && !isLoading) { 
      return (
       <Card>
         <CardHeader>
@@ -290,10 +285,10 @@ export default function BookingsPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
-                {booking.landownerId === currentUser!.uid && (
+                {currentUser && booking.landownerId === currentUser.uid && (
                   <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p>
                 )}
-                {booking.renterId === currentUser!.uid && (
+                {currentUser && booking.renterId === currentUser.uid && (
                   <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p>
                 )}
               </CardContent>
@@ -301,13 +296,13 @@ export default function BookingsPage() {
                 <Button variant="outline" size="sm" asChild>
                    <Link href={`/listings/${booking.listingId}`}>View Listing</Link>
                 </Button>
-                {booking.landownerId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
+                {currentUser && booking.landownerId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
                   <>
                     <Button
                       size="sm"
                       className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
-                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
+                      disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
                     >
                       {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                        Approve
@@ -316,26 +311,26 @@ export default function BookingsPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => handleUpdateBookingStatus(booking, 'Declined')}
-                      disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
+                      disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
                     >
                      {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> }
                        Decline
                     </Button>
                   </>
                 )}
-                 {booking.renterId === currentUser!.uid && booking.status.includes('Pending Confirmation') && (
+                 {currentUser && booking.renterId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
                   <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')}
-                    disabled={(firebaseInitializationError !== null && !currentUser!.appProfile) || isStatusUpdating[booking.id]}
+                    disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id]}
                   >
                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
                      Cancel Request
                   </Button>
                 )}
                 {booking.status === 'Confirmed' && (
-                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id]}>
+                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id] || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
                         {isLeaseTermsLoading[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                         View Lease Suggestion
                     </Button>
@@ -356,7 +351,7 @@ export default function BookingsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 custom-scrollbar text-sm space-y-4">
-            {currentLeaseSummary && (
+            {currentLeaseSummary && currentLeaseSummary.length > 0 && (
                 <div className="mb-4 p-3 bg-muted/50 rounded-md">
                     <h3 className="font-semibold mb-2 text-foreground">Key Summary Points:</h3>
                     <ul className="list-disc list-inside space-y-1">
@@ -365,7 +360,7 @@ export default function BookingsPage() {
                 </div>
             )}
             <pre className="whitespace-pre-wrap font-sans bg-card p-4 rounded-md border">
-                {currentLeaseTerms || "No lease terms generated."}
+                {currentLeaseTerms || "No lease terms generated or an error occurred."}
             </pre>
           </div>
           <AlertDialogFooter>
@@ -389,3 +384,4 @@ export default function BookingsPage() {
     </div>
   );
 }
+
