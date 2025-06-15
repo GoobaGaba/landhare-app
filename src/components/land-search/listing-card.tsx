@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2, Crown } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2, Crown, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
@@ -141,7 +141,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                   <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
                 </CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <Badge variant="secondary" className="ml-2 text-xs bg-accent text-accent-foreground border-accent/50">LTO</Badge>
+                    <Badge variant="secondary" className="ml-2 text-xs bg-accent text-accent-foreground border-accent/50 tracking-wide">LTO</Badge>
                 )}
             </div>
             <div className="text-sm text-muted-foreground flex items-center mt-1">
@@ -218,7 +218,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             />
           )}
           {listing.pricingModel === 'lease-to-own' && (
-            <Badge variant="secondary" className={cn("absolute top-2 right-2 z-10 text-xs bg-accent text-accent-foreground border-accent/50", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
+            <Badge variant="secondary" className={cn("absolute top-2 right-2 z-10 text-xs bg-accent text-accent-foreground border-accent/50 tracking-wide", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
               LTO
             </Badge>
           )}
@@ -230,7 +230,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                       size="icon"
                       variant="ghost"
                       className={cn(
-                        "absolute bottom-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background", // Changed to bottom-1 for less overlap with LTO badge
+                        "absolute bottom-1 right-1 z-10 rounded-full h-8 w-8 bg-background/70 hover:bg-background", 
                         isBookmarked ? "text-primary" : "text-muted-foreground",
                         (!isBookmarked && atBookmarkLimit) && "opacity-60 cursor-not-allowed",
                         isCompact ? "h-7 w-7" : ""

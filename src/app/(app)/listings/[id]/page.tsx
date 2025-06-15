@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, Booking } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -336,10 +336,12 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         <div className="md:col-span-2 space-y-6">
           <Card className="overflow-hidden">
             <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-3xl font-headline">{listing.title}</CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <Badge variant="secondary" className="ml-2 text-sm bg-accent text-accent-foreground border-accent/50 whitespace-nowrap">Lease-to-Own</Badge>
+                    <Badge variant="secondary" className="ml-2 text-sm bg-accent text-accent-foreground border-accent/50 tracking-wide whitespace-nowrap inline-flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Lease-to-Own
+                    </Badge>
                 )}
               </div>
               <div className="flex items-center text-muted-foreground mt-1">
@@ -448,7 +450,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     <span className="text-sm text-muted-foreground self-end pb-0.5">/ {displayPriceInfo.unit}</span>
                 </div>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <p className="text-xs text-muted-foreground -mt-2">Lease-to-Own Inquiry</p>
+                    <p className="text-xs text-muted-foreground -mt-2 tracking-wide">Lease-to-Own Inquiry</p>
                 )}
              </CardHeader>
              <CardContent className="space-y-4">
