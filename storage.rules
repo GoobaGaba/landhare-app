@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service firebase.storage {
@@ -9,10 +10,9 @@ service firebase.storage {
       allow read: if true;
 
       // To write (upload, update, delete) listing images:
-      // 1. User must be authenticated.
-      // 2. The authenticated user's UID must match the `landownerId` of the corresponding
-      //    listing document in Firestore.
-      // This requires the Firestore listing document to exist to verify ownership.
+      // User must be authenticated.
+      // The authenticated user's UID must match the `landownerId` of the corresponding
+      // listing document in Firestore. This requires the Firestore listing document to exist.
       allow write: if request.auth != null &&
                       get(/databases/$(database)/documents/listings/$(listingId)).data.landownerId == request.auth.uid;
     }
@@ -25,6 +25,25 @@ service firebase.storage {
 
       // Only an authenticated user can write (upload/update/delete) their own avatar.
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Lease Contracts: Stored under a path like /leaseContracts/{bookingId}/{fileName}.pdf
+    // These rules rely on custom metadata being set during file upload:
+    // bookingId, renterId, landownerId
+    match /leaseContracts/{bookingId}/{fileName} {
+      // Allow read if user is the renter or landowner associated with this booking (via custom metadata)
+      allow read: if request.auth != null &&
+                    (request.auth.uid == resource.metadata.renterId || request.auth.uid == resource.metadata.landownerId) &&
+                    resource.metadata.bookingId == bookingId;
+
+      // Allow write (upload) if user is the renter or landowner for the booking being created/updated,
+      // file is a PDF, and size is less than 5MB.
+      // Metadata (bookingId, renterId, landownerId) must be provided with the upload.
+      allow write: if request.auth != null &&
+                     (request.auth.uid == request.resource.metadata.renterId || request.auth.uid == request.resource.metadata.landownerId) &&
+                     request.resource.metadata.bookingId == bookingId &&
+                     request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                     request.resource.contentType.matches('application/pdf');
     }
   }
 }
