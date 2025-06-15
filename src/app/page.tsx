@@ -49,7 +49,7 @@ export default function HomePage() {
           {!authLoading && currentUser && (
             <p className="mb-4 text-lg text-muted-foreground">Welcome back, {getFirstName()}!</p>
           )}
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">Unlock Your Land. Find Your Space.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">Unlock Your Land. Own Your Future.</h1>
           {!authLoading && !currentUser && (
              <>
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
