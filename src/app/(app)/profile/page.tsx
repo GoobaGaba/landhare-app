@@ -15,6 +15,7 @@ import type { SubscriptionStatus, User as AppUserType } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
+import { GoogleAuthProvider } from 'firebase/auth';
 
 
 interface ProfileDisplayData {
@@ -51,7 +52,7 @@ export default function ProfilePage() {
         name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentAppProfile?.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentAppProfile?.name || currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: currentAppProfile?.bio || (currentUser.uid === MOCK_USER_FOR_UI_TESTING.id ? MOCK_USER_FOR_UI_TESTING.bio || "I am the main mock user." : "Welcome to my LandShare profile!"),
+        bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' && currentAppProfile?.bio === '' ? "I am the main mock user." : currentAppProfile?.bio || "Welcome to my LandShare profile!"),
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
         subscriptionTier: currentSubscription,
       };
