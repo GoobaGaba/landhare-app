@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon } from 'lucide-react'; // Added Sun, Moon
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings } from 'lucide-react'; // Added Settings
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ interface NavLink {
   label: string;
   icon: ComponentType<{ className?: string }>;
   action?: () => void;
-  className?: string; 
+  className?: string;
 }
 
 export default function AppHeader() {
@@ -37,7 +37,7 @@ export default function AppHeader() {
     try {
       await logoutUser();
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
-      router.push('/'); 
+      router.push('/');
     } catch (error) {
       toast({ title: 'Logout Failed', description: 'Could not log you out. Please try again.', variant: 'destructive' });
     }
@@ -46,10 +46,8 @@ export default function AppHeader() {
   const userNavLinks: NavLink[] = [
     { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/my-listings', label: 'My Listings', icon: ListChecks },
-    { href: '/bookings', label: 'My Bookings', icon: Landmark },
-    { href: '/bookmarks', label: 'My Bookmarks', icon: Bookmark },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
+    { href: '/settings', label: 'Settings', icon: Settings },
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
   ];
 
@@ -128,7 +126,7 @@ export default function AppHeader() {
                       <DropdownMenuLabel>Theme</DropdownMenuLabel>
                       <DropdownMenuItem
                         onSelect={(event) => {
-                          event.preventDefault(); 
+                          event.preventDefault();
                           setTheme(theme === 'dark' ? 'light' : 'dark');
                         }}
                         className="cursor-pointer"
