@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight, ShieldCheck, ClipboardList, Feather, TrendingUp } from 'lucide-react';
+import { MapPin, DollarSign, CheckCircle, Users, Home, Search as SearchIcon, Sparkles, Crown, Loader2, ArrowRight, ShieldCheck, ClipboardList, Feather, TrendingUp, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useState } from 'react';
@@ -65,6 +65,12 @@ export default function HomePage() {
               <Button type="submit" size="lg" className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full p-0" aria-label="Search"><ArrowRight className="h-5 w-5" /></Button>
             </form>
           </div>
+
+          {/* Scroll Down Indicator */}
+          <div className="mt-12 animate-bounce text-center">
+            <ChevronDown className="h-8 w-8 text-primary/70 mx-auto" />
+          </div>
+
           <div className="mt-16 text-center">
             <h2 className="text-2xl font-semibold mb-6 text-primary text-center">Recently added</h2>
             {listingsLoading ? (
