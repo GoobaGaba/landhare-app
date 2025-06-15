@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,17 +31,38 @@ interface ProfileDisplayData {
 export default function ProfilePage() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter(); // Added for potentially cleaning URL
 
   const [isEditing, setIsEditing] = useState(false);
-  // This local state will hold the data for display and editing, synced from currentUser.appProfile
   const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
-  
-  // This derived state is for displaying non-editable info or info directly from auth context
   const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
-
-
   const [isSaving, setIsSaving] = useState(false);
   const [isSwitchingSubscription, setIsSwitchingSubscription] = useState(false);
+
+  useEffect(() => {
+    const stripeSessionId = searchParams.get('session_id');
+    const stripeStatus = searchParams.get('status');
+
+    if (stripeStatus === 'success' && stripeSessionId) {
+      toast({
+        title: "Subscription Successful!",
+        description: "Your premium subscription is active. It may take a moment for all features to reflect the change. Please refresh your profile if needed.",
+        variant: "default",
+        duration: 8000,
+      });
+      // Optionally, clear the query params from URL
+      // router.replace('/profile', { shallow: true }); // Use with caution, check Next.js version behavior
+    } else if (stripeStatus === 'cancelled') {
+      toast({
+        title: "Subscription Process Cancelled",
+        description: "You have cancelled the subscription process. Your plan has not changed.",
+        variant: "default",
+        duration: 7000,
+      });
+      // router.replace('/pricing', { shallow: true });
+    }
+  }, [searchParams, toast, router]);
 
 
   useEffect(() => {
@@ -58,7 +80,6 @@ export default function ProfilePage() {
       };
       setProfileDisplayData(displayData);
       
-      // Initialize form data only if not currently editing to avoid overwriting user input
       if (!isEditing) {
         setProfileFormData({
             name: displayData.name,
@@ -69,7 +90,7 @@ export default function ProfilePage() {
       setProfileDisplayData(null);
       setProfileFormData({name: '', bio: ''});
     }
-  }, [currentUser, authLoading, subscriptionStatus, isEditing]); // Add isEditing to dependencies
+  }, [currentUser, authLoading, subscriptionStatus, isEditing]);
 
   const handleSave = async () => {
     if (!currentUser || !profileDisplayData) {
@@ -84,7 +105,6 @@ export default function ProfilePage() {
 
     if (Object.keys(updateData).length > 0) {
         await updateCurrentAppUserProfile(updateData);
-        // AuthContext will update currentUser, and useEffect will refresh profileDisplayData and profileFormData
     } else {
         toast({ title: "No Changes", description: "No information was changed."});
     }
@@ -104,10 +124,9 @@ export default function ProfilePage() {
   };
 
   const handleRefreshProfile = async () => {
-    setIsSaving(true); // Use isSaving to disable buttons during refresh
+    setIsSaving(true); 
     toast({ title: "Refreshing...", description: "Fetching latest profile information."});
     await refreshUserProfile();
-    // Data will update via useEffect listening to currentUser
     setIsSaving(false);
     toast({ title: "Profile Refreshed", description: "Latest data loaded."});
   }
@@ -120,7 +139,7 @@ export default function ProfilePage() {
     try {
         await sendPasswordReset(currentUser.email);
     } catch (error: any) {
-        // Toast for error is handled by sendPasswordReset in AuthContext if it throws
+      // Error handled by AuthContext
     }
   }
 
@@ -133,9 +152,8 @@ export default function ProfilePage() {
     const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
     try {
       await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
-      // AuthContext handles success toast and updates currentUser, which useEffect will pick up.
     } catch (error: any) {
-      // Error already handled by updateCurrentAppUserProfile
+      // Error handled by AuthContext
     } finally {
       setIsSwitchingSubscription(false);
     }
@@ -151,7 +169,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (firebaseInitializationError && !currentUser && !authLoading) { // More specific check for this scenario
+  if (firebaseInitializationError && !currentUser && !authLoading) { 
      return (
       <Card>
         <CardHeader>
