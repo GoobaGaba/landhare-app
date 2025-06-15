@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText } from "lucide-react";
+import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
 import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById } from '@/lib/mock-data';
@@ -23,16 +23,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import jsPDF from 'jspdf';
 
 export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState<Record<string, boolean>>({}); // Track loading per booking
-  const [isStatusUpdating, setIsStatusUpdating] = useState<Record<string, boolean>>({}); // Track status update per booking
+  const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState<Record<string, boolean>>({});
+  const [isStatusUpdating, setIsStatusUpdating] = useState<Record<string, boolean>>({});
   const [leaseTermsModalOpen, setLeaseTermsModalOpen] = useState(false);
   const [currentLeaseTerms, setCurrentLeaseTerms] = useState<string | null>(null);
   const [currentLeaseSummary, setCurrentLeaseSummary] = useState<string[] | null>(null);
+  const [currentBookingForLease, setCurrentBookingForLease] = useState<Booking | null>(null);
   const { toast } = useToast();
 
   const loadBookings = useCallback(async () => {
@@ -45,7 +47,7 @@ export default function BookingsPage() {
     setIsLoading(true);
 
     try {
-      if (!currentUser) { // Added check for currentUser before accessing uid
+      if (!currentUser) {
         setUserBookings([]);
         setIsLoading(false);
         return;
@@ -63,14 +65,14 @@ export default function BookingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, toast]); // currentUser added to dependency array
+  }, [currentUser, toast]);
 
   useEffect(() => {
     if (!authLoading && currentUser) {
       loadBookings();
     } else if (!authLoading && !currentUser) {
       setIsLoading(false);
-      setUserBookings([]); 
+      setUserBookings([]);
     }
   }, [authLoading, currentUser, loadBookings]);
 
@@ -81,7 +83,8 @@ export default function BookingsPage() {
         return;
     }
     setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: true }));
-    
+    setCurrentBookingForLease(booking);
+
     const listingDetails = await getListingById(booking.listingId);
     if (!listingDetails) {
         toast({title: "Error", description: "Could not fetch listing details for lease terms.", variant: "destructive"});
@@ -93,35 +96,33 @@ export default function BookingsPage() {
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
 
     let durationDesc = "";
-    let priceForLeaseTerm = listingDetails.price; // Default to monthly/LTO price
+    let priceForLeaseTerm = listingDetails.price;
 
     if (listingDetails.pricingModel === 'nightly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         durationDesc = `${days} day(s) nightly rental`;
-        priceForLeaseTerm = listingDetails.price * days; // Total for the nightly stay
+        priceForLeaseTerm = listingDetails.price * days;
     } else if (listingDetails.pricingModel === 'monthly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) {
              const approxMonths = (days / 30).toFixed(1);
              durationDesc = `${days} day(s) (approx ${approxMonths} months) - Short-term on monthly plot`;
-             priceForLeaseTerm = (listingDetails.price / 30) * days; // Prorated
+             priceForLeaseTerm = (listingDetails.price / 30) * days;
         } else {
              const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
              durationDesc = `${fullMonths} month(s)`;
-             priceForLeaseTerm = listingDetails.price * fullMonths; // Total for full months
+             priceForLeaseTerm = listingDetails.price * fullMonths;
         }
     } else if (listingDetails.pricingModel === 'lease-to-own') {
-        // For LTO, duration is typically long-term, price is monthly.
-        // The AI prompt might need to handle the concept of a longer commitment.
         const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
         durationDesc = `${fullMonths} month(s) (under Lease-to-Own terms)`;
-        priceForLeaseTerm = listingDetails.price * fullMonths; // Total price for the initial lease period being booked
+        priceForLeaseTerm = listingDetails.price * fullMonths;
     }
 
     const input: GenerateLeaseTermsInput = {
         listingType: `${listingDetails.title} (${listingDetails.pricingModel})`,
         durationDescription: durationDesc,
-        pricePerMonthEquivalent: priceForLeaseTerm, // This is now total for the term, AI prompt updated.
+        pricePerMonthEquivalent: priceForLeaseTerm,
         landownerName: booking.landownerName,
         renterName: booking.renterName,
         listingAddress: listingDetails.location,
@@ -136,18 +137,66 @@ export default function BookingsPage() {
         setCurrentLeaseSummary(result.data.summaryPoints);
         setLeaseTermsModalOpen(true);
     } else {
-        toast({title: "AI Lease Generation Error", description: result.error || "Failed to generate lease terms. Please ensure all booking and listing details are complete.", variant: "destructive", duration: 7000});
+        toast({title: "AI Lease Generation Error", description: result.error || "Failed to generate lease terms.", variant: "destructive", duration: 7000});
+    }
+  };
+
+  const handleDownloadLeasePdf = () => {
+    if (!currentLeaseTerms || !currentBookingForLease) {
+      toast({title: "Error", description: "No lease terms available to download.", variant: "destructive"});
+      return;
+    }
+    try {
+      const doc = new jsPDF();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15; // mm
+      const lineHeight = 5; // mm, adjust based on font size
+      let y = margin;
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Lease Agreement Suggestion", pageWidth / 2, y, { align: "center" });
+      y += lineHeight * 2;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      
+      const lines = doc.splitTextToSize(currentLeaseTerms, pageWidth - margin * 2);
+      
+      lines.forEach((line: string) => {
+        if (y + lineHeight > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        // Basic bold detection for headings
+        if (line.startsWith("**") && line.endsWith("**")) {
+            doc.setFont("helvetica", "bold");
+            doc.text(line.substring(2, line.length - 2), margin, y);
+            doc.setFont("helvetica", "normal");
+        } else {
+            doc.text(line, margin, y);
+        }
+        y += lineHeight;
+      });
+
+      doc.save(`LandShare_Lease_Suggestion_${currentBookingForLease.listingTitle?.replace(/\s+/g, '_') || currentBookingForLease.listingId}.pdf`);
+      toast({title: "PDF Downloaded", description: "Lease suggestion PDF has been downloaded."});
+
+      // Placeholder for Firebase Storage upload in next step
+      // const pdfBlob = doc.output('blob');
+      // uploadLeaseToStorage(pdfBlob, currentBookingForLease.id);
+
+    } catch (error: any) {
+      console.error("Error generating PDF:", error);
+      toast({title: "PDF Generation Failed", description: error.message || "Could not generate PDF.", variant: "destructive"});
     }
   };
 
 
   const handleUpdateBookingStatus = async (booking: Booking, newStatus: Booking['status']) => {
     if (firebaseInitializationError && !currentUser?.appProfile) {
-        toast({
-            title: "Preview Mode",
-            description: "Updating booking status is disabled in full preview mode.",
-            variant: "default"
-        });
+        toast({ title: "Preview Mode", description: "Updating booking status is disabled in full preview mode.", variant: "default" });
         return;
     }
     if(!currentUser){
@@ -159,19 +208,13 @@ export default function BookingsPage() {
     try {
       const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
       if (updatedBooking) {
-        toast({
-          title: "Booking Updated",
-          description: `Booking status changed to ${newStatus}.`,
-        });
-        await loadBookings(); // Reload all bookings to get fresh state
+        toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus}.` });
+        await loadBookings();
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
-            // Call directly, as updatedBooking from dbUpdateBookingStatus might not have all denormalized fields yet
-            // Need to find the *just updated* booking from the reloaded userBookings list
             const freshlyLoadedBooking = userBookings.find(b => b.id === booking.id && b.status === 'Confirmed');
             if (freshlyLoadedBooking) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
             } else {
-                // If not found immediately, try fetching it again (less ideal)
                 const reloadedSpecificBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id));
                 if (reloadedSpecificBooking && reloadedSpecificBooking.status === 'Confirmed') {
                      await handleGenerateAndShowLeaseTerms(reloadedSpecificBooking);
@@ -182,12 +225,8 @@ export default function BookingsPage() {
         throw new Error("Update operation returned undefined or failed.");
       }
     } catch (error: any) {
-      toast({
-        title: "Update Failed",
-        description: error.message || "Could not update booking status.",
-        variant: "destructive",
-      });
-      await loadBookings(); 
+      toast({ title: "Update Failed", description: error.message || "Could not update booking status.", variant: "destructive" });
+      await loadBookings();
     } finally {
         setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }
@@ -215,22 +254,15 @@ export default function BookingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading && !isLoading) { 
+  if (!currentUser && !authLoading && !isLoading) {
      return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCircle className="h-6 w-6 text-primary" />
-            Please Log In
-          </CardTitle>
+          <CardTitle className="flex items-center gap-2"> <UserCircle className="h-6 w-6 text-primary" /> Please Log In </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            You need to be logged in to view your bookings.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/login">Log In</Link>
-          </Button>
+          <p className="text-muted-foreground"> You need to be logged in to view your bookings. </p>
+          <Button asChild className="mt-4"> <Link href="/login">Log In</Link> </Button>
         </CardContent>
       </Card>
     );
@@ -240,36 +272,20 @@ export default function BookingsPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold">
-          My Bookings & Requests
-        </h1>
-         <Button asChild>
-            <Link href="/search">
-              <Briefcase className="mr-2 h-4 w-4" /> Find New Land
-            </Link>
-          </Button>
+        <h1 className="text-3xl font-bold"> My Bookings & Requests </h1>
+         <Button asChild> <Link href="/search"> <Briefcase className="mr-2 h-4 w-4" /> Find New Land </Link> </Button>
       </div>
 
       {userBookings.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarCheck className="h-6 w-6 text-primary" />
-              No Bookings Yet
-            </CardTitle>
+            <CardTitle className="flex items-center gap-2"> <CalendarCheck className="h-6 w-6 text-primary" /> No Bookings Yet </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-             You don't have any active bookings or requests at the moment.
-            {firebaseInitializationError && " (Firebase features may be limited if not configured.)"}
-            </p>
+            <p className="text-muted-foreground"> You don't have any active bookings or requests at the moment. {firebaseInitializationError && " (Firebase features may be limited if not configured.)"} </p>
             <div className="flex gap-2 mt-4">
-                <Button asChild>
-                    <Link href="/search">Explore Land</Link>
-                </Button>
-                <Button asChild variant="outline">
-                    <Link href="/my-listings">View My Listings</Link>
-                </Button>
+                <Button asChild> <Link href="/search">Explore Land</Link> </Button>
+                <Button asChild variant="outline"> <Link href="/my-listings">View My Listings</Link> </Button>
             </div>
           </CardContent>
         </Card>
@@ -279,54 +295,28 @@ export default function BookingsPage() {
             <Card key={booking.id} className="shadow-md hover:shadow-lg transition-shadow">
               <CardHeader>
                 <CardTitle>{booking.listingTitle || `Listing: ${booking.listingId.substring(0,10)}...`}</CardTitle>
-                <CardDescription>
-                  Status: <span className={`font-semibold ${getStatusColor(booking.status)}`}>{booking.status}</span>
-                </CardDescription>
+                <CardDescription> Status: <span className={`font-semibold ${getStatusColor(booking.status)}`}>{booking.status}</span> </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
-                {currentUser && booking.landownerId === currentUser.uid && (
-                  <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p>
-                )}
-                {currentUser && booking.renterId === currentUser.uid && (
-                  <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p>
-                )}
+                {currentUser && booking.landownerId === currentUser.uid && ( <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p> )}
+                {currentUser && booking.renterId === currentUser.uid && ( <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p> )}
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" asChild>
-                   <Link href={`/listings/${booking.listingId}`}>View Listing</Link>
-                </Button>
+                <Button variant="outline" size="sm" asChild> <Link href={`/listings/${booking.listingId}`}>View Listing</Link> </Button>
                 {currentUser && booking.landownerId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
                   <>
-                    <Button
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                      onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')}
-                      disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
-                    >
-                      {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                       Approve
+                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]} >
+                      {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Approve
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleUpdateBookingStatus(booking, 'Declined')}
-                      disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]}
-                    >
-                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> }
-                       Decline
+                    <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Declined')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]} >
+                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> } Decline
                     </Button>
                   </>
                 )}
                  {currentUser && booking.renterId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')}
-                    disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id]}
-                  >
-                    {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
-                     Cancel Request
+                  <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id]} >
+                    {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />} Cancel Request
                   </Button>
                 )}
                 {booking.status === 'Confirmed' && (
@@ -363,23 +353,18 @@ export default function BookingsPage() {
                 {currentLeaseTerms || "No lease terms generated or an error occurred."}
             </pre>
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2 flex-row justify-end">
+            <Button variant="outline" onClick={handleDownloadLeasePdf} disabled={!currentLeaseTerms || !currentBookingForLease}>
+                <Download className="mr-2 h-4 w-4"/> Download PDF
+            </Button>
             <AlertDialogAction onClick={() => setLeaseTermsModalOpen(false)}>Close</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <Card className="mt-8 bg-muted/30">
-        <CardHeader>
-            <CardTitle className="text-lg">Booking Management Tip</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <p className="text-sm text-muted-foreground">
-               Respond to booking requests promptly. Approved bookings show as 'Confirmed'.
-               You can cancel 'Pending Confirmation' requests if your plans change.
-               Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available.
-            </p>
-        </CardContent>
+        <CardHeader> <CardTitle className="text-lg">Booking Management Tip</CardTitle> </CardHeader>
+        <CardContent> <p className="text-sm text-muted-foreground"> Respond to booking requests promptly. Approved bookings show as 'Confirmed'. You can cancel 'Pending Confirmation' requests if your plans change. Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available. </p> </CardContent>
       </Card>
     </div>
   );
