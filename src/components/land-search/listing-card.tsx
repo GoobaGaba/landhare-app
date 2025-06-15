@@ -90,7 +90,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     return (
       <Card className={cn(
         "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl",
-        listing.isBoosted && "ring-1 ring-accent"
+        listing.isBoosted && "ring-1 ring-accent" // Keep orange ring for boosted
       )}>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
@@ -103,9 +103,12 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           />
            {listing.isBoosted && (
             <Plus
-              className="absolute top-2 left-2 z-10 text-accent h-5 w-5"
+              className={cn(
+                "absolute top-2 left-2 z-10 text-premium", // Changed to premium purple
+                isCompact ? "h-4 w-4" : "h-5 w-5"
+              )}
               strokeWidth={3}
-              title="Boosted Listing"
+              title="Boosted Listing (Premium Feature)"
             />
           )}
            {currentUser && listing.landownerId !== currentUser.uid && (
@@ -128,7 +131,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
-                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-amber-500" />}
+                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-premium" />}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -141,7 +144,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                   <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
                 </CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <Badge variant="secondary" className="ml-2 text-xs bg-accent text-accent-foreground border-accent/50 tracking-wide">LTO</Badge>
+                    <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide">LTO</Badge>
                 )}
             </div>
             <div className="text-sm text-muted-foreground flex items-center mt-1">
@@ -195,7 +198,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     <Card className={cn(
       "overflow-hidden transition-shadow duration-300 flex flex-col h-full shadow-lg hover:shadow-xl", 
       isCompact ? "text-sm" : "",
-      listing.isBoosted && "ring-1 ring-accent"
+      listing.isBoosted && "ring-1 ring-accent" // Keep orange ring for boosted
     )}>
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
@@ -210,16 +213,16 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           {listing.isBoosted && (
             <Plus
               className={cn(
-                "absolute top-2 left-2 z-10 text-accent",
+                "absolute top-2 left-2 z-10 text-premium", // Changed to premium purple
                 isCompact ? "h-4 w-4" : "h-5 w-5"
               )}
               strokeWidth={3}
-              title="Boosted Listing"
+              title="Boosted Listing (Premium Feature)"
             />
           )}
           {listing.pricingModel === 'lease-to-own' && (
-            <Badge variant="secondary" className={cn("absolute top-2 right-2 z-10 text-xs bg-accent text-accent-foreground border-accent/50 tracking-wide", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
-              LTO
+            <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
+              <Sparkles className="mr-1 h-2.5 w-2.5"/>LTO
             </Badge>
           )}
           {currentUser && listing.landownerId !== currentUser.uid && (
@@ -243,7 +246,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
-                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-amber-500" />}
+                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-premium" />}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

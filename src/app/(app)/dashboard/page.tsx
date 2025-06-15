@@ -181,17 +181,17 @@ export default function DashboardPage() {
           </Card>
         
         {isPremiumUser && (
-          <Card className="md:col-span-2 lg:col-span-3 border-primary ring-1 ring-primary/30">
+          <Card className="md:col-span-2 lg:col-span-3 border-premium ring-1 ring-premium/30">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary">
+              <CardTitle className="flex items-center gap-2 text-premium">
                 <BarChart3 className="h-6 w-6"/> Market Insights (Premium)
               </CardTitle>
               <CardDescription>Exclusive data to help you optimize your listings and pricing.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Alert>
-                <BarChart3 className="h-4 w-4" />
-                <AlertTitle>Coming Soon!</AlertTitle>
+              <Alert className="border-premium/50 bg-premium/5 text-premium">
+                <BarChart3 className="h-4 w-4 text-premium" />
+                <AlertTitle className="text-premium">Coming Soon!</AlertTitle>
                 <AlertDescription>
                   Detailed market trends, demand forecasts, and competitive analysis will be available here for Premium subscribers.
                   This could include AI-powered insights on optimal pricing, amenity popularity, and seasonal demand.
@@ -217,8 +217,8 @@ export default function DashboardPage() {
               </Button>
             </div>
             {atListingLimit && (
-                 <p className="text-xs text-destructive mt-2 flex items-center gap-1">
-                    <Crown className="h-3 w-3"/> Limit reached. <Link href="/pricing" className="text-primary hover:underline">Upgrade</Link> for more.
+                 <p className="text-xs text-premium mt-2 flex items-center gap-1">
+                    <Crown className="h-3 w-3 text-premium"/> Limit reached. <Link href="/pricing" className="text-premium hover:underline">Upgrade</Link> for more.
                 </p>
             )}
           </CardContent>
@@ -285,8 +285,8 @@ export default function DashboardPage() {
               <Link href="/bookmarks">View All Bookmarks</Link>
             </Button>
             {atBookmarkLimit && (
-              <p className="text-xs text-destructive mt-2 flex items-center gap-1">
-                <Crown className="h-3 w-3"/> Limit reached. <Link href="/pricing" className="text-primary hover:underline">Upgrade</Link> for more.
+              <p className="text-xs text-premium mt-2 flex items-center gap-1">
+                <Crown className="h-3 w-3 text-premium"/> Limit reached. <Link href="/pricing" className="text-premium hover:underline">Upgrade</Link> for more.
               </p>
             )}
           </CardContent>

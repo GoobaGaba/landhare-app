@@ -339,7 +339,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
               <div className="flex items-start justify-between gap-2">
                 <CardTitle className="text-3xl font-headline">{listing.title}</CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <Badge variant="secondary" className="ml-2 text-sm bg-accent text-accent-foreground border-accent/50 tracking-wide whitespace-nowrap inline-flex items-center gap-1">
+                    <Badge variant="outline" className="ml-2 text-sm bg-premium text-premium-foreground border-premium/80 tracking-wide whitespace-nowrap inline-flex items-center gap-1">
                         <Sparkles className="h-3 w-3" /> Lease-to-Own
                     </Badge>
                 )}
@@ -365,7 +365,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 )}
                 {listing.pricingModel === 'lease-to-own' && listing.leaseToOwnDetails && (
                   <div className="col-span-1 sm:col-span-2">
-                    <h4 className="text-sm font-medium flex items-center mb-1"><Home className="h-4 w-4 mr-2 text-primary"/>Lease-to-Own Details:</h4>
+                    <h4 className="text-sm font-medium flex items-center mb-1"><Home className="h-4 w-4 mr-2 text-premium"/>Lease-to-Own Details:</h4>
                     <p className="text-xs text-muted-foreground whitespace-pre-line bg-muted/30 p-3 rounded-md">{listing.leaseToOwnDetails}</p>
                   </div>
                 )}
@@ -450,7 +450,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     <span className="text-sm text-muted-foreground self-end pb-0.5">/ {displayPriceInfo.unit}</span>
                 </div>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <p className="text-xs text-muted-foreground -mt-2 tracking-wide">Lease-to-Own Inquiry</p>
+                    <p className="text-xs text-premium tracking-wide -mt-2">Lease-to-Own Inquiry</p>
                 )}
              </CardHeader>
              <CardContent className="space-y-4">
@@ -484,7 +484,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 )}
                 {listing.pricingModel === 'lease-to-own' && listing.leaseToOwnDetails && (
                      <div>
-                        <h4 className="text-sm font-medium flex items-center mb-1"><TrendingUp className="h-4 w-4 mr-2 text-primary"/>Key LTO Terms:</h4>
+                        <h4 className="text-sm font-medium flex items-center mb-1"><TrendingUp className="h-4 w-4 mr-2 text-premium"/>Key LTO Terms:</h4>
                         <p className="text-xs text-muted-foreground whitespace-pre-line bg-muted/30 p-3 rounded-md line-clamp-3 hover:line-clamp-none transition-all">
                             {listing.leaseToOwnDetails}
                         </p>
@@ -504,7 +504,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                         </div>
                     )}
                     {subscriptionStatus === 'premium' && listing.pricingModel !== 'lease-to-own' && (
-                        <div className="flex justify-between text-primary">
+                        <div className="flex justify-between text-premium">
                             <span>Renter Service Fee (Premium Benefit!):</span>
                             <span>$0.00</span>
                         </div>
@@ -621,7 +621,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
               </div>
               {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
-              {subscriptionStatus === 'premium' && <div className="flex justify-between text-primary"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
+              {subscriptionStatus === 'premium' && <div className="flex justify-between text-premium"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
               <div className="flex justify-between"><span>Subtotal:</span> <span>${(typeof priceDetails.subtotal === 'number' && !isNaN(priceDetails.subtotal)) ? priceDetails.subtotal.toFixed(2) : '--'}</span></div>
               <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${(typeof priceDetails.estimatedTax === 'number' && !isNaN(priceDetails.estimatedTax)) ? priceDetails.estimatedTax.toFixed(2) : '--'}</span></div>
               <Separator className="my-2"/>
@@ -637,7 +637,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
             <div className="py-4 space-y-2 text-sm">
                 <p><strong>Listing:</strong> {listing.title}</p>
                 <p><strong>Inquiry Type:</strong> Lease-to-Own</p>
-                <h4 className="font-medium mt-2">Key Terms from Landowner:</h4>
+                <h4 className="font-medium mt-2 text-premium">Key Terms from Landowner:</h4>
                 <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md whitespace-pre-line">{listing.leaseToOwnDetails}</p>
                 <p className="text-xs text-muted-foreground mt-2">The landowner will receive your contact information and can discuss further details and specific terms with you.</p>
             </div>

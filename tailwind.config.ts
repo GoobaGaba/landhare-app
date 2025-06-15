@@ -70,6 +70,10 @@ export default {
           DEFAULT: 'hsl(var(--neon-green))',
           foreground: 'hsl(var(--neon-green-foreground))',
         },
+        premium: {
+          DEFAULT: 'hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l))',
+          foreground: 'hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

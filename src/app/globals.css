@@ -44,7 +44,7 @@ body {
     --chart-4: 60 50% 60%;
     --chart-5: 30 55% 55%;
 
-    --sidebar-background: 60 56% 93%; /* Using card color for sidebar */
+    --sidebar-background: 60 56% 93%;
     --sidebar-foreground: 120 25% 15%;
     --sidebar-primary: 120 33% 30%;
     --sidebar-primary-foreground: 60 60% 97%;
@@ -53,8 +53,17 @@ body {
     --sidebar-border: 60 30% 82%;
     --sidebar-ring: 120 33% 30%;
 
-    --neon-green: 120 100% 45%; /* Vibrant Neon Green */
-    --neon-green-foreground: 120 25% 10%; /* Dark Greenish for contrast */
+    --neon-green: 120 100% 45%;
+    --neon-green-foreground: 120 25% 10%;
+
+    --premium-feature-h: 275;
+    --premium-feature-s: 90%;
+    --premium-feature-l: 60%;
+    --premium-feature-foreground-h: 275;
+    --premium-feature-foreground-s: 80%;
+    --premium-feature-foreground-l: 95%;
+    --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
+    --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
   }
 
   .dark {
@@ -67,7 +76,7 @@ body {
     --popover: 120 10% 12%;
     --popover-foreground: 60 30% 92%;
 
-    --primary: 120 33% 50%; /* Brighter Forest Green for dark mode */
+    --primary: 120 33% 50%; 
     --primary-foreground: 120 25% 10%; 
 
     --secondary: 120 15% 25%; 
@@ -76,7 +85,7 @@ body {
     --muted: 120 10% 20%;
     --muted-foreground: 60 25% 70%;
 
-    --accent: 20 60% 60%; /* Brighter Burnt Orange for dark mode */
+    --accent: 20 60% 60%; 
     --accent-foreground: 0 0% 10%;
 
     --destructive: 0 60% 55%;
@@ -101,8 +110,17 @@ body {
     --sidebar-border: 120 10% 25%;
     --sidebar-ring: 20 60% 60%;
 
-    --neon-green: 120 100% 50%; /* Slightly adjusted for dark mode if needed */
+    --neon-green: 120 100% 50%;
     --neon-green-foreground: 0 0% 5%;
+
+    --premium-feature-h: 275;
+    --premium-feature-s: 90%;
+    --premium-feature-l: 65%;
+    --premium-feature-foreground-h: 275;
+    --premium-feature-foreground-s: 80%;
+    --premium-feature-foreground-l: 97%;
+    --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
+    --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
   }
 }
 

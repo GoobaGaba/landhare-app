@@ -22,12 +22,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
-import { useListingsData } from '@/hooks/use-listings-data'; // For listing limit check
+import { useListingsData } from '@/hooks/use-listings-data'; 
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Import limit
+import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; 
 
 import { db, firebaseInitializationError } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
@@ -78,7 +78,7 @@ export function ListingForm() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState<{ message: string, listingId?: string } | null>(null);
   
@@ -268,13 +268,13 @@ export function ListingForm() {
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader><CardTitle>Create New Land Listing</CardTitle><CardDescription>Fill details to list your land.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Create New Land Listing</CardTitle><CardDescription>Fill details to list your land on LandShare.</CardDescription></CardHeader>
       {atListingLimit && (
         <Alert variant="destructive" className="mx-6 mb-0">
-            <AlertCircle className="h-4 w-4" />
+            <Crown className="h-4 w-4 text-premium" />
             <AlertTitle>Listing Limit Reached</AlertTitle>
             <AlertDescription>
-              Free accounts can create {FREE_TIER_LISTING_LIMIT} listing. <Button variant="link" asChild className="p-0 h-auto text-destructive hover:text-destructive/80"><Link href="/pricing">Upgrade to Premium</Link></Button> for unlimited listings.
+              Free accounts can create {FREE_TIER_LISTING_LIMIT} listing. <Button variant="link" asChild className="p-0 h-auto text-premium hover:text-premium/80"><Link href="/pricing">Upgrade to Premium</Link></Button> for unlimited listings.
             </AlertDescription>
         </Alert>
       )}
@@ -296,7 +296,7 @@ export function ListingForm() {
                       className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                       {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                       {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
@@ -322,8 +322,8 @@ export function ListingForm() {
                         disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser.appProfile)}
                         className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
-                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
-                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
+                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>

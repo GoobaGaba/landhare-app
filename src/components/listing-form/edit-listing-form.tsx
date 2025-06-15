@@ -82,7 +82,7 @@ interface EditListingFormProps {
 export function EditListingForm({ listing, currentUserId }: EditListingFormProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { currentUser, subscriptionStatus } = useAuth(); // Added currentUser
+  const { currentUser, subscriptionStatus } = useAuth(); 
   
   const [formState, formAction] = useActionState(
     (prevState: ListingFormState, formData: FormData) => updateListingAction(listing.id, currentUserId, prevState, formData),
@@ -289,7 +289,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                       className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                      {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                      {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
                     </Button>
                   </TooltipTrigger>
                    <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
@@ -315,8 +315,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                         disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser?.appProfile)}
                         className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
-                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-purple-500" />}
-                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-amber-500 fill-amber-500" />}
+                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
+                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
                         </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>

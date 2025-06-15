@@ -179,7 +179,7 @@ export default function SearchPage() {
         </div>
         <h2 className="text-2xl font-semibold">Available Land ({filteredListings.length} results)</h2>
         {subscriptionStatus === 'premium' && (
-          <Alert variant="default" className="border-primary/50 bg-primary/5 text-primary"><Sparkles className="h-4 w-4 text-primary" /><AlertTitle className="font-semibold">Premium Search</AlertTitle><AlertDescription>As a Premium member, your listings are boosted and you may see advanced search filters in the future!</AlertDescription></Alert>
+          <Alert variant="default" className="border-premium/50 bg-premium/5 text-premium"><Sparkles className="h-4 w-4 text-premium" /><AlertTitle className="font-semibold text-premium">Premium Search</AlertTitle><AlertDescription>As a Premium member, your listings are boosted and you may see advanced search filters in the future!</AlertDescription></Alert>
         )}
         {filteredListings.length === 0 && !listingsLoading ? (
           <Alert><SearchIcon className="h-4 w-4" /><AlertTitle>No Listings Found</AlertTitle><AlertDescription>Try adjusting your filters or search term.{firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}</AlertDescription></Alert>

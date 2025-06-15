@@ -8,10 +8,10 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { createCheckoutSessionAction } from '@/lib/actions/stripe-actions'; // New import
+import { createCheckoutSessionAction } from '@/lib/actions/stripe-actions'; 
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert'; // For displaying Stripe messages
-import { isStripeEnabled } from '@/lib/stripe'; // Import client-side check if needed, though server action handles it
+import { Alert, AlertDescription } from '@/components/ui/alert'; 
+import { isStripeEnabled } from '@/lib/stripe'; 
 
 const pricingPlans = [
   {
@@ -37,26 +37,26 @@ const pricingPlans = [
   {
     id: "premium",
     title: "Premium Subscription",
-    price: "$5", // Example price
+    price: "$5", 
     period: "/month",
     description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
     renterFeatures: [
-      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, isBenefit: true },
-      { text: "Advanced search filters (coming soon)", icon: SearchIcon, isBenefit: true},
-      { text: "Early access to new listings (coming soon)", icon: Sparkles, isBenefit: true },
+      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, isBenefit: true, premiumIconColor: true },
+      { text: "Advanced search filters (coming soon)", icon: SearchIcon, isBenefit: true, premiumIconColor: true},
+      { text: "Early access to new listings (coming soon)", icon: Sparkles, isBenefit: true, premiumIconColor: true },
     ],
     landownerFeatures: [
-      { text: "List unlimited properties", icon: InfinityIcon, isBenefit: true },
-      { text: "Add more photos to listings (up to 10)", icon: ImagePlus, isBenefit: true},
-      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true },
-      { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true },
+      { text: "List unlimited properties", icon: InfinityIcon, isBenefit: true, premiumIconColor: true },
+      { text: "Add more photos to listings (up to 10)", icon: ImagePlus, isBenefit: true, premiumIconColor: true},
+      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true, premiumIconColor: true },
+      { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true, premiumIconColor: true },
     ],
     generalFeatures: [ 
-      { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true },
-      { text: "Priority support", icon: Crown, isBenefit: true },
+      { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true, premiumIconColor: true },
+      { text: "Priority support", icon: Crown, isBenefit: true, premiumIconColor: true },
     ],
     cta: "Upgrade to Premium",
-    actionKey: "upgradePremium", // To identify this button's action
+    actionKey: "upgradePremium", 
     hrefSelfIfPremium: "/profile?tab=billing", 
     highlight: true,
   },
@@ -72,26 +72,20 @@ export default function PricingPage() {
     if (actionKey === "upgradePremium") {
       if (!currentUser) {
           toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
-          // Optionally redirect: router.push('/login?redirect=/pricing');
           return;
       }
       if (subscriptionStatus === 'premium') {
-          // User is already premium, button should link to manage subscription or do nothing
-          // This case is handled by the ctaLink logic below
           return;
       }
 
       setIsProcessing(true);
       setStripeError(null);
       try {
-        // The server action will handle the redirect to Stripe if successful
         const result = await createCheckoutSessionAction(); 
         if (result?.error) {
           setStripeError(result.error);
           toast({title: "Subscription Error", description: result.error, variant: "destructive"});
         }
-        // If successful, createCheckoutSessionAction now handles the redirect itself.
-        // No need to handle result.url here on the client if the redirect is server-side.
       } catch (error: any) {
         setStripeError(error.message || "An unexpected error occurred.");
         toast({title: "Subscription Error", description: error.message || "Could not initiate subscription.", variant: "destructive"});
@@ -124,7 +118,7 @@ export default function PricingPage() {
       {stripeError && (
         <Alert variant="destructive" className="max-w-xl mx-auto mb-8">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Payment Error</AlertTitle>
+          <CardTitle className="text-destructive">Payment Error</CardTitle> {/* Changed to CardTitle for consistency */}
           <AlertDescription>{stripeError}</AlertDescription>
         </Alert>
       )}
@@ -145,18 +139,18 @@ export default function PricingPage() {
           
           const isButtonDisabled = isProcessing || 
                                    (plan.id === 'premium' && authLoading) ||
-                                   (plan.id === 'premium' && !currentUser && !authLoading); // Disable premium if not logged in and auth check done
+                                   (plan.id === 'premium' && !currentUser && !authLoading); 
                                   
 
           return (
-            <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-primary relative overflow-hidden ring-2 ring-primary/30' : 'border-border')}>
+            <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-premium relative overflow-hidden ring-2 ring-premium/30' : 'border-border')}>
               {plan.highlight && (
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
+                <div className="absolute top-0 right-0 bg-premium text-premium-foreground px-3 py-1 text-xs font-semibold rounded-bl-lg flex items-center gap-1 z-10">
                   <Crown className="h-3 w-3" /> Most Popular
                 </div>
               )}
               <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-semibold text-primary">{plan.title}</CardTitle>
+                <CardTitle className={cn("text-2xl font-semibold", plan.highlight ? "text-premium" : "text-primary")}>{plan.title}</CardTitle>
                 <div className="flex items-baseline mt-2">
                   <span className="text-4xl font-bold">{plan.price}</span>
                   {plan.period !== "to Join" && <span className="text-muted-foreground ml-1">{plan.period}</span>}
@@ -170,7 +164,7 @@ export default function PricingPage() {
                     <ul className="space-y-2 text-sm">
                       {plan.renterFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
+                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.premiumIconColor ? 'text-premium' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
@@ -183,7 +177,7 @@ export default function PricingPage() {
                     <ul className="space-y-2 text-sm">
                       {plan.landownerFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
+                          <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.premiumIconColor ? 'text-premium' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
@@ -192,11 +186,11 @@ export default function PricingPage() {
                 )}
                  {plan.generalFeatures && plan.generalFeatures.length > 0 && ( 
                   <div className="mt-3">
-                    <h4 className="text-sm font-semibold mb-2 text-accent">Premium Benefits:</h4>
+                    <h4 className="text-sm font-semibold mb-2 text-premium">Premium Benefits:</h4>
                     <ul className="space-y-2 text-sm">
                       {plan.generalFeatures.map((feature) => (
                         <li key={feature.text} className="flex items-start">
-                           <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.isBenefit ? 'text-primary' : 'text-accent')} />
+                           <feature.icon className={cn("h-5 w-5 mr-2 mt-0.5 shrink-0", feature.premiumIconColor ? 'text-premium' : 'text-accent')} />
                           <span>{feature.text}</span>
                         </li>
                       ))}
@@ -207,15 +201,15 @@ export default function PricingPage() {
               <CardFooter className="mt-auto pt-4">
                  <form action={() => handleCtaAction(plan.actionKey)} className="w-full">
                     <Button
-                        type={plan.actionKey ? "submit" : "button"} // Submit if it's an action button
+                        type={plan.actionKey ? "submit" : "button"} 
                         size="lg"
                         variant={plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) ? "default" : "outline"}
-                        className="w-full"
+                        className={cn("w-full", plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) && "bg-premium hover:bg-premium/90 text-premium-foreground")}
                         disabled={isButtonDisabled || (plan.id === 'premium' && isCurrentUserPremium)}
                         onClick={!plan.actionKey && ctaLink ? () => window.location.href = ctaLink : undefined}
                     >
                         {isProcessing && plan.actionKey ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : null}
+                        {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : (plan.highlight && <Crown className="mr-2 h-4 w-4"/>)}
                         {plan.id === 'premium' && !currentUser && !authLoading ? "Sign Up to Go Premium" : ctaText}
                     </Button>
                  </form>

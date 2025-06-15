@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
 import { GoogleAuthProvider } from 'firebase/auth';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -235,7 +236,7 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-bold">{profileDisplayData.name}</h1>
           <p className="text-muted-foreground">{profileDisplayData.email}</p>
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
-          <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-primary font-semibold" : ""}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}</span></p>
+          <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-premium font-semibold" : ""}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}</span></p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription || isMockUserNoProfile}>
           {authLoading || isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>} Refresh Profile
@@ -351,11 +352,11 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="p-4 border rounded-lg bg-muted/30">
-                <h3 className="text-md font-semibold mb-1">Current Plan: <span className={`capitalize ${profileDisplayData.subscriptionTier === 'premium' ? 'text-primary font-bold' : ''}`}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
+                <h3 className="text-md font-semibold mb-1">Current Plan: <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
-                    <Button asChild disabled={!!firebaseInitializationError || isMockUserNoProfile}>
+                    <Button asChild disabled={!!firebaseInitializationError || isMockUserNoProfile} className="bg-premium hover:bg-premium/90 text-premium-foreground">
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
                   </>
