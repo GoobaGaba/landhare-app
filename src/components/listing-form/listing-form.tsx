@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useEffect, useState, useTransition, ChangeEvent, useActionState } from 'react';
+import { useEffect, useState, useTransition, ChangeEvent } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,14 +18,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb } from 'lucide-react';
-import { useToast, toast as shadToastHook } from '@/hooks/use-toast'; // Renamed toast import to avoid conflict
-import { ToastAction } from "@/components/ui/toast"; // Added ToastAction
+import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction } from '@/lib/actions/ai-actions';
-import { createListingAction, type ListingFormState } from '@/app/(app)/listings/new/actions';
-import type { PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput } from '@/lib/types';
+// Removed createListingAction import as we're doing client-side write
+import type { ListingFormState } from '@/app/(app)/listings/new/actions'; // Keep for type if needed elsewhere, but state managed locally now
+import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel } from '@/lib/types';
 import { cn } from '@/lib/utils';
+
+import { db } from '@/lib/firebase'; // Import Firestore instance
+import { collection, addDoc, Timestamp } from 'firebase/firestore'; // Import Firestore functions
 
 const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup' },
@@ -66,15 +70,18 @@ const listingFormSchema = z.object({
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
 
-const initialFormState: ListingFormState = { message: '', success: false };
+// const initialFormState: ListingFormState = { message: '', success: false }; No longer using useActionState
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
-  const { toast } = useToast(); // Using the destructured toast from our hook
-  const router = useRouter(); // Initialized useRouter
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const [formState, formAction] = useActionState(createListingAction, initialFormState);
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false); // Local submission state
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submissionSuccess, setSubmissionSuccess] = useState<{ message: string, listingId?: string } | null>(null);
+  
+  const [isPending, startTransition] = useTransition(); // Keep for AI actions
 
   const [isPriceSuggestionLoading, setIsPriceSuggestionLoading] = useState(false);
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
@@ -145,24 +152,24 @@ export function ListingForm() {
         setIsPriceSuggestionLoading(false);
         return;
     }
-
-    const result = await getSuggestedPriceAction(input);
-    setIsPriceSuggestionLoading(false);
-
-    if (result.data) {
-      setPriceSuggestion(result.data);
-      toast({
-        title: "Price Suggestion Ready!",
-        description: `Suggested price: $${result.data.suggestedPrice.toFixed(0)}/month (adapt if nightly).`,
-      });
-    } else if (result.error) {
-      setPriceSuggestionError(result.error);
-       toast({
-        title: "Price Suggestion Error",
-        description: result.error,
-        variant: "destructive",
-      });
-    }
+    startTransition(async () => {
+      const result = await getSuggestedPriceAction(input);
+      setIsPriceSuggestionLoading(false);
+      if (result.data) {
+        setPriceSuggestion(result.data);
+        toast({
+          title: "Price Suggestion Ready!",
+          description: `Suggested price: $${result.data.suggestedPrice.toFixed(0)}/month (adapt if nightly).`,
+        });
+      } else if (result.error) {
+        setPriceSuggestionError(result.error);
+        toast({
+          title: "Price Suggestion Error",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   const handleSuggestTitle = async () => {
@@ -172,7 +179,6 @@ export function ListingForm() {
 
     const descriptionSnippet = watchedDescription.substring(0, 200); 
     const keywords = watchedAmenities?.slice(0,3).join(', ') + (descriptionSnippet ? `, ${descriptionSnippet.split(' ').slice(0,5).join(' ')}` : '');
-
 
     const input: SuggestListingTitleInput = {
       location: watchedLocation,
@@ -190,73 +196,25 @@ export function ListingForm() {
         setIsTitleSuggestionLoading(false);
         return;
     }
-
-    const result = await getSuggestedTitleAction(input);
-    setIsTitleSuggestionLoading(false);
-
-    if (result.data) {
-      setTitleSuggestion(result.data);
-      toast({
-        title: "Title Suggestion Ready!",
-        description: `Suggested title: "${result.data.suggestedTitle}".`,
-      });
-    } else if (result.error) {
-      setTitleSuggestionError(result.error);
-       toast({
-        title: "Title Suggestion Error",
-        description: result.error,
-        variant: "destructive",
-      });
-    }
-  };
-
- useEffect(() => {
-    if (formState.message && !isPending) {
-      if (formState.success) {
-        if (!formSubmittedSuccessfully) {
-          toast({
-            title: "Success!",
-            description: formState.message,
-            variant: "default",
-            action: formState.listingId ? (
-              <ToastAction
-                altText="View Listing"
-                onClick={() => router.push(`/listings/${formState.listingId}`)}
-              >
-                View
-              </ToastAction>
-            ) : undefined,
-          });
-          form.reset({
-            title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
-            leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-          });
-          setPriceSuggestion(null);
-          setPriceSuggestionError(null);
-          setTitleSuggestion(null);
-          setTitleSuggestionError(null);
-          setSelectedFiles([]);
-          setImagePreviews([]);
-          setImageUploadError(null);
-          setFormSubmittedSuccessfully(true);
-        }
-      } else {
+    startTransition(async () => {
+      const result = await getSuggestedTitleAction(input);
+      setIsTitleSuggestionLoading(false);
+      if (result.data) {
+        setTitleSuggestion(result.data);
         toast({
-          title: "Error Creating Listing",
-          description: formState.message || "An unknown error occurred.",
+          title: "Title Suggestion Ready!",
+          description: `Suggested title: "${result.data.suggestedTitle}".`,
+        });
+      } else if (result.error) {
+        setTitleSuggestionError(result.error);
+        toast({
+          title: "Title Suggestion Error",
+          description: result.error,
           variant: "destructive",
         });
-        setFormSubmittedSuccessfully(false);
       }
-    }
-  }, [formState, isPending, toast, form, formSubmittedSuccessfully, router]);
-
-  useEffect(() => {
-    if (formSubmittedSuccessfully && form.formState.isDirty) {
-      setFormSubmittedSuccessfully(false);
-    }
-  }, [form.formState.isDirty, formSubmittedSuccessfully]);
-
+    });
+  };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     setImageUploadError(null);
@@ -286,71 +244,113 @@ export function ListingForm() {
 
       setSelectedFiles(prev => [...prev, ...validFiles]);
       setImagePreviews(prev => [...prev, ...previews]);
+      setValue('images', [...imagePreviews, ...previews], { shouldValidate: true, shouldDirty: true });
     }
   };
 
   const handleRemoveImage = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setImagePreviews(prev => {
-      const newPreviews = prev.filter((_, i) => i !== index);
-      if (imagePreviews[index]) {
-        URL.revokeObjectURL(imagePreviews[index]);
-      }
-      return newPreviews;
-    });
+    const newSelectedFiles = selectedFiles.filter((_, i) => i !== index);
+    const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    if (imagePreviews[index] && imagePreviews[index].startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreviews[index]);
+    }
+    
+    setSelectedFiles(newSelectedFiles);
+    setImagePreviews(newImagePreviews);
+    setValue('images', newImagePreviews, { shouldValidate: true, shouldDirty: true });
   };
 
   useEffect(() => {
     return () => {
-      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+      imagePreviews.forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
     };
   }, [imagePreviews]);
 
 
   const onSubmit = async (data: ListingFormData) => {
-    if (authLoading || !currentUser?.uid || currentUser.uid.trim() === '') {
+    if (authLoading || !currentUser?.uid) {
       toast({
-        title: "Form Submission Blocked",
-        description: `Auth Loading: ${authLoading}. User UID: ${currentUser?.uid || 'Not available'}. Please ensure you are fully logged in.`,
+        title: "Authentication Error",
+        description: "You must be logged in to create a listing.",
         variant: "destructive",
-        duration: 7000,
       });
       return;
     }
     
-    const uploadedImageUrls = imagePreviews; 
-    const formDataToSubmit = new FormData();
+    // Note: Actual image file uploads to Firebase Storage and getting their download URLs
+    // would happen here in a real app before saving to Firestore.
+    // For this prototype, we'll use the blob URLs or placeholders directly as if they are final URLs.
+    // If imagePreviews contains actual URLs (e.g. from a previous edit), they will be used.
+    // If they are blob: URLs from new uploads, they'd ideally be replaced by storage URLs.
+    // For now, we'll just use what's in imagePreviews for the `images` array.
+    const finalImageUrls = imagePreviews; 
 
-    formDataToSubmit.append('landownerId', currentUser.uid); 
-
-    const { ...listingDataForDb } = data;
-    const submissionData = { ...listingDataForDb, images: uploadedImageUrls };
-
-
-    Object.entries(submissionData).forEach(([key, value]) => {
-      if (key === 'amenities' && Array.isArray(value)) {
-        value.forEach(amenity => formDataToSubmit.append(key, amenity));
-      } else if (key === 'images' && Array.isArray(value)) {
-        value.forEach(imgUrl => formDataToSubmit.append(key, imgUrl as string));
-      } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append if not relevant or not set for non-flexible terms
-      } else if (value !== undefined && value !== null) {
-        formDataToSubmit.append(key, String(value));
-      }
-    });
-    
-    if(selectedFiles.length > 0 && uploadedImageUrls.every(url => url.startsWith("blob:"))){
-        toast({
-            title: "Image Upload Note",
-            description: "Image selection is for demonstration. Actual file uploads to cloud storage and URL generation for listings require separate backend implementation. Using preview URLs as placeholders.",
-            duration: 7000,
-        });
+    if (finalImageUrls.some(url => url.startsWith("blob:")) && selectedFiles.length > 0) {
+      toast({
+          title: "Image Upload Note (Prototype)",
+          description: "Image previews are shown. In a full app, these would be uploaded to cloud storage, and their permanent URLs saved. Using preview URLs as placeholders for now.",
+          duration: 8000,
+      });
     }
 
-    setFormSubmittedSuccessfully(false); 
-    startTransition(() => {
-      formAction(formDataToSubmit);
-    });
+
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    setSubmissionSuccess(null);
+    setFormSubmittedSuccessfully(false);
+
+    try {
+      const newListingPayload = {
+        ...data,
+        landownerId: currentUser.uid,
+        isAvailable: true,
+        images: finalImageUrls.length > 0 ? finalImageUrls : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"], // Use uploaded/existing images or fallbacks
+        rating: undefined,
+        numberOfRatings: 0,
+        isBoosted: subscriptionStatus === 'premium',
+        createdAt: Timestamp.fromDate(new Date()),
+        leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : '',
+        minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths) ? data.minLeaseDurationMonths : undefined,
+      };
+
+      // Remove id if it accidentally got in, and ensure types match Firestore expectations
+      const { id, ...payloadForFirestore } = newListingPayload as Omit<Listing, 'id'>;
+
+      const docRef = await addDoc(collection(db, "listings"), payloadForFirestore);
+      
+      setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: docRef.id });
+      toast({
+        title: "Success!",
+        description: `Listing "${data.title}" created successfully!`,
+        action: <ToastAction altText="View Listing" onClick={() => router.push(`/listings/${docRef.id}`)}>View</ToastAction>,
+      });
+      form.reset();
+      setSelectedFiles([]);
+      setImagePreviews([]);
+      setPriceSuggestion(null);
+      setTitleSuggestion(null);
+      setFormSubmittedSuccessfully(true);
+
+    } catch (error: any) {
+      console.error("Error creating listing:", error);
+      let errorMessage = "Failed to create listing. Please try again.";
+      if (error.message && error.message.includes("permission-denied") || error.message.includes("PERMISSION_DENIED")) {
+        errorMessage = "Permission denied. Please ensure your Firestore security rules allow writes to the 'listings' collection for authenticated users, and that the landownerId matches your UID.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      setSubmissionError(errorMessage);
+      toast({
+        title: "Error Creating Listing",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (authLoading || (!currentUser && subscriptionStatus === 'loading') ) {
@@ -385,7 +385,7 @@ export function ListingForm() {
                      : watchedPricingModel === 'monthly' ? "Price per Month ($)"
                      : "Est. Monthly Payment ($) for LTO";
 
-  const isSubmitButtonDisabled = isPending || authLoading || !currentUser?.uid || currentUser.uid.trim() === '';
+  const isActualSubmitButtonDisabled = isSubmitting || authLoading || !currentUser?.uid;
 
 
   return (
@@ -406,10 +406,10 @@ export function ListingForm() {
                     variant="outline"
                     size="icon"
                     onClick={handleSuggestTitle}
-                    disabled={isTitleSuggestionLoading || !watchedLocation || (!watchedDescription && watchedAmenities?.length === 0)}
+                    disabled={isTitleSuggestionLoading || isPending || !watchedLocation || (!watchedDescription && watchedAmenities?.length === 0)}
                     title="Suggest Title with AI"
                 >
-                    {isTitleSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
+                    {isTitleSuggestionLoading || isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
                 </Button>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
@@ -475,7 +475,7 @@ export function ListingForm() {
                   <span className="font-semibold text-primary">Click to upload</span> or drag and drop
                 </span>
                 <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
-                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={selectedFiles.length >= MAX_IMAGES} />
+                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= MAX_IMAGES} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
@@ -496,7 +496,7 @@ export function ListingForm() {
                     </Button>
                   </div>
                 ))}
-                {selectedFiles.length < MAX_IMAGES && (
+                {imagePreviews.length < MAX_IMAGES && (
                   <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors">
                     <FileImage className="h-8 w-8"/>
                     <span className="text-xs mt-1">Add more</span>
@@ -504,7 +504,7 @@ export function ListingForm() {
                 )}
               </div>
             )}
-             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+             {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
 
           <div>
@@ -548,10 +548,10 @@ export function ListingForm() {
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestPrice}
-                      disabled={isPriceSuggestionLoading || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
+                      disabled={isPriceSuggestionLoading || isPending || !watchedLocation || !watchedSizeSqft || watchedSizeSqft <= 0}
                       title="Suggest Price with AI (for monthly rates)"
                   >
-                      {isPriceSuggestionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-accent" />}
+                      {isPriceSuggestionLoading || isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-accent" />}
                   </Button>
                 )}
             </div>
@@ -584,7 +584,6 @@ export function ListingForm() {
                 </Alert>
             )}
           </div>
-
 
           <div>
             <Label className="flex items-center mb-2">
@@ -684,28 +683,40 @@ export function ListingForm() {
             <Button variant="outline" type="button" onClick={() => {form.reset({
               title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',
               leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: undefined,
-              }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false);}} disabled={isPending}>Reset Form</Button>
-            <Button type="submit" disabled={isSubmitButtonDisabled}>
-              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              }); setPriceSuggestion(null); setPriceSuggestionError(null); setTitleSuggestion(null); setTitleSuggestionError(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isPending}>Reset Form</Button>
+            <Button type="submit" disabled={isActualSubmitButtonDisabled}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create Listing
             </Button>
           </div>
         </CardFooter>
       </form>
-      {formState.success && formState.listingId && formSubmittedSuccessfully && (
+      {submissionSuccess && submissionSuccess.listingId && formSubmittedSuccessfully && (
         <div className="p-4">
           <Alert variant="default" className="border-green-500 bg-green-50 dark:bg-green-900/30">
             <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
             <AlertTitle className="text-green-700 dark:text-green-300">Listing Created!</AlertTitle>
             <AlertDescription className="text-green-600 dark:text-green-400">
-              {formState.message}
+              {submissionSuccess.message}
               <Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700 dark:text-green-300">
-                <Link href={`/listings/${formState.listingId}`}>View Your Listing</Link>
+                <Link href={`/listings/${submissionSuccess.listingId}`}>View Your Listing</Link>
               </Button>
             </AlertDescription>
           </Alert>
         </div>
       )}
+       {submissionError && (
+        <div className="p-4 mt-4">
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error Creating Listing</AlertTitle>
+                <AlertDescription>
+                    {submissionError}
+                </AlertDescription>
+            </Alert>
+        </div>
+      )}
     </Card>
   );
 }
+
