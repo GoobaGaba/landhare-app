@@ -11,7 +11,7 @@ import { getUserById } from '@/lib/mock-data'; // To get user email/Stripe custo
 const STRIPE_PREMIUM_PRICE_ID = process.env.STRIPE_PREMIUM_PRICE_ID;
 
 // Get base URL from environment variables
-const appBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || 'http://localhost:9002';
+const appBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL;
 
 export async function createCheckoutSessionAction(): Promise<{ error?: string; sessionId?: string; url?: string | null }> {
   if (!isStripeEnabled()) {
@@ -19,7 +19,12 @@ export async function createCheckoutSessionAction(): Promise<{ error?: string; s
   }
 
   if (!STRIPE_PREMIUM_PRICE_ID) {
-    return { error: 'Stripe Premium Price ID is not configured. Please set STRIPE_PREMIUM_PRICE_ID in .env.local.' };
+    return { error: 'Stripe Premium Price ID is not configured. Please set STRIPE_PREMIUM_PRICE_ID in your App Hosting environment variables.' };
+  }
+
+  if (!appBaseUrl || !(appBaseUrl.startsWith('https://') || appBaseUrl.startsWith('http://localhost'))) {
+    console.error("CRITICAL: NEXT_PUBLIC_APP_BASE_URL is not set, not HTTPS for production, or not http://localhost for dev. This is required for Stripe Checkout redirects.");
+    return { error: 'Application base URL is not configured correctly. Please set NEXT_PUBLIC_APP_BASE_URL to your live HTTPS URL (or http://localhost for local dev) in your environment variables.' };
   }
 
   const currentUser = auth?.currentUser;
@@ -40,7 +45,7 @@ export async function createCheckoutSessionAction(): Promise<{ error?: string; s
   }
 
   const successUrl = `${appBaseUrl}/profile?session_id={CHECKOUT_SESSION_ID}&status=success`;
-  const cancelUrl = `${appBaseUrl}/pricing?status=cancelled`;
+  const cancelUrl = `${appBaseUrl}/pricing?status=cancelled`; // Changed to /pricing on cancel
 
   try {
     const params: Stripe.Checkout.SessionCreateParams = {
@@ -54,28 +59,19 @@ export async function createCheckoutSessionAction(): Promise<{ error?: string; s
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      // Pre-fill customer email. If user already has a stripeCustomerId, use it.
-      // This helps Stripe link the Checkout session to an existing customer or create a new one.
       customer_email: userProfile.stripeCustomerId ? undefined : userProfile.email,
       customer: userProfile.stripeCustomerId || undefined,
-      // Add metadata to link the Stripe session/customer to your Firebase user
       metadata: {
         firebaseUID: currentUser.uid,
       },
-      // If it's a new customer, you can pass customer_creation: 'always'
-      // or handle it by creating/updating the customer on successful checkout via webhook.
-      // For subscriptions, Stripe often creates a customer if one doesn't exist with the email.
     };
 
     const session = await stripe.checkout.sessions.create(params);
 
     if (session.url) {
-      // Instead of returning the URL, we will redirect.
-      // This is a server action, so redirect needs to be called from here.
       redirect(session.url);
-      // The redirect function throws an error to stop execution and trigger the redirect,
-      // so the return statement below might not be reached if redirect is successful.
-      // However, to satisfy TypeScript, we can keep it.
+      // The redirect function throws an error to stop execution,
+      // so this return might not be reached.
       return { sessionId: session.id, url: session.url };
     } else {
       return { error: 'Could not create Stripe Checkout session URL.' };

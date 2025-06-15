@@ -36,13 +36,11 @@ export async function POST(req: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       console.log('Checkout session completed:', session.id);
 
-      // Retrieve metadata and customer details
       const firebaseUID = session.metadata?.firebaseUID;
       const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
 
       if (!firebaseUID) {
         console.error('Firebase UID not found in session metadata for session:', session.id);
-        // Still return 200 to Stripe, but log the error for investigation.
         return NextResponse.json({ received: true, error: 'Firebase UID missing in metadata' });
       }
       
@@ -52,7 +50,6 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // Update user profile in your database (e.g., Firestore)
         await updateUserProfile(firebaseUID, {
           subscriptionStatus: 'premium',
           stripeCustomerId: stripeCustomerId,
@@ -60,25 +57,25 @@ export async function POST(req: NextRequest) {
         console.log(`Successfully updated user ${firebaseUID} to premium. Stripe Customer ID: ${stripeCustomerId}`);
       } catch (dbError: any) {
         console.error(`Database error updating user ${firebaseUID}:`, dbError);
-        // If the DB update fails, Stripe has still processed the payment.
-        // You'll need a way to reconcile this (e.g., manual update or retry mechanism).
-        // For now, we still return 200 to Stripe to acknowledge receipt.
         return NextResponse.json({ received: true, error: 'Database update failed after payment.' });
       }
       break;
 
-    // Add other event types to handle here if needed (e.g., subscription cancellations, payment failures)
+    // Example: Handling subscription cancellations (you would add this if needed)
     // case 'customer.subscription.deleted':
     //   const subscriptionDeleted = event.data.object as Stripe.Subscription;
-    //   // Handle subscription cancellation: update user's status to 'free'
-    //   // You'd need to find the user by subscriptionDeleted.customer (Stripe Customer ID)
+    //   const customerIdForDeletedSub = typeof subscriptionDeleted.customer === 'string' ? subscriptionDeleted.customer : subscriptionDeleted.customer?.id;
+    //   if (customerIdForDeletedSub) {
+    //     // You'd need a way to find your Firebase user by Stripe Customer ID
+    //     // const userToDowngrade = await findUserByStripeCustomerId(customerIdForDeletedSub);
+    //     // if (userToDowngrade) {
+    //     //   await updateUserProfile(userToDowngrade.id, { subscriptionStatus: 'free' });
+    //     //   console.log(`User associated with Stripe Customer ID ${customerIdForDeletedSub} downgraded to free.`);
+    //     // } else {
+    //     //   console.warn(`Could not find user for Stripe Customer ID ${customerIdForDeletedSub} to downgrade.`);
+    //     // }
+    //   }
     //   console.log('Subscription deleted:', subscriptionDeleted.id);
-    //   break;
-
-    // case 'invoice.payment_failed':
-    //   const invoicePaymentFailed = event.data.object as Stripe.Invoice;
-    //   // Handle payment failure: notify user, potentially downgrade subscription
-    //   console.log('Invoice payment failed:', invoicePaymentFailed.id);
     //   break;
       
     default:
