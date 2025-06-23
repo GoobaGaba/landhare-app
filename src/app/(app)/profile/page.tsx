@@ -136,6 +136,10 @@ export default function ProfilePage() {
     const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
     try {
       await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
+       toast({
+        title: 'Subscription Changed! (Simulation)',
+        description: `Your account is now on the ${newStatus} tier.`,
+      });
     } catch (error: any) {
       // Error handled by AuthContext
     } finally {
@@ -322,20 +326,25 @@ export default function ProfilePage() {
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
-                    <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                       <Button asChild className="bg-premium hover:bg-premium/90 text-premium-foreground" disabled={true}>
-                          <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
-                       </Button>
-                    </TooltipTrigger><TooltipContent><p>Payment processing is temporarily disabled. Please check back later.</p></TooltipContent></Tooltip></TooltipProvider>
+                    <Button 
+                      onClick={handleSubscriptionToggle}
+                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
+                      className="bg-premium hover:bg-premium/90 text-premium-foreground">
+                      {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
+                      Upgrade to Premium (Simulated)
+                    </Button>
                   </>
                 ) : profileDisplayData.subscriptionTier === 'premium' ? (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
-                  <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={true}>
-                      Manage Subscription
+                   <Button
+                        onClick={handleSubscriptionToggle}
+                        variant="outline"
+                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
+                    >
+                        {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
+                        Switch to Free (Simulated)
                     </Button>
-                  </TooltipTrigger><TooltipContent><p>Payment processing is temporarily disabled.</p></TooltipContent></Tooltip></TooltipProvider>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>

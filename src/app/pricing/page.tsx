@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, BarChart3, Percent, Home, Crown, Sparkles, Search as SearchIcon, DollarSign, ShieldCheck, TrendingUp, ImagePlus, InfinityIcon, Tag, Info, Users, MessageSquare, AlertTriangle, ExternalLink, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; 
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const pricingPlans = [
   {
@@ -56,14 +56,16 @@ const pricingPlans = [
     ],
     cta: "Upgrade to Premium",
     actionKey: "upgradePremium", 
-    hrefSelfIfPremium: "/profile?tab=billing", 
+    hrefSelfIfPremium: "/profile", 
     highlight: true,
   },
 ];
 
 export default function PricingPage() {
-  const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
+  const { currentUser, subscriptionStatus, loading: authLoading, updateCurrentAppUserProfile } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+  const [isUpgrading, setIsUpgrading] = useState(false);
   
   if (authLoading) {
     return (
@@ -72,6 +74,30 @@ export default function PricingPage() {
       </div>
     );
   }
+
+  const handleSimulatedUpgrade = async () => {
+    if (!currentUser) {
+      toast({ title: 'Please log in', description: 'You must be logged in to upgrade your plan.', action: <Button onClick={() => router.push('/login?redirect=/pricing')} variant="link">Log In</Button> });
+      return;
+    }
+    setIsUpgrading(true);
+    try {
+      await updateCurrentAppUserProfile({ subscriptionStatus: 'premium' });
+      toast({
+        title: 'Upgrade Successful! (Simulation)',
+        description: 'Your account has been upgraded to Premium.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Upgrade Failed',
+        description: error.message || 'Could not complete the simulated upgrade.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
@@ -84,21 +110,17 @@ export default function PricingPage() {
         </p>
       </header>
 
+      <Alert variant="default" className="max-w-3xl mx-auto mb-8 border-amber-500 bg-amber-50 text-amber-700">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertTitle className="text-amber-700 font-semibold">Test Mode Active</AlertTitle>
+        <AlertDescription>
+          This page is in **simulation mode**. Clicking 'Upgrade' will instantly grant your account Premium status for testing purposes without any real payment.
+        </AlertDescription>
+      </Alert>
+
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
-          
-          let ctaLink = plan.id === 'premium'
-            ? (isCurrentUserPremium ? plan.hrefSelfIfPremium : (currentUser ? undefined : "/signup?redirect=/pricing"))
-            : (currentUser ? "/dashboard" : plan.href);
-          
-          if (plan.id === 'premium' && currentUser && !isCurrentUserPremium) ctaLink = undefined; 
-          
-          const ctaText = plan.id === 'premium'
-            ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
-            : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
-          
-          const isPremiumButtonDisabled = plan.id === 'premium';
 
           return (
             <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-premium relative overflow-hidden ring-2 ring-premium/30' : 'border-border')}>
@@ -157,38 +179,31 @@ export default function PricingPage() {
                 )}
               </CardContent>
               <CardFooter className="mt-auto pt-4">
-                 <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="w-full">
-                         <Button
-                            asChild={!!ctaLink}
+                 <div className="w-full">
+                    {plan.id === 'premium' ? (
+                      <>
+                        {isCurrentUserPremium ? (
+                          <Button size="lg" variant="outline" asChild className="w-full">
+                            <Link href={plan.hrefSelfIfPremium || '/profile'}><ShieldCheck className="mr-2 h-4 w-4" /> Manage Subscription</Link>
+                          </Button>
+                        ) : (
+                          <Button
                             size="lg"
-                            variant={plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) ? "default" : "outline"}
-                            className={cn("w-full", plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) && "bg-premium hover:bg-premium/90 text-premium-foreground")}
-                            disabled={isPremiumButtonDisabled}
-                        >
-                            {ctaLink ? (
-                                <Link href={ctaLink}>
-                                    {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : (plan.highlight && <Crown className="mr-2 h-4 w-4"/>)}
-                                    {ctaText}
-                                </Link>
-                            ) : (
-                                <span>
-                                  {plan.highlight && <Crown className="mr-2 h-4 w-4 inline-block"/>}
-                                  {plan.id === 'premium' && !currentUser ? "Sign Up to Go Premium" : ctaText}
-                                </span>
-                            )}
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    {isPremiumButtonDisabled && (
-                       <TooltipContent>
-                         <p>Payment processing is temporarily unavailable. Check back soon!</p>
-                       </TooltipContent>
+                            className="w-full bg-premium hover:bg-premium/90 text-premium-foreground"
+                            onClick={handleSimulatedUpgrade}
+                            disabled={isUpgrading}
+                          >
+                            {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4"/>}
+                            {plan.cta} (Simulated)
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                       <Button size="lg" variant="outline" asChild className="w-full">
+                          <Link href={currentUser ? '/dashboard' : plan.href}>{currentUser ? "Go to Dashboard" : plan.cta}</Link>
+                       </Button>
                     )}
-                  </Tooltip>
-                 </TooltipProvider>
+                 </div>
               </CardFooter>
             </Card>
           );
