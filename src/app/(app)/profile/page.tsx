@@ -1,7 +1,7 @@
 
 'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { GoogleAuthProvider } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 
+
 export const dynamic = 'force-dynamic';
 
 interface ProfileDisplayData {
@@ -31,10 +32,10 @@ interface ProfileDisplayData {
   subscriptionTier: SubscriptionStatus;
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
   const { toast } = useToast();
-
+  
   const [isEditing, setIsEditing] = useState(false);
   const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
   const [profileDisplayData, setProfileDisplayData] = useState<ProfileDisplayData | null>(null);
@@ -47,7 +48,7 @@ export default function ProfilePage() {
       const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
 
       const displayData: ProfileDisplayData = {
-        name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
+        name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@[')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentAppProfile?.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentAppProfile?.name || currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
         bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' && currentAppProfile?.bio === '' ? "I am the main mock user." : currentAppProfile?.bio || "Welcome to my LandShare profile!"),
@@ -194,6 +195,7 @@ export default function ProfilePage() {
 
   const avatarFallback = (profileDisplayData.name || profileDisplayData.email || 'U').split(' ').map(n=>n[0]).join('').toUpperCase() || 'U';
   const isMockUserNoProfile = firebaseInitializationError !== null && !currentUser.appProfile;
+  const isGoogleUser = currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -256,7 +258,7 @@ export default function ProfilePage() {
                <div>
                 <Label htmlFor="avatarUrl">Avatar URL (Optional)</Label>
                 <Input id="avatarUrl" value={profileDisplayData.avatarUrl || ''} disabled />
-                 <p className="text-xs text-muted-foreground mt-1">Avatar is typically set via your authentication provider (e.g., Google profile picture) or uses a placeholder. Custom avatar uploads (via URL or file) are not yet implemented.</p>
+                 <p className="text-xs text-muted-foreground mt-1">Avatar is typically set via your authentication provider (e.g., Google profile picture) or uses a placeholder. Custom avatar uploads are not yet implemented.</p>
               </div>
             </CardContent>
             {isEditing && (
@@ -274,12 +276,21 @@ export default function ProfilePage() {
               <CardDescription>Manage your account security, like password and two-factor authentication.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || !!firebaseInitializationError || currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID) || isMockUserNoProfile}>
-                <KeyRound className="mr-2 h-4 w-4" /> Change Password
-              </Button>
-               {currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID) && (
-                <p className="text-xs text-muted-foreground">Password changes are managed through your Google account.</p>
-              )}
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                      {/* Using a div wrapper for TooltipTrigger on disabled button */}
+                      <div> 
+                        <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || isGoogleUser || isMockUserNoProfile}>
+                            <KeyRound className="mr-2 h-4 w-4" /> Change Password
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {isGoogleUser && <TooltipContent><p>Password managed through your Google account.</p></TooltipContent>}
+                    {isMockUserNoProfile && <TooltipContent><p>Action disabled in preview mode.</p></TooltipContent>}
+                </Tooltip>
+              </TooltipProvider>
+
               <p className="text-sm text-muted-foreground">Two-factor authentication is currently disabled. 
                 <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
                   <Button variant="link" className="p-0 h-auto ml-1" onClick={() => toast({title: "Coming Soon!", description: "Two-factor authentication (2FA) setup is not yet implemented."})} disabled={isMockUserNoProfile}>Enable 2FA</Button>
@@ -380,4 +391,17 @@ export default function ProfilePage() {
       </Tabs>
     </div>
   );
+}
+
+export default function ProfilePageWithSuspense() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center min-h-[300px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Loading profile page...</p>
+            </div>
+        }>
+            <ProfilePageContent />
+        </Suspense>
+    )
 }

@@ -89,7 +89,6 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'road access', 'pet friendly', 'fenced'],
     pricingModel: 'monthly',
     price: 350,
-    suggestedPrice: 375,
     images: ['https://placehold.co/800x600.png?text=Sunny+Meadow', 'https://placehold.co/400x300.png?text=Meadow+View+1', 'https://placehold.co/400x300.png?text=Meadow+View+2'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -109,7 +108,6 @@ export let mockListings: Listing[] = [
     amenities: ['septic system', 'fenced', 'fire pit'],
     pricingModel: 'monthly',
     price: 200,
-    suggestedPrice: 210,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
@@ -128,7 +126,6 @@ export let mockListings: Listing[] = [
     amenities: ['power access', 'road access'],
     pricingModel: 'monthly',
     price: 150,
-    suggestedPrice: 160,
     images: ['https://placehold.co/800x600.png?text=Desert+Oasis'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -148,7 +145,6 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'fire pit', 'lake access', 'pet friendly'],
     pricingModel: 'monthly',
     price: 400,
-    suggestedPrice: 420,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
@@ -168,7 +164,6 @@ export let mockListings: Listing[] = [
     amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access', 'septic system'],
     pricingModel: 'nightly',
     price: 45,
-    suggestedPrice: 50,
     images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -187,7 +182,6 @@ export let mockListings: Listing[] = [
     amenities: ['road access', 'septic system' ],
     pricingModel: 'lease-to-own',
     price: 650, // LTO monthly payment
-    suggestedPrice: 675, // LTO suggested monthly
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
@@ -208,7 +202,6 @@ export let mockListings: Listing[] = [
     amenities: [],
     pricingModel: 'monthly',
     price: 75,
-    suggestedPrice: 80,
     images: ['https://placehold.co/800x600.png?text=Basic+Plot'],
     landownerId: 'landowner-jane-doe',
     isAvailable: true,
@@ -227,7 +220,6 @@ export let mockListings: Listing[] = [
     amenities: ['power access', 'water hookup', 'fenced', 'wifi available', 'septic system'],
     pricingModel: 'monthly',
     price: 1200,
-    suggestedPrice: 1250,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: false,
@@ -399,15 +391,14 @@ const mapDocToListing = (docSnap: any): Listing => {
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
     price: data.price || 0,
-    suggestedPrice: data.suggestedPrice === null ? undefined : data.suggestedPrice, // Handle null from Firestore
-    leaseToOwnDetails: data.leaseToOwnDetails || '',
+    leaseToOwnDetails: data.leaseToOwnDetails || undefined,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent((data.title || 'Listing').substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
     landownerId: data.landownerId || 'unknown_owner',
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
     rating: data.rating === null ? undefined : (typeof data.rating === 'number' ? data.rating : undefined),
     numberOfRatings: data.numberOfRatings || 0,
     leaseTerm: data.leaseTerm || 'flexible',
-    minLeaseDurationMonths: data.minLeaseDurationMonths === null ? null : (data.minLeaseDurationMonths || undefined),
+    minLeaseDurationMonths: data.minLeaseDurationMonths ?? undefined,
     isBoosted: data.isBoosted || false,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
   };
@@ -602,48 +593,25 @@ export const getListingById = async (id: string): Promise<Listing | undefined> =
   }
 };
 
-export const addListing = async (
-  data: Pick<Listing, 'title' | 'description' | 'location' | 'sizeSqft' | 'price' | 'suggestedPrice' | 'pricingModel' | 'leaseToOwnDetails' | 'amenities' | 'images' | 'leaseTerm' | 'minLeaseDurationMonths'>,
-  landownerId: string,
-  isLandownerPremium: boolean = false
-): Promise<Listing> => {
-  const creationTimestamp = new Date();
+export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: boolean = false): Promise<Listing> => {
   const newListingData: Omit<Listing, 'id'> = {
     ...data,
-    landownerId: landownerId,
-    isAvailable: true,
-    images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-    rating: undefined,
-    numberOfRatings: 0,
     isBoosted: isLandownerPremium,
-    createdAt: creationTimestamp,
-    suggestedPrice: data.suggestedPrice === null ? undefined : data.suggestedPrice,
   };
 
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const mockId = `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const fullMockListing = { ...newListingData, id: mockId, rating: undefined } as Listing;
+    const fullMockListing = { ...newListingData, id: mockId } as Listing;
     mockListings.unshift(fullMockListing);
     incrementMockDataVersion('addListing_mock');
     return fullMockListing;
   }
 
-  // Live Mode
   try {
     const listingsCol = collection(db, "listings");
-    const firestoreReadyData = {
-      ...newListingData,
-      rating: null, 
-      createdAt: Timestamp.fromDate(creationTimestamp),
-      leaseToOwnDetails: data.leaseToOwnDetails || null,
-      minLeaseDurationMonths: data.minLeaseDurationMonths === undefined ? null : data.minLeaseDurationMonths,
-      suggestedPrice: data.suggestedPrice === null || data.suggestedPrice === undefined ? null : data.suggestedPrice,
-    };
-
-    const docRef = await addDoc(listingsCol, firestoreReadyData);
+    const docRef = await addDoc(listingsCol, newListingData);
     const newDocSnap = await getDoc(docRef);
-    if (!newDocSnap.exists()) throw new Error("Failed to retrieve newly created listing from Firestore.");
+    if (!newDocSnap.exists()) throw new Error("Failed to retrieve new listing.");
     return mapDocToListing(newDocSnap);
   } catch (error) {
     console.error("[Firestore Error] addListing:", error);
@@ -651,56 +619,32 @@ export const addListing = async (
   }
 };
 
-export const updateListing = async (
-  listingId: string,
-  data: Partial<Omit<Listing, 'id' | 'landownerId' | 'createdAt' | 'rating' | 'numberOfRatings' | 'isBoosted'>>
-): Promise<Listing | undefined> => {
-  if (firebaseInitializationError || !db) {
-    // Preview Mode
-    const listingIndex = mockListings.findIndex(l => l.id === listingId);
-    if (listingIndex !== -1) {
-      mockListings[listingIndex] = {
-        ...mockListings[listingIndex],
-        ...data,
-        price: data.price ?? mockListings[listingIndex].price,
-        sizeSqft: data.sizeSqft ?? mockListings[listingIndex].sizeSqft,
-        suggestedPrice: data.suggestedPrice === null ? undefined : (data.suggestedPrice ?? mockListings[listingIndex].suggestedPrice),
-      };
-      incrementMockDataVersion('updateListing_mock');
-      return mockListings[listingIndex];
+export const updateListing = async (listingId: string, data: Partial<Omit<Listing, 'id' | 'landownerId' | 'createdAt' | 'rating' | 'numberOfRatings' | 'isBoosted'>>): Promise<Listing | undefined> => {
+    if (firebaseInitializationError || !db) {
+        const listingIndex = mockListings.findIndex(l => l.id === listingId);
+        if (listingIndex !== -1) {
+            mockListings[listingIndex] = { ...mockListings[listingIndex], ...data, price: data.price ?? mockListings[listingIndex].price, sizeSqft: data.sizeSqft ?? mockListings[listingIndex].sizeSqft };
+            incrementMockDataVersion('updateListing_mock');
+            return mockListings[listingIndex];
+        }
+        return undefined;
     }
-    return undefined;
-  }
 
-  // Live Mode
-  try {
-    const listingDocRef = doc(db, "listings", listingId);
-    const updateData: any = { ...data }; 
-
-    delete updateData.id;
-    delete updateData.landownerId;
-    delete updateData.createdAt;
-    delete updateData.rating;
-    delete updateData.numberOfRatings;
-
-    if (updateData.price !== undefined) updateData.price = Number(updateData.price); else delete updateData.price;
-    if (updateData.sizeSqft !== undefined) updateData.sizeSqft = Number(updateData.sizeSqft); else delete updateData.sizeSqft;
-    if (updateData.suggestedPrice === undefined) { delete updateData.suggestedPrice; } 
-    else { updateData.suggestedPrice = updateData.suggestedPrice === null ? null : Number(updateData.suggestedPrice); }
-
-
-    updateData.minLeaseDurationMonths = data.minLeaseDurationMonths === undefined ? null : (data.minLeaseDurationMonths === null ? null : Number(data.minLeaseDurationMonths));
-    updateData.leaseToOwnDetails = data.leaseToOwnDetails === undefined ? null : (data.leaseToOwnDetails || null);
-
-
-    await updateDoc(listingDocRef, updateData);
-    const updatedSnap = await getDoc(listingDocRef);
-    if (!updatedSnap.exists()) return undefined;
-    return mapDocToListing(updatedSnap);
-  } catch (error) {
-    console.error(`[Firestore Error] updateListing for ID ${listingId}:`, error);
-    throw error;
-  }
+    try {
+        const listingDocRef = doc(db, "listings", listingId);
+        const updateData: any = {...data};
+        // Ensure numeric fields are numbers
+        if (updateData.price !== undefined) updateData.price = Number(updateData.price);
+        if (updateData.sizeSqft !== undefined) updateData.sizeSqft = Number(updateData.sizeSqft);
+        if (updateData.minLeaseDurationMonths !== undefined) updateData.minLeaseDurationMonths = updateData.minLeaseDurationMonths === null ? null : Number(updateData.minLeaseDurationMonths);
+        
+        await updateDoc(listingDocRef, updateData);
+        const updatedSnap = await getDoc(listingDocRef);
+        return updatedSnap.exists() ? mapDocToListing(updatedSnap) : undefined;
+    } catch (error) {
+        console.error(`[Firestore Error] updateListing for ID ${listingId}:`, error);
+        throw error;
+    }
 };
 
 export const deleteListing = async (listingId: string): Promise<boolean> => {
@@ -871,7 +815,8 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
 };
 
 export const addBookingRequest = async (
-  data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}}
+  data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}},
+  status: Booking['status'] = 'Pending Confirmation' // Default status
 ): Promise<Booking> => {
   const creationTimestamp = new Date();
   
@@ -885,7 +830,7 @@ export const addBookingRequest = async (
     if (!landownerInfo) throw new Error("Mock Landowner profile not found.");
 
     const newBookingBase: Omit<Booking, 'id'> = {
-      ...data, landownerId: listingInfo.landownerId, status: 'Pending Confirmation', createdAt: creationTimestamp,
+      ...data, landownerId: listingInfo.landownerId, status, createdAt: creationTimestamp,
       listingTitle: listingInfo.title, renterName: renterInfo.name, landownerName: landownerInfo.name,
     };
     const mockId = `mock-booking-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -907,7 +852,7 @@ export const addBookingRequest = async (
     const newBookingBase: Omit<Booking, 'id' | 'createdAt'> & {createdAt: Timestamp} = {
       ...data,
       landownerId: listingInfo.landownerId, // Ensure landownerId is from the definitive listing
-      status: 'Pending Confirmation',
+      status,
       listingTitle: listingInfo.title,
       renterName: renterInfo.name,
       landownerName: landownerInfo.name,

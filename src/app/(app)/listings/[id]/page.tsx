@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { use, useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,17 +18,17 @@ import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, B
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
-import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { addDays, format, differenceInDays, isBefore } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 
-export default function ListingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(paramsPromise); 
-  const { id } = resolvedParams;
+export default function ListingDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
   const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -227,24 +227,30 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     
     setIsSubmittingBooking(true);
     try {
+      const isLTOInquiry = listing.pricingModel === 'lease-to-own';
+      const bookingStatus = isLTOInquiry ? 'Pending Confirmation' : 'Confirmed';
+      
        const bookingDataPayload: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName' | 'leaseContractPath' | 'leaseContractUrl'> & {dateRange: {from: Date; to: Date}} = {
         listingId: listing.id,
         renterId: currentUser.uid,
         landownerId: listing.landownerId, 
-        dateRange: listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange.to
+        dateRange: !isLTOInquiry && dateRange?.from && dateRange.to
                      ? { from: dateRange.from, to: dateRange.to }
                      : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }, 
       };
-      await addBookingRequest(bookingDataPayload);
+
+      // Pass the desired status to the addBookingRequest function
+      await addBookingRequest(bookingDataPayload, bookingStatus);
 
       setShowBookingDialog(false);
       setIsBookingRequested(true);
       toast({
-        title: listing.pricingModel === 'lease-to-own' ? "Inquiry Sent!" : "Booking Request Submitted!",
-        description: listing.pricingModel === 'lease-to-own'
+        title: isLTOInquiry ? "Inquiry Sent!" : "Booking Confirmed! (Simulated)",
+        description: isLTOInquiry
             ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
-            : `Your request for "${listing.title}" for ${priceDetails?.duration || ''} ${priceDetails?.durationUnit || ''} has been sent.`,
+            : `Your booking for "${listing.title}" is confirmed. Check 'My Bookings' for details.`,
       });
+      router.push('/bookings');
     } catch (error: any) {
       toast({
         title: listing.pricingModel === 'lease-to-own' ? "Inquiry Failed" : "Booking Failed",
@@ -549,8 +555,8 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                     }
                     >
                      {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Requested")
-                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
+                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Confirmed")
+                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Book Now (Simulated)")
                         : "Currently Unavailable")}
                     </Button>
                 )}
@@ -602,12 +608,12 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking Request"}
+                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking (Simulated)"}
             </DialogTitle>
             <DialogDescription>
                {listing.pricingModel === 'lease-to-own'
                 ? `You are about to send an inquiry for "${listing.title}". The landowner will contact you.`
-                : `Please review the details of your booking request for "${listing.title}".`}
+                : `Please review the details for "${listing.title}". This is a simulation; no payment will be processed, and the booking will be instantly confirmed.`}
             </DialogDescription>
           </DialogHeader>
           {listing.pricingModel !== 'lease-to-own' && priceDetails && dateRange?.from && dateRange?.to && (
@@ -651,7 +657,7 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
                 (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && (differenceInDays(dateRange?.to || new Date(), dateRange?.from || new Date()) + 1) < (listing.minLeaseDurationMonths * 28))
             }>
                 {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Submit Request"}
+                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Confirm Booking"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -659,3 +665,4 @@ export default function ListingDetailPage({ params: paramsPromise }: { params: P
     </div>
   );
 }
+

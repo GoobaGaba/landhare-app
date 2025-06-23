@@ -53,7 +53,6 @@ const listingFormSchema = z.object({
   location: z.string({ required_error: "Location is required." }).min(3, { message: "Location is required." }),
   sizeSqft: z.coerce.number({ required_error: "Size is required.", invalid_type_error: "Size must be a number." }).positive({ message: "Size must be a positive number." }),
   price: z.coerce.number({ required_error: "Price is required.", invalid_type_error: "Price must be a number." }).positive({ message: "Price must be a positive number." }),
-  suggestedPrice: z.coerce.number().optional().nullable(),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).optional().default([]),
@@ -74,7 +73,7 @@ type ListingFormData = z.infer<typeof listingFormSchema>;
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
-  const { myListings, isLoading: listingsDataLoading } = useListingsData();
+  const { myListings, isLoading: listingsDataLoading, refreshListings } = useListingsData();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -88,11 +87,9 @@ export function ListingForm() {
   const [titleSuggestion, setTitleSuggestion] = useState<SuggestListingTitleOutput | null>(null);
   const [descriptionSuggestion, setDescriptionSuggestion] = useState<GenerateListingDescriptionOutput | null>(null);
   
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   
-  const [currentSubscriptionOnMount, setCurrentSubscriptionOnMount] = useState<string | undefined>(undefined);
   const [formSubmittedSuccessfully, setFormSubmittedSuccessfully] = useState(false);
 
   const form = useForm<ListingFormData>({
@@ -103,7 +100,6 @@ export function ListingForm() {
       location: '',
       sizeSqft: 1000,
       price: 100,
-      suggestedPrice: null,
       pricingModel: 'monthly',
       leaseToOwnDetails: '',
       amenities: [],
@@ -113,13 +109,7 @@ export function ListingForm() {
     },
   });
 
-  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors, isDirty } } = form;
-
-  useEffect(() => {
-    if (!authLoading && currentUser?.appProfile?.subscriptionStatus) {
-        setCurrentSubscriptionOnMount(currentUser.appProfile.subscriptionStatus);
-    }
-  }, [currentUser, authLoading]);
+  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = form;
 
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
@@ -144,7 +134,6 @@ export function ListingForm() {
       const result = await getSuggestedPriceAction(input);
       if (result.data) {
         setPriceSuggestion(result.data);
-        setValue('suggestedPrice', result.data.suggestedPrice, { shouldDirty: true });
         toast({ title: "Price Suggestion!", description: `Suggested: $${result.data.suggestedPrice.toFixed(0)}/month. You can set your actual price below.` });
       } else { toast({ title: "Suggestion Error", description: result.error, variant: "destructive" }); }
     });
@@ -180,7 +169,7 @@ export function ListingForm() {
         amenities: watchedAmenities || [], pricingModel: watchedPricingModel, price: Number(watchedPrice),
         leaseTerm: watchedLeaseTerm || null, keywords: watchedAmenities?.join(', ')
     };
-    if (!input.listingTitle || !input.location || !input.sizeSqft || input.sizeSqft <= 0 || !input.pricingModel || !input.price || input.price <=0) {
+    if (!input.listingTitle || !input.location || !input.sizeSqft || !input.sizeSqft <= 0 || !input.pricingModel || !input.price || input.price <=0) {
         toast({ title: "Input Error", description: "Title, location, size, pricing model, and price needed for description.", variant: "destructive" }); return;
     }
     startAiTransition(async () => {
@@ -191,33 +180,25 @@ export function ListingForm() {
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setImageUploadError(null);
-    const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files);
-      if (selectedFiles.length + newFiles.length > MAX_IMAGES) {
-        setImageUploadError(`You can upload a maximum of ${MAX_IMAGES} images.`); return;
-      }
-      const validFiles: File[] = []; const previews: string[] = [];
-      newFiles.forEach(file => {
-        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) { setImageUploadError(`File "${file.name}" > ${MAX_FILE_SIZE_MB}MB.`); return; }
-        if (!file.type.startsWith('image/')) { setImageUploadError(`File "${file.name}" not an image.`); return; }
-        validFiles.push(file); previews.push(URL.createObjectURL(file));
-      });
-      setSelectedFiles(prev => [...prev, ...validFiles]); setImagePreviews(prev => [...prev, ...previews]);
-      setValue('images', [...imagePreviews, ...previews], { shouldValidate: true, shouldDirty: true });
+    // This is a placeholder for file upload logic.
+    // In a real app, this would involve uploading to a service like Firebase Storage.
+    // For now, we will simulate by adding placeholder URLs.
+    if (imagePreviews.length >= MAX_IMAGES) {
+      setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
+      return;
     }
+    const newPreviews = [...imagePreviews, `https://placehold.co/600x400.png?text=New+Image`];
+    setImagePreviews(newPreviews);
+    setValue('images', newPreviews, { shouldValidate: true, shouldDirty: true });
+    toast({ title: 'Image Added (Placeholder)', description: 'A placeholder image has been added. Actual file uploads are not implemented in this prototype.' });
   };
-
+  
   const handleRemoveImage = (index: number) => {
-    const newSelectedFiles = selectedFiles.filter((_, i) => i !== index);
     const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
-    if (imagePreviews[index] && imagePreviews[index].startsWith('blob:')) { URL.revokeObjectURL(imagePreviews[index]); }
-    setSelectedFiles(newSelectedFiles); setImagePreviews(newImagePreviews);
+    setImagePreviews(newImagePreviews);
     setValue('images', newImagePreviews, { shouldValidate: true, shouldDirty: true });
   };
 
-  useEffect(() => { return () => { imagePreviews.forEach(url => { if (url.startsWith('blob:')) URL.revokeObjectURL(url); }); }; }, [imagePreviews]);
 
   const onSubmit = async (data: ListingFormData) => {
     if (authLoading || !currentUser?.uid) {
@@ -227,26 +208,41 @@ export function ListingForm() {
       toast({ title: "Listing Limit Reached", description: `Free accounts can only create ${FREE_TIER_LISTING_LIMIT} listing. Please upgrade to Premium.`, variant: "destructive", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
-    const finalImageUrls = imagePreviews; 
-    if (finalImageUrls.some(url => url.startsWith("blob:")) && selectedFiles.length > 0) {
-      toast({ title: "Image Upload Note (Prototype)", description: "Using image preview URLs. Full app would upload to cloud storage.", duration: 7000 });
-    }
+    
     setIsSubmitting(true); setSubmissionError(null); setSubmissionSuccess(null); setFormSubmittedSuccessfully(false);
     try {
-      const newListingPayload = {
-        ...data, landownerId: currentUser.uid, isAvailable: true,
-        images: finalImageUrls.length > 0 ? finalImageUrls : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
-        rating: null, numberOfRatings: 0, isBoosted: subscriptionStatus === 'premium',
+      const newListingPayload: Omit<Listing, 'id'> = {
+        ...data,
+        landownerId: currentUser.uid,
+        isAvailable: true,
+        images: imagePreviews.length > 0 ? imagePreviews : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
+        rating: undefined,
+        numberOfRatings: 0,
+        isBoosted: subscriptionStatus === 'premium',
         createdAt: Timestamp.fromDate(new Date()),
-        leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : '',
-        minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : null,
-        suggestedPrice: data.suggestedPrice || undefined,
+        leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : undefined,
+        minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
       };
-      const { id, ...payloadForFirestore } = newListingPayload as Omit<Listing, 'id'>;
-      const docRef = await addDoc(collection(db, "listings"), payloadForFirestore);
+      
+      const firestorePayload: any = {...newListingPayload};
+      // Convert undefined to null for Firestore compatibility if needed
+      Object.keys(firestorePayload).forEach(key => {
+        if (firestorePayload[key as keyof typeof firestorePayload] === undefined) {
+          firestorePayload[key as keyof typeof firestorePayload] = null;
+        }
+      });
+
+      const docRef = await addDoc(collection(db, "listings"), firestorePayload);
+      
       setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: docRef.id });
       toast({ title: "Success!", description: `Listing "${data.title}" created!`, action: <ToastAction altText="View Listing" onClick={() => router.push(`/listings/${docRef.id}`)}>View</ToastAction> });
-      form.reset(); setSelectedFiles([]); setImagePreviews([]); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setFormSubmittedSuccessfully(true);
+      form.reset(); 
+      setImagePreviews([]); 
+      setPriceSuggestion(null); 
+      setTitleSuggestion(null); 
+      setDescriptionSuggestion(null); 
+      setFormSubmittedSuccessfully(true);
+      refreshListings(); // Refresh the listings data context
     } catch (error: any) {
       console.error("Error creating listing:", error);
       let errorMessage = "Failed to create listing. Firestore error.";
@@ -292,7 +288,7 @@ export function ListingForm() {
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser.appProfile)}
+                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser?.appProfile)}
                       className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
@@ -361,13 +357,12 @@ export function ListingForm() {
                 {imagePreviews.length < MAX_IMAGES && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
               </div>
             )}
-             {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
-             <input type="hidden" {...register('suggestedPrice')} />
+             {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
           </div>
 
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
-            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); setValue('leaseToOwnDetails', '', {shouldDirty: isDirty }); }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if(value !== 'lease-to-own') setValue('leaseToOwnDetails', '', {shouldDirty: true }); }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
                     {(['nightly', 'monthly', 'lease-to-own'] as PricingModel[]).map(model => (<Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span className="capitalize">{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
             {errors.pricingModel && <p className="text-sm text-destructive mt-1">{errors.pricingModel.message}</p>}
@@ -387,7 +382,7 @@ export function ListingForm() {
 
           <div>
             <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label>
-            <Controller name="leaseTerm" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
+            <Controller name="leaseTerm" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: true}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
                     <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short" /><Label htmlFor="term-short" className="font-normal">Short Term (&lt; 6 mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long" /><Label htmlFor="term-long" className="font-normal">Long Term (6+ mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible" /><Label htmlFor="term-flexible" className="font-normal">Flexible</Label></div>
@@ -401,12 +396,12 @@ export function ListingForm() {
                   {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2"><Checkbox id={`amenity-${amenity.id}`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}`} className="font-normal">{amenity.label}</Label></div>))}
                 </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
           </div>
-          <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{currentSubscriptionOnMount === 'premium' ? "Premium: 0.49% on payouts." : "Free: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
+          <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{subscriptionStatus === 'premium' ? "Premium: 0.49% on payouts." : "Free: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <div></div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => {form.reset({title: '', description: '', location: '', sizeSqft: 1000, price: 100, pricingModel: 'monthly',leaseToOwnDetails: '', amenities: [], images: [], leaseTerm: 'flexible', minLeaseDurationMonths: null, suggestedPrice: null }); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setSelectedFiles([]); setImagePreviews([]); setImageUploadError(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset Form</Button>
+            <Button variant="outline" type="button" onClick={() => {form.reset(); setImagePreviews([]); setPriceSuggestion(null); setTitleSuggestion(null); setDescriptionSuggestion(null); setFormSubmittedSuccessfully(false); setSubmissionError(null); setSubmissionSuccess(null);}} disabled={isSubmitting || isAiLoading}>Reset Form</Button>
             <Button type="submit" disabled={isActualSubmitButtonDisabled}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Create Listing</Button>
           </div>
         </CardFooter>

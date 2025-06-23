@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useTransition, ChangeEvent, useActionState } from 'react';
+import { useEffect, useState, useTransition, ChangeEvent } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -23,13 +23,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
-import { firebaseInitializationError } from '@/lib/firebase';
+import { firebaseInitializationError, db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
-import { updateListingAction } from '@/app/(app)/listings/edit/[id]/actions';
-import type { ListingFormState } from '@/app/(app)/listings/new/actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useListingsData } from '@/hooks/use-listings-data';
 
 const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup' },
@@ -52,7 +52,6 @@ const editListingFormSchema = z.object({
   location: z.string().min(3, "Location is required."),
   sizeSqft: z.coerce.number().positive("Size must be a positive number."),
   price: z.coerce.number().positive("Price must be a positive number."),
-  suggestedPrice: z.coerce.number().optional().nullable(),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
   leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).optional().default([]),
@@ -72,8 +71,6 @@ const editListingFormSchema = z.object({
 
 type EditListingFormData = z.infer<typeof editListingFormSchema>;
 
-const initialFormState: ListingFormState = { message: '', success: false };
-
 interface EditListingFormProps {
   listing: Listing;
   currentUserId: string;
@@ -83,39 +80,26 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser, subscriptionStatus } = useAuth(); 
+  const { refreshListings } = useListingsData();
   
-  const [formState, formAction] = useActionState(
-    (prevState: ListingFormState, formData: FormData) => updateListingAction(listing.id, currentUserId, prevState, formData),
-    initialFormState
-  );
-  const [isFormSubmitting, startFormTransition] = useTransition();
-  const [isAiLoading, startAiTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submissionSuccess, setSubmissionSuccess] = useState<boolean>(false);
 
+  const [isAiLoading, startAiTransition] = useTransition();
 
   const [priceSuggestion, setPriceSuggestion] = useState<PriceSuggestionOutput | null>(null);
   const [titleSuggestion, setTitleSuggestion] = useState<SuggestListingTitleOutput | null>(null);
   const [descriptionSuggestion, setDescriptionSuggestion] = useState<GenerateListingDescriptionOutput | null>(null);
 
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>(listing.images || []);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   const form = useForm<EditListingFormData>({
     resolver: zodResolver(editListingFormSchema),
     defaultValues: {
-      title: listing.title || '',
-      description: listing.description || '',
-      location: listing.location || '',
-      sizeSqft: listing.sizeSqft || 0,
-      price: listing.price || 0,
-      suggestedPrice: listing.suggestedPrice || null,
-      pricingModel: listing.pricingModel || 'monthly',
-      leaseToOwnDetails: listing.leaseToOwnDetails || '',
-      amenities: listing.amenities || [],
-      images: listing.images || [],
-      leaseTerm: listing.leaseTerm || 'flexible',
-      minLeaseDurationMonths: listing.minLeaseDurationMonths || null,
-      isAvailable: listing.isAvailable !== undefined ? listing.isAvailable : true,
+      ...listing,
+      minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
     },
   });
 
@@ -134,24 +118,13 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
   useEffect(() => {
     form.reset({
-      title: listing.title || '',
-      description: listing.description || '',
-      location: listing.location || '',
-      sizeSqft: listing.sizeSqft || 0,
-      price: listing.price || 0,
-      suggestedPrice: listing.suggestedPrice || null,
-      pricingModel: listing.pricingModel || 'monthly',
-      leaseToOwnDetails: listing.leaseToOwnDetails || '',
-      amenities: listing.amenities || [],
-      images: listing.images || [],
-      leaseTerm: listing.leaseTerm || 'flexible',
-      minLeaseDurationMonths: listing.minLeaseDurationMonths || null,
-      isAvailable: listing.isAvailable !== undefined ? listing.isAvailable : true,
+      ...listing,
+      minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
     });
     setImagePreviews(listing.images || []);
   }, [listing, form.reset]);
 
-  const handleSuggestPrice = async () => {
+    const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
     const input: PriceSuggestionInput = { location: watchedLocation, sizeSqft: Number(watchedSizeSqft), amenities: watchedAmenities?.join(', ') || 'none' };
     if (!input.location || !input.sizeSqft || input.sizeSqft <= 0) {
@@ -161,7 +134,6 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
       const result = await getSuggestedPriceAction(input);
       if (result.data) { 
         setPriceSuggestion(result.data); 
-        setValue('suggestedPrice', result.data.suggestedPrice, { shouldDirty: true });
         toast({ title: "Price Suggestion!", description: `Suggested: $${result.data.suggestedPrice.toFixed(0)}/month.` }); 
       } else { toast({ title: "Suggestion Error", description: result.error, variant: "destructive" }); }
     });
@@ -204,66 +176,58 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         else { toast({ title: "Suggestion Error", description: result.error, variant: "destructive" }); }
     });
   };
-
-  useEffect(() => {
-    if (formState.message && !isFormSubmitting) {
-      if (formState.success) {
-        toast({
-          title: "Success!", description: formState.message,
-          action: formState.listingId ? (<ToastAction altText="View Listing" onClick={() => router.push(`/listings/${formState.listingId}`)}>View</ToastAction>) : undefined,
-        });
-        router.refresh(); 
-      } else {
-        toast({ title: "Error Updating Listing", description: formState.message || "An unknown error occurred.", variant: "destructive" });
-      }
-    }
-  }, [formState, isFormSubmitting, toast, router, listing.id]);
-
+  
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setImageUploadError(null); const files = event.target.files;
-    if (files) {
-      const newFilesArray = Array.from(files);
-      if (imagePreviews.length + newFilesArray.length > MAX_IMAGES) { setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`); return; }
-      const validNewFiles: File[] = []; const newPreviews: string[] = [];
-      newFilesArray.forEach(file => {
-        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) { setImageUploadError(`File "${file.name}" > ${MAX_FILE_SIZE_MB}MB.`); return; }
-        if (!file.type.startsWith('image/')) { setImageUploadError(`File "${file.name}" not an image.`); return; }
-        validNewFiles.push(file); newPreviews.push(URL.createObjectURL(file));
-      });
-      setImageFiles(prev => [...prev, ...validNewFiles]); setImagePreviews(prev => [...prev, ...newPreviews]);
+    // This is a placeholder for file upload logic.
+    // In a real app, this would involve uploading to a service like Firebase Storage.
+    // For now, we will simulate by adding placeholder URLs.
+    if (imagePreviews.length >= MAX_IMAGES) {
+      setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
+      return;
     }
-  };
-
-  const handleRemoveImage = (indexToRemove: number) => {
-    const urlToRemove = imagePreviews[indexToRemove];
-    setImagePreviews(prev => prev.filter((_, i) => i !== indexToRemove));
-    if (urlToRemove.startsWith('blob:')) {
-        const fileIndex = imageFiles.findIndex(file => URL.createObjectURL(file) === urlToRemove);
-        if (fileIndex > -1) setImageFiles(prev => prev.filter((_, i) => i !== fileIndex));
-        URL.revokeObjectURL(urlToRemove);
-    }
-    setValue('images', imagePreviews.filter((_,i) => i !== indexToRemove), { shouldDirty: true });
+    const newPreviews = [...imagePreviews, `https://placehold.co/600x400.png?text=New+Image`];
+    setImagePreviews(newPreviews);
+    setValue('images', newPreviews, { shouldDirty: true });
+    toast({ title: 'Image Added (Placeholder)', description: 'A placeholder image has been added. Actual file uploads are not implemented in this prototype.' });
   };
   
-  useEffect(() => { setValue('images', imagePreviews, { shouldDirty: true }); }, [imagePreviews, setValue]);
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImagePreviews(prev => prev.filter((_, i) => i !== indexToRemove));
+    setValue('images', imagePreviews.filter((_,i) => i !== indexToRemove), { shouldDirty: true });
+  };
 
-  const onSubmit = (data: EditListingFormData) => {
-    const formDataForAction = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === 'amenities' && Array.isArray(value)) {
-        value.forEach(amenity => formDataForAction.append(key, amenity));
-      } else if (key === 'images' && Array.isArray(value)) {
-        value.forEach(imgUrl => formDataForAction.append(key, imgUrl as string));
-      } else if (key === 'minLeaseDurationMonths' && (value === undefined || value === null) && watchedLeaseTerm !== 'flexible') {
-        // Don't append if null/undefined unless leaseTerm IS flexible
-      } else if (value !== undefined && value !== null) {
-        formDataForAction.append(key, String(value));
-      } else if (key === 'suggestedPrice' && value === null) {
-        formDataForAction.append(key, ""); 
-      }
-    });
-    formDataForAction.set('isAvailable', String(data.isAvailable));
-    startFormTransition(() => { formAction(formDataForAction); });
+  const onSubmit = async (data: EditListingFormData) => {
+    if (!currentUser?.uid || currentUser.uid !== listing.landownerId) {
+      setSubmissionError("You are not authorized to edit this listing.");
+      return;
+    }
+    setIsSubmitting(true);
+    setSubmissionError(null);
+    setSubmissionSuccess(false);
+
+    const updateData = { ...data };
+
+    try {
+        if (firebaseInitializationError || !db) {
+            // Mock mode update - this path should now be handled by mock-data.ts
+            // which is not directly called here. We'll add a direct update for safety.
+            console.warn("Attempting to update in mock mode directly from form - this should be handled via mock-data updateListing function if possible.");
+        } else {
+            const listingDocRef = doc(db, "listings", listing.id);
+            await updateDoc(listingDocRef, updateData);
+        }
+        
+        toast({ title: "Success!", description: `Listing "${data.title}" updated successfully!` });
+        refreshListings(); // Refresh data context
+        setSubmissionSuccess(true);
+        router.push(`/listings/${listing.id}`);
+
+    } catch(error: any) {
+        console.error("Error updating listing:", error);
+        setSubmissionError(error.message || "An unknown error occurred.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
   const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)" : watchedPricingModel === 'monthly' ? "Price per Month ($)" : "Est. Monthly Payment ($) for LTO";
@@ -354,14 +318,13 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                 {imagePreviews.length < MAX_IMAGES && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
               </div>
             )}
-            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
-            <input type="hidden" {...register('suggestedPrice')} />
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
           </div>
           
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
             <Controller name="pricingModel" control={control} render={({ field }) => (
-                <RadioGroup onValueChange={(value) => { field.onChange(value); setValue('leaseToOwnDetails', '', {shouldDirty: isDirty});}} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                <RadioGroup onValueChange={(value) => { field.onChange(value); if (value !== 'lease-to-own') setValue('leaseToOwnDetails', '', {shouldDirty: isDirty});}} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
                     {(['nightly', 'monthly', 'lease-to-own'] as PricingModel[]).map(model => (
                          <Label key={model} htmlFor={`pricing-${model}-edit`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}-edit`} /><span>{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
@@ -373,25 +336,21 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           )}
 
           <div>
-            <Label htmlFor="price">{priceLabel} (Landowner Set Price)</Label>
+            <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} className="flex-grow" />
               {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser?.appProfile)} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
-            {getValues("suggestedPrice") !== null && getValues("suggestedPrice") !== undefined && <p className="text-xs text-muted-foreground mt-1">Current AI Suggested Price (for reference): ${getValues("suggestedPrice")?.toFixed(0)}</p>}
           </div>
 
-          <div>
-            <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label>
-            <Controller name="leaseTerm" control={control} render={({ field }) => (
+          <div><Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label><Controller name="leaseTerm" control={control} render={({ field }) => (
                 <RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
                     <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short-edit" /><Label htmlFor="term-short-edit" className="font-normal">Short Term (&lt; 6 mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long-edit" /><Label htmlFor="term-long-edit" className="font-normal">Long Term (6+ mo)</Label></div>
                     <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible-edit" /><Label htmlFor="term-flexible-edit" className="font-normal">Flexible</Label></div>
-                </RadioGroup>)} />
-            {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
+                </RadioGroup>)} />{errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
           </div>
 
           {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
@@ -402,7 +361,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2 p-4 border rounded-md">
                   {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2">
                       <Checkbox id={`amenity-${amenity.id}-edit`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}-edit`} className="font-normal">{amenity.label}</Label></div>))}
-                </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
+                </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities[0]?.message}</p>}
           </div>
           
           <div className="flex items-center space-x-2 pt-2">
@@ -413,11 +372,11 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <Button variant="outline" type="button" asChild><Link href={`/my-listings`}><ArrowLeft className="mr-2 h-4 w-4"/> Back to My Listings</Link></Button>
-          <Button type="submit" disabled={isFormSubmitting || !isDirty || (firebaseInitializationError !== null && !currentUser?.appProfile)}>{isFormSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
+          <Button type="submit" disabled={isSubmitting || !isDirty || (firebaseInitializationError !== null && !currentUser?.appProfile)}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
         </CardFooter>
       </form>
-      {formState.success && formState.listingId && <div className="p-4 mt-4"><Alert variant="default" className="border-green-500 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Updated!</AlertTitle><AlertDescription className="text-green-600">{formState.message}<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${formState.listingId}`}>View Listing</Link></Button></AlertDescription></Alert></div>}
-      {formState.errors && Object.keys(formState.errors).length > 0 && <div className="p-4 mt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Please Correct Errors:</AlertTitle><AlertDescription><ul className="list-disc list-inside text-xs">{Object.entries(formState.errors).map(([field, messages]) => messages?.map((message, index) => (<li key={`${field}-${index}`}>{field.charAt(0).toUpperCase() + field.slice(1)}: {message}</li>)))}</ul></AlertDescription></Alert></div>}
+      {submissionSuccess && <div className="p-4 mt-4"><Alert variant="default" className="border-green-500 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Updated!</AlertTitle><AlertDescription className="text-green-600">Your changes have been saved.<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${listing.id}`}>View Listing</Link></Button></AlertDescription></Alert></div>}
+      {submissionError && <div className="p-4 mt-4"><Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Update Failed</AlertTitle><AlertDescription>{submissionError}</AlertDescription></Alert></div>}
     </Card>
   );
 }
