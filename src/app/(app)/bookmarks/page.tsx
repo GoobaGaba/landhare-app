@@ -13,7 +13,7 @@ import { ListingCard } from '@/components/land-search/listing-card';
 import { useEffect, useMemo, useState } from 'react';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
-import { Alert, AlertDescription } from '@/components/ui/alert'; // Added AlertTitle, AlertDescription
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ToastAction } from '@/components/ui/toast';
 
 export default function MyBookmarksPage() {
@@ -95,7 +95,7 @@ export default function MyBookmarksPage() {
       {atBookmarkLimit && (
          <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-700">
             <Crown className="h-4 w-4 text-amber-600" />
-            <CardTitle className="text-amber-700">Bookmark Limit Reached</CardTitle> {/* Changed AlertTitle to CardTitle for consistency */}
+            <AlertTitle className="text-amber-700">Bookmark Limit Reached</AlertTitle>
             <AlertDescription>
                 Free accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} listings.
                 <Button variant="link" asChild className="p-0 h-auto ml-1 text-amber-700 hover:text-amber-800">

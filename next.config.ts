@@ -19,14 +19,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    allowedDevOrigins: [
-      // Add the origin from the Firebase Studio / Cloud Workstation warning
-      'https://9003-firebase-studio-1749668050033.cluster-joak5ukfbnbyqspg4tewa33d24.cloudworkstations.dev',
-      // It's also good practice to keep your local port if you access it directly sometimes
-      'http://localhost:9003',
-    ],
-  },
 };
 
 export default nextConfig;

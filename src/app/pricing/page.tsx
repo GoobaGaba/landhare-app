@@ -8,10 +8,9 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context'; 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { createCheckoutSessionAction } from '@/lib/actions/stripe-actions'; 
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert'; 
-import { isStripeEnabled } from '@/lib/stripe'; 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; 
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const pricingPlans = [
   {
@@ -65,37 +64,7 @@ const pricingPlans = [
 export default function PricingPage() {
   const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [stripeError, setStripeError] = useState<string | null>(null);
-
-  const handleCtaAction = async (actionKey?: string) => {
-    if (actionKey === "upgradePremium") {
-      if (!currentUser) {
-          toast({ title: "Login Required", description: "Please log in or sign up to subscribe.", variant: "default"});
-          return;
-      }
-      if (subscriptionStatus === 'premium') {
-          return;
-      }
-
-      setIsProcessing(true);
-      setStripeError(null);
-      try {
-        const result = await createCheckoutSessionAction(); 
-        if (result?.error) {
-          setStripeError(result.error);
-          toast({title: "Subscription Error", description: result.error, variant: "destructive"});
-        }
-      } catch (error: any) {
-        setStripeError(error.message || "An unexpected error occurred.");
-        toast({title: "Subscription Error", description: error.message || "Could not initiate subscription.", variant: "destructive"});
-      } finally {
-        setIsProcessing(false);
-      }
-    }
-  };
-
-
+  
   if (authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
@@ -115,14 +84,6 @@ export default function PricingPage() {
         </p>
       </header>
 
-      {stripeError && (
-        <Alert variant="destructive" className="max-w-xl mx-auto mb-8">
-          <AlertTriangle className="h-4 w-4" />
-          <CardTitle className="text-destructive">Payment Error</CardTitle> {/* Changed to CardTitle for consistency */}
-          <AlertDescription>{stripeError}</AlertDescription>
-        </Alert>
-      )}
-
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
         {pricingPlans.map((plan) => {
           const isCurrentUserPremium = subscriptionStatus === 'premium';
@@ -137,10 +98,7 @@ export default function PricingPage() {
             ? (isCurrentUserPremium ? "Manage Subscription" : plan.cta)
             : (currentUser && plan.id === 'standard' ? "Go to Dashboard" : plan.cta);
           
-          const isButtonDisabled = isProcessing || 
-                                   (plan.id === 'premium' && authLoading) ||
-                                   (plan.id === 'premium' && !currentUser && !authLoading); 
-                                  
+          const isPremiumButtonDisabled = plan.id === 'premium';
 
           return (
             <Card key={plan.title} className={cn(`shadow-xl flex flex-col`, plan.highlight ? 'border-2 border-premium relative overflow-hidden ring-2 ring-premium/30' : 'border-border')}>
@@ -199,20 +157,38 @@ export default function PricingPage() {
                 )}
               </CardContent>
               <CardFooter className="mt-auto pt-4">
-                 <form action={() => handleCtaAction(plan.actionKey)} className="w-full">
-                    <Button
-                        type={plan.actionKey ? "submit" : "button"} 
-                        size="lg"
-                        variant={plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) ? "default" : "outline"}
-                        className={cn("w-full", plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) && "bg-premium hover:bg-premium/90 text-premium-foreground")}
-                        disabled={isButtonDisabled || (plan.id === 'premium' && isCurrentUserPremium)}
-                        onClick={!plan.actionKey && ctaLink ? () => window.location.href = ctaLink : undefined}
-                    >
-                        {isProcessing && plan.actionKey ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : (plan.highlight && <Crown className="mr-2 h-4 w-4"/>)}
-                        {plan.id === 'premium' && !currentUser && !authLoading ? "Sign Up to Go Premium" : ctaText}
-                    </Button>
-                 </form>
+                 <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="w-full">
+                         <Button
+                            asChild={!!ctaLink}
+                            size="lg"
+                            variant={plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) ? "default" : "outline"}
+                            className={cn("w-full", plan.highlight && !(plan.id === 'premium' && isCurrentUserPremium) && "bg-premium hover:bg-premium/90 text-premium-foreground")}
+                            disabled={isPremiumButtonDisabled}
+                        >
+                            {ctaLink ? (
+                                <Link href={ctaLink}>
+                                    {plan.id === 'premium' && isCurrentUserPremium ? <ExternalLink className="mr-2 h-4 w-4" /> : (plan.highlight && <Crown className="mr-2 h-4 w-4"/>)}
+                                    {ctaText}
+                                </Link>
+                            ) : (
+                                <span>
+                                  {plan.highlight && <Crown className="mr-2 h-4 w-4 inline-block"/>}
+                                  {plan.id === 'premium' && !currentUser ? "Sign Up to Go Premium" : ctaText}
+                                </span>
+                            )}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {isPremiumButtonDisabled && (
+                       <TooltipContent>
+                         <p>Payment processing is temporarily unavailable. Check back soon!</p>
+                       </TooltipContent>
+                    )}
+                  </Tooltip>
+                 </TooltipProvider>
               </CardFooter>
             </Card>
           );

@@ -1,7 +1,7 @@
 
 'use client';
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,37 +29,6 @@ interface ProfileDisplayData {
   bio: string;
   memberSince: Date;
   subscriptionTier: SubscriptionStatus;
-}
-
-function StripeStatusHandler() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const stripeSessionId = searchParams.get('session_id');
-    const stripeStatus = searchParams.get('status');
-
-    if (stripeStatus === 'success' && stripeSessionId) {
-      toast({
-        title: "Subscription Successful!",
-        description: "Your premium subscription is active. It may take a moment for all features to reflect the change. Please refresh your profile if needed.",
-        variant: "default",
-        duration: 8000,
-      });
-      router.replace('/profile', { shallow: true });
-    } else if (stripeStatus === 'cancelled') {
-      toast({
-        title: "Subscription Process Cancelled",
-        description: "You have cancelled the subscription process. Your plan has not changed.",
-        variant: "default",
-        duration: 7000,
-      });
-      router.replace('/pricing', { shallow: true });
-    }
-  }, [searchParams, toast, router]);
-
-  return null;
 }
 
 export default function ProfilePage() {
@@ -224,9 +193,6 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <Suspense fallback={<></>}>
-        <StripeStatusHandler />
-      </Suspense>
       <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
         <Avatar className="h-24 w-24 border-2 border-primary">
           <AvatarImage src={profileDisplayData.avatarUrl} alt={profileDisplayData.name} data-ai-hint="person portrait" />
@@ -356,18 +322,20 @@ export default function ProfilePage() {
                 {profileDisplayData.subscriptionTier === 'free' ? (
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
-                    <Button asChild disabled={!!firebaseInitializationError || isMockUserNoProfile} className="bg-premium hover:bg-premium/90 text-premium-foreground">
-                      <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
-                    </Button>
+                    <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                       <Button asChild className="bg-premium hover:bg-premium/90 text-premium-foreground" disabled={true}>
+                          <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
+                       </Button>
+                    </TooltipTrigger><TooltipContent><p>Payment processing is temporarily disabled. Please check back later.</p></TooltipContent></Tooltip></TooltipProvider>
                   </>
                 ) : profileDisplayData.subscriptionTier === 'premium' ? (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
                   <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
-                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>
+                    <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe Customer Portal integration for managing your subscription is not yet implemented."})} disabled={true}>
                       Manage Subscription
                     </Button>
-                  </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip></TooltipProvider>
+                  </TooltipTrigger><TooltipContent><p>Payment processing is temporarily disabled.</p></TooltipContent></Tooltip></TooltipProvider>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
@@ -397,21 +365,6 @@ export default function ProfilePage() {
                     </p>
                 </CardContent>
               </Card>
-
-              <div>
-                <h4 className="font-medium mb-2">Payment Methods</h4>
-                <p className="text-sm text-muted-foreground">Your payment methods are managed securely via Stripe. (Placeholder)</p>
-                <TooltipProvider delayDuration={100}>
-                <div className="mt-3 flex gap-2">
-                    <Tooltip><TooltipTrigger asChild>
-                        <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for updating payment methods is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>Update Payment Method</Button>
-                    </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip>
-                    <Tooltip><TooltipTrigger asChild>
-                        <Button variant="outline" onClick={() => toast({title: "Coming Soon!", description: "Stripe integration for viewing billing history is not yet implemented."})} disabled={!!firebaseInitializationError || isMockUserNoProfile}>View Billing History</Button>
-                    </TooltipTrigger><TooltipContent><p>Full Stripe integration coming soon.</p></TooltipContent></Tooltip>
-                </div>
-                </TooltipProvider>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
