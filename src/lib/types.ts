@@ -9,6 +9,8 @@ export interface Listing {
   title: string;
   description: string;
   location: string;
+  lat?: number;
+  lng?: number;
   sizeSqft: number;
   amenities: string[];
   price: number; // Price set by landowner
