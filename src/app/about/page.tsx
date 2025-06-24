@@ -10,7 +10,7 @@ export default function AboutPage() {
     <div className="container mx-auto px-4 py-8 md:py-12">
       <header className="text-center mb-12 md:mb-16">
         <Info className="h-16 w-16 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-3">About LandShare</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-title mb-3">About LandShare</h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
           Connecting landowners with those seeking affordable and flexible land options, fostering a new approach to housing and land use.
         </p>

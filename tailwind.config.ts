@@ -74,6 +74,9 @@ export default {
           DEFAULT: 'hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l))',
           foreground: 'hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l))',
         },
+        title: {
+          DEFAULT: 'hsl(var(--title-foreground))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',

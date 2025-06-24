@@ -49,7 +49,7 @@ export default function HomePage() {
           {!authLoading && currentUser && (
             <p className="mb-4 text-lg text-muted-foreground">Welcome back, {getFirstName()}!</p>
           )}
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-primary">Unlock Your Land. Own Your Future.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-title">Unlock Your Land. Own Your Future.</h1>
           {!authLoading && !currentUser && (
              <>
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
@@ -87,7 +87,7 @@ export default function HomePage() {
       
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">How LandShare Works</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-title">How LandShare Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>

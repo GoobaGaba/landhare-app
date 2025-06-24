@@ -66,6 +66,8 @@ body {
     
     --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
     --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
+
+    --title-foreground: 120 25% 8%; /* Very Dark Green (for Light Mode) */
   }
 
   .dark {
@@ -127,6 +129,8 @@ body {
     
     --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
     --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
+    
+    --title-foreground: 60 40% 98%; /* Snow White (for Dark Mode) */
   }
 }
 
