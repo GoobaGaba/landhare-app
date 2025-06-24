@@ -376,7 +376,7 @@ function ProfilePageContent() {
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
                     <Button 
                       asChild
-                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile || !!firebaseInitializationError}
+                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
                       className="bg-premium hover:bg-premium/90 text-premium-foreground">
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
@@ -387,7 +387,7 @@ function ProfilePageContent() {
                    <Button
                         onClick={handleDowngradeAttempt}
                         variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile || !!firebaseInitializationError}
+                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
                         Switch to Free
@@ -396,7 +396,6 @@ function ProfilePageContent() {
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                 )}
-                 {firebaseInitializationError && <p className="text-xs text-destructive mt-2">Live subscription management is disabled due to a Firebase configuration issue.</p>}
               </div>
             </CardContent>
           </Card>
