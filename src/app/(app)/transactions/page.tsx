@@ -187,12 +187,12 @@ export default function TransactionsPage() {
                 ) : filteredTransactions.length > 0 ? (
                   filteredTransactions.map(t => {
                      const date = t.date instanceof Date ? t.date : (t.date as any).toDate();
-                     const isIncome = t.type === 'Landowner Payout';
+                     const isIncome = t.type === 'Landowner Payout' || (t.type === 'Subscription' && t.amount > 0);
                      let typeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
                      switch(t.type) {
                         case 'Landowner Payout': typeVariant = 'default'; break;
                         case 'Booking Payment': typeVariant = 'secondary'; break;
-                        case 'Subscription': typeVariant = 'secondary'; break;
+                        case 'Subscription': typeVariant = t.amount < 0 ? 'secondary' : 'default'; break;
                         case 'Service Fee': typeVariant = 'destructive'; break;
                      }
                     return (
@@ -220,7 +220,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    

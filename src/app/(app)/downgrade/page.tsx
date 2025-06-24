@@ -126,6 +126,7 @@ export default function DowngradePage() {
                     id={`listing-${listing.id}`}
                     className="absolute top-3 left-3 h-5 w-5 z-10 bg-background"
                     checked={selectedListings.includes(listing.id)}
+                    readOnly
                   />
                   <div className="flex items-start p-3 pl-10 gap-3">
                     <div className="relative h-24 w-24 flex-shrink-0">

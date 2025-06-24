@@ -452,6 +452,8 @@ const mapDocToBooking = (docSnap: any): Booking => {
     listingTitle: data.listingTitle || `Listing: ${data.listingId ? data.listingId.substring(0,10) : 'N/A'}...`,
     renterName: data.renterName || `Renter: ${data.renterId ? data.renterId.substring(0,6) : 'N/A'}...`,
     landownerName: data.landownerName || `Owner: ${data.landownerId ? data.landownerId.substring(0,6) : 'N/A'}...`,
+    leaseContractPath: data.leaseContractPath,
+    leaseContractUrl: data.leaseContractUrl,
   };
 };
 
@@ -1064,13 +1066,13 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
             let payoutBaseAmount = 0;
             let descriptionSuffix = '';
 
-            if (listing.pricingModel === 'monthly') {
+            if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
                 payoutBaseAmount = listing.price; // Payout for one month
                 descriptionSuffix = ' - Month 1';
-            } else {
-                // For nightly and LTO, calculate for the full duration
+            } else { // 'nightly'
                 const { basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
                 payoutBaseAmount = basePrice;
+                descriptionSuffix = ' - Full Stay';
             }
 
             const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
@@ -1140,13 +1142,13 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
               let payoutBaseAmount = 0;
               let descriptionSuffix = '';
 
-              if (listing.pricingModel === 'monthly') {
+              if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
                   payoutBaseAmount = listing.price; // Payout for one month
                   descriptionSuffix = ' - Month 1';
-              } else {
-                  // For nightly and LTO, calculate for the full duration
+              } else { // 'nightly'
                   const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
                   payoutBaseAmount = basePrice;
+                  descriptionSuffix = ' - Full Stay';
               }
 
               const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
