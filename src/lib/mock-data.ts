@@ -19,7 +19,8 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails } from './lib/types';
+import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
@@ -380,17 +381,17 @@ export let mockReviews: Review[] = [
   },
 ];
 
-export const mockTransactions: Transaction[] = [
+export let mockTransactions: Transaction[] = [
   // Mock User's transactions
   { id: 'txn1', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
-  { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 196.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
-  { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -4.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 199.02, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -0.98, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (0.49%) for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
   // Jane Doe's transactions
   { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
-  { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
+  { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee (2%) for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
   // John Smith's transactions
-  { id: 'txn6', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Completed', amount: -2100.00, currency: 'USD', date: new Date('2023-12-15T00:00:00Z'), description: 'Payment for Sunny Meadow Plot (6 months)', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
-  { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.00, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn6', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Completed', amount: -2100.99, currency: 'USD', date: new Date('2023-12-15T00:00:00Z'), description: 'Payment for Sunny Meadow Plot (6 months)', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
+  { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
 ];
 
 
@@ -483,6 +484,33 @@ const mapDocToTransaction = (docSnap: any): Transaction => {
     };
 };
 
+const calculatePriceDetails = (listing: Listing, dateRange: { from: Date, to: Date }, renterSubscription: SubscriptionStatus): PriceDetails => {
+  let baseRate = 0;
+  const fromDate = dateRange.from;
+  const toDate = dateRange.to;
+  let durationValue = differenceInDays(toDate, fromDate) + 1;
+  if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
+
+  if (listing.pricingModel === 'nightly') {
+    baseRate = (listing.price || 0) * durationValue;
+  } else if (listing.pricingModel === 'monthly') {
+    baseRate = (listing.price / 30) * durationValue;
+  } else { // lease-to-own
+    const months = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+    baseRate = (listing.price || 0) * months;
+  }
+  
+  if (isNaN(baseRate)) baseRate = 0;
+  
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? 0.99 : 0;
+  const subtotal = baseRate + renterFee;
+  const taxRate = 0.05;
+  const estimatedTax = subtotal * taxRate;
+  let totalPrice = subtotal + estimatedTax;
+
+  return { totalPrice, basePrice: baseRate, renterFee, estimatedTax } as PriceDetails;
+};
+
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
     if (firebaseInitializationError || !db) {
@@ -571,8 +599,24 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     // Preview Mode
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
+        const wasFree = mockUsers[userIndex].subscriptionStatus === 'free';
         mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
         if (data.subscriptionStatus) mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
+
+        if (wasFree && data.subscriptionStatus === 'premium') {
+            const newTransaction: Transaction = {
+                id: `txn-sub-${Date.now()}`,
+                userId: userId,
+                type: 'Subscription',
+                status: 'Completed',
+                amount: -5.00,
+                currency: 'USD',
+                date: new Date(),
+                description: 'Premium Subscription - Monthly'
+            };
+            mockTransactions.unshift(newTransaction);
+        }
+
         if (data.bookmarkedListingIds !== undefined) mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
         incrementMockDataVersion('updateUserProfile_mock');
         return mockUsers[userIndex];
@@ -583,6 +627,11 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
   // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userDocRef);
+    if (!userSnap.exists()) throw new Error("User not found for update.");
+
+    const wasFree = userSnap.data().subscriptionStatus === 'free';
+
     const firestoreData: any = { ...data };
     if (firestoreData.createdAt && firestoreData.createdAt instanceof Date) {
         firestoreData.createdAt = Timestamp.fromDate(firestoreData.createdAt);
@@ -590,6 +639,20 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     if (firestoreData.id) delete firestoreData.id;
 
     await updateDoc(userDocRef, firestoreData);
+
+    if (wasFree && data.subscriptionStatus === 'premium') {
+        const newTransaction: Omit<Transaction, 'id'> = {
+            userId: userId,
+            type: 'Subscription',
+            status: 'Completed',
+            amount: -5.00,
+            currency: 'USD',
+            date: Timestamp.now(),
+            description: 'Premium Subscription - Monthly'
+        };
+        await addDoc(collection(db, "transactions"), newTransaction);
+    }
+
     const updatedSnap = await getDoc(userDocRef);
     if (!updatedSnap.exists()) return undefined;
     return mapDocToUser(updatedSnap);
@@ -896,11 +959,27 @@ export const addBookingRequest = async (
     const landownerInfo = mockUsers.find(u => u.id === listingInfo.landownerId);
     if (!landownerInfo) throw new Error("Mock Landowner profile not found.");
 
+    const { totalPrice } = calculatePriceDetails(listingInfo, data.dateRange, renterInfo.subscriptionStatus || 'free');
+
+    const newPaymentTransaction: Transaction = {
+        id: `txn-pmt-${Date.now()}`,
+        userId: renterInfo.id,
+        type: 'Booking Payment',
+        status: status === 'Confirmed' ? 'Completed' : 'Pending',
+        amount: -totalPrice,
+        currency: 'USD',
+        date: creationTimestamp,
+        description: `Payment for "${listingInfo.title}"`,
+        relatedBookingId: `mock-booking-${Date.now()}`,
+        relatedListingId: listingInfo.id,
+    };
+    mockTransactions.unshift(newPaymentTransaction);
+
     const newBookingBase: Omit<Booking, 'id'> = {
       ...data, landownerId: listingInfo.landownerId, status, createdAt: creationTimestamp,
       listingTitle: listingInfo.title, renterName: renterInfo.name, landownerName: landownerInfo.name,
     };
-    const mockId = `mock-booking-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const mockId = newPaymentTransaction.relatedBookingId!;
     const newMockBooking: Booking = { id: mockId, ...newBookingBase };
     mockBookings.unshift(newMockBooking);
     incrementMockDataVersion('addBookingRequest_mock');
@@ -909,29 +988,42 @@ export const addBookingRequest = async (
 
   // Live Mode
   try {
-    const listingInfo = await getListingById(data.listingId); // Fetches from Firestore
+    const listingInfo = await getListingById(data.listingId);
     if (!listingInfo) throw new Error("Listing not found for booking request.");
-    const renterInfo = await getUserById(data.renterId); // Fetches from Firestore
+    const renterInfo = await getUserById(data.renterId);
     if (!renterInfo) throw new Error("Renter profile not found.");
-    const landownerInfo = await getUserById(listingInfo.landownerId); // Fetches from Firestore
+    const landownerInfo = await getUserById(listingInfo.landownerId);
     if (!landownerInfo) throw new Error("Landowner profile not found.");
+
+    const { totalPrice } = calculatePriceDetails(listingInfo, data.dateRange, renterInfo.subscriptionStatus || 'free');
 
     const newBookingBase: Omit<Booking, 'id' | 'createdAt'> & {createdAt: Timestamp} = {
       ...data,
-      landownerId: listingInfo.landownerId, // Ensure landownerId is from the definitive listing
+      landownerId: listingInfo.landownerId,
       status,
       listingTitle: listingInfo.title,
       renterName: renterInfo.name,
       landownerName: landownerInfo.name,
-      dateRange: {
-        from: Timestamp.fromDate(data.dateRange.from),
-        to: Timestamp.fromDate(data.dateRange.to),
-      },
+      dateRange: { from: Timestamp.fromDate(data.dateRange.from), to: Timestamp.fromDate(data.dateRange.to) },
       createdAt: Timestamp.fromDate(creationTimestamp),
     };
 
     const bookingsCol = collection(db, "bookings");
     const docRef = await addDoc(bookingsCol, newBookingBase);
+
+    const newPaymentTransaction: Omit<Transaction, 'id'> = {
+        userId: renterInfo.id,
+        type: 'Booking Payment',
+        status: status === 'Confirmed' ? 'Completed' : 'Pending',
+        amount: -totalPrice,
+        currency: 'USD',
+        date: Timestamp.now(),
+        description: `Payment for "${listingInfo.title}"`,
+        relatedBookingId: docRef.id,
+        relatedListingId: listingInfo.id,
+    };
+    await addDoc(collection(db, "transactions"), newPaymentTransaction);
+
     const newDocSnap = await getDoc(docRef);
     if (!newDocSnap.exists()) throw new Error("Failed to retrieve newly created booking request from Firestore.");
     return mapDocToBooking(newDocSnap);
@@ -945,28 +1037,109 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   if (firebaseInitializationError || !db) {
     // Preview Mode
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
-    if (bookingIndex !== -1) {
-      mockBookings[bookingIndex].status = status;
-      incrementMockDataVersion('updateBookingStatus_mock');
-      const booking = mockBookings[bookingIndex];
-      // Populate names again in case they were missing or for consistency
-      const listing = mockListings.find(l => l.id === booking.listingId);
-      const renter = mockUsers.find(u => u.id === booking.renterId);
-      const landowner = mockUsers.find(u => u.id === booking.landownerId);
-      return {
-          ...booking,
-          listingTitle: listing?.title || booking.listingTitle,
-          renterName: renter?.name || booking.renterName,
-          landownerName: landowner?.name || booking.landownerName,
-      };
+    if (bookingIndex === -1) return undefined;
+    
+    mockBookings[bookingIndex].status = status;
+    const booking = mockBookings[bookingIndex];
+
+    const paymentIndex = mockTransactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
+    if (paymentIndex !== -1) {
+        if (status === 'Confirmed') mockTransactions[paymentIndex].status = 'Completed';
+        if (status === 'Declined' || status === 'Cancelled') mockTransactions[paymentIndex].status = 'Failed';
     }
-    return undefined;
+
+    if (status === 'Confirmed') {
+        const listing = mockListings.find(l => l.id === booking.listingId);
+        const landowner = mockUsers.find(u => u.id === booking.landownerId);
+        const renter = mockUsers.find(u => u.id === booking.renterId);
+        if (listing && landowner && renter) {
+            const { basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
+            const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
+            const serviceFee = basePrice * serviceFeeRate;
+            const payout = basePrice - serviceFee;
+
+            mockTransactions.unshift({
+                id: `txn-payout-${booking.id}`,
+                userId: landowner.id,
+                type: 'Landowner Payout',
+                status: 'Completed',
+                amount: payout,
+                currency: 'USD',
+                date: new Date(),
+                description: `Payout for "${listing.title}"`,
+                relatedBookingId: booking.id,
+                relatedListingId: listing.id
+            });
+            mockTransactions.unshift({
+                id: `txn-fee-${booking.id}`,
+                userId: landowner.id,
+                type: 'Service Fee',
+                status: 'Completed',
+                amount: -serviceFee,
+                currency: 'USD',
+                date: new Date(),
+                description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
+                relatedBookingId: booking.id,
+                relatedListingId: listing.id
+            });
+        }
+    }
+    incrementMockDataVersion('updateBookingStatus_mock');
+    const listing = mockListings.find(l => l.id === booking.listingId);
+    const renter = mockUsers.find(u => u.id === booking.renterId);
+    const landowner = mockUsers.find(u => u.id === booking.landownerId);
+    return {
+        ...booking,
+        listingTitle: listing?.title || booking.listingTitle,
+        renterName: renter?.name || booking.renterName,
+        landownerName: landowner?.name || booking.landownerName,
+    };
   }
 
   // Live Mode
   try {
     const bookingDocRef = doc(db, "bookings", bookingId);
-    await updateDoc(bookingDocRef, { status: status });
+    const batch = writeBatch(db);
+    batch.update(bookingDocRef, { status: status });
+
+    const paymentQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Booking Payment"));
+    const paymentSnap = await getDocs(paymentQuery);
+    paymentSnap.forEach(doc => {
+      if (status === 'Confirmed') batch.update(doc.ref, { status: 'Completed' });
+      if (status === 'Declined' || status === 'Cancelled') batch.update(doc.ref, { status: 'Failed' });
+    });
+
+    if (status === 'Confirmed') {
+      const bookingSnap = await getDoc(bookingDocRef);
+      if (bookingSnap.exists()) {
+          const bookingData = bookingSnap.data() as Booking;
+          const listing = await getListingById(bookingData.listingId);
+          const landowner = await getUserById(bookingData.landownerId);
+          const renter = await getUserById(bookingData.renterId);
+
+          if (listing && landowner && renter) {
+              const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
+              const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
+              const serviceFee = basePrice * serviceFeeRate;
+              const payout = basePrice - serviceFee;
+
+              const transCol = collection(db, 'transactions');
+              batch.set(doc(transCol), {
+                  userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD',
+                  date: Timestamp.now(), description: `Payout for "${listing.title}"`,
+                  relatedBookingId: bookingId, relatedListingId: listing.id
+              });
+               batch.set(doc(transCol), {
+                  userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
+                  date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
+                  relatedBookingId: bookingId, relatedListingId: listing.id
+              });
+          }
+      }
+    }
+    
+    await batch.commit();
+
     const updatedSnap = await getDoc(bookingDocRef);
     if (!updatedSnap.exists()) return undefined;
     return mapDocToBooking(updatedSnap);
@@ -1058,3 +1231,5 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
         landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}...`,
     };
 };
+
+    

@@ -26,13 +26,13 @@ export default function SafetyPage() {
             <li><strong>Communicate Clearly:</strong> Use LandShare's messaging system for initial communications. Be clear about expectations, rules, and terms.</li>
             <li><strong>Verify Information:</strong> Do your due diligence. Ask questions. If something feels off, trust your intuition.</li>
             <li><strong>Meet Safely (If Applicable):</strong> If you decide to meet in person before finalizing an agreement (e.g., to view land), choose a public place or go with a friend. Inform someone of your plans.</li>
-            <li><strong>Secure Payments:</strong> All payments should be processed through LandShare's platform. Avoid off-platform payment requests.</li>
+            <li><strong>Secure Payments:</strong> Keep all payments and bookings within the LandShare platform. Our system is designed to protect your information and manage transactions securely. Avoid off-platform payment requests.</li>
             <li><strong>Understand Local Laws:</strong> Be aware of local zoning laws, land use regulations, and any permits required for your intended use of the land (especially for structures like tiny homes or RVs).</li>
           </ul>
 
           <h2 className="text-xl font-semibold mt-6 mb-3">For Landowners</h2>
           <ul className="list-disc pl-6 my-3 space-y-2">
-            <li><strong>Screen Renters:</strong> Review renter profiles and communicate thoroughly.</li>
+            <li><strong>Screen Renters:</strong> Review renter profiles and communicate thoroughly before accepting a booking.</li>
             <li><strong>Clear Lease Agreements:</strong> Use a clear, written lease agreement that outlines all terms, responsibilities, and rules. Consider using the AI-generated lease suggestion as a starting point and have it reviewed by legal counsel.</li>
             <li><strong>Insurance:</strong> Check with your insurance provider about coverage for renting out your land.</li>
           </ul>
@@ -40,8 +40,8 @@ export default function SafetyPage() {
           <h2 className="text-xl font-semibold mt-6 mb-3">For Renters</h2>
           <ul className="list-disc pl-6 my-3 space-y-2">
             <li><strong>Inspect the Land (If Possible):</strong> If feasible and safe, try to visit the land before committing to a long-term lease.</li>
-            <li><strong>Understand Restrictions:</strong> Clarify any restrictions on land use, access, noise, pets, etc.</li>
-            <li><strong>Document Everything:</strong> Keep records of your communications and agreements.</li>
+            <li><strong>Understand Restrictions:</strong> Clarify any restrictions on land use, access, noise, pets, etc. before you book.</li>
+            <li><strong>Document Everything:</strong> Keep records of your communications and agreements within the LandShare platform.</li>
           </ul>
 
           <h2 className="text-xl font-semibold mt-6 mb-3">Reporting Concerns</h2>
@@ -65,3 +65,5 @@ export default function SafetyPage() {
     </div>
   );
 }
+
+    

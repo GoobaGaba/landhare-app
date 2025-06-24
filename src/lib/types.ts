@@ -172,8 +172,10 @@ export interface PriceDetails {
   subtotal: number;
   estimatedTax: number;
   totalPrice: number;
-  duration: number; // Number of nights or days
-  durationUnit: 'night' | 'day' | 'nights' | 'days' | 'month' | 'months'; // unit for duration
-  pricingModelUsed: PricingModel;
-  displayRate: string; // e.g., "$50/night", "$100/month (prorated for X days)"
+  duration?: number; // Number of nights or days
+  durationUnit?: 'night' | 'day' | 'nights' | 'days' | 'month' | 'months'; // unit for duration
+  pricingModelUsed?: PricingModel;
+  displayRate?: string; // e.g., "$50/night", "$100/month (prorated for X days)"
 }
+
+    

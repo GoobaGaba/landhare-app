@@ -6,27 +6,19 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
-import type { Listing, Booking } from '@/lib/types';
-import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser } from '@/lib/mock-data';
+import type { Listing, Booking, Transaction } from '@/lib/types';
+import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { firebaseInitializationError } from '@/lib/firebase';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
-// Mock data for the earnings graph
-const chartData = [
-  { month: "Jan '24", earnings: 220 },
-  { month: "Feb '24", earnings: 310 },
-  { month: "Mar '24", earnings: 400 },
-  { month: "Apr '24", earnings: 350 },
-  { month: "May '24", earnings: 520 },
-  { month: "Jun '24", earnings: 610 }, // Current month example
-];
 
 const chartConfig = {
   earnings: {
@@ -43,6 +35,8 @@ export default function DashboardPage() {
   const [bookmarkedItems, setBookmarkedItems] = useState<Listing[]>([]);
   const [bookingCount, setBookingCount] = useState<number>(0);
   const [isBookingCountLoading, setIsBookingCountLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -65,26 +59,62 @@ export default function DashboardPage() {
   }, [currentUser, allAvailableListings]);
 
   useEffect(() => {
-    async function fetchBookingCount() {
+    async function fetchData() {
       if (!currentUser) {
         setBookingCount(0);
+        setTransactions([]);
         setIsBookingCountLoading(false);
+        setIsTransactionsLoading(false);
         return;
       }
       setIsBookingCountLoading(true);
+      setIsTransactionsLoading(true);
       try {
-        const bookings = await getBookingsForUser(currentUser.uid);
+        const [bookings, userTransactions] = await Promise.all([
+          getBookingsForUser(currentUser.uid),
+          getTransactionsForUser(currentUser.uid)
+        ]);
         const upcomingBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending Confirmation');
         setBookingCount(upcomingBookings.length);
+        setTransactions(userTransactions);
       } catch (error) {
-        console.error("Failed to fetch booking count:", error);
+        console.error("Failed to fetch dashboard data:", error);
         setBookingCount(0);
+        setTransactions([]);
+        toast({ title: "Error", description: "Could not load dashboard data."});
       } finally {
         setIsBookingCountLoading(false);
+        setIsTransactionsLoading(false);
       }
     }
-    fetchBookingCount();
-  }, [currentUser]);
+    fetchData();
+  }, [currentUser, toast]);
+
+  const chartData = useMemo(() => {
+    const last6Months = Array.from({ length: 6 }, (_, i) => subMonths(new Date(), i)).reverse();
+    
+    const monthlyEarnings = last6Months.map(monthDate => {
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      
+      const earningsForMonth = transactions
+        .filter(t => t.type === 'Landowner Payout' && t.status === 'Completed')
+        .filter(t => {
+            const tDate = t.date instanceof Date ? t.date : (t.date as any).toDate();
+            return tDate >= monthStart && tDate <= monthEnd;
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        month: format(monthDate, "MMM 'yy"),
+        earnings: earningsForMonth
+      };
+    });
+
+    return monthlyEarnings;
+
+  }, [transactions]);
+
 
   if (authLoading || subscriptionStatus === 'loading' || (currentUser && listingsLoading)) {
      return (
@@ -113,7 +143,7 @@ export default function DashboardPage() {
     );
   }
   
-  const currentMonthEarnings = chartData[chartData.length - 1].earnings;
+  const currentMonthEarnings = chartData[chartData.length - 1]?.earnings || 0;
   const isPremiumUser = subscriptionStatus === 'premium';
   const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
   const atBookmarkLimit = !isPremiumUser && bookmarkedItems.length >= FREE_TIER_BOOKMARK_LIMIT;
@@ -144,59 +174,70 @@ export default function DashboardPage() {
                 <DollarSign className="text-primary h-6 w-6" />
                 Earnings Overview
               </CardTitle>
-              <CardDescription>Your income trend over the last {chartData.length} months. (Mock data)</CardDescription>
+              <CardDescription>Your landowner payout trend over the last 6 months.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground">This Month's Earnings (June '24 - Mock)</p>
+                <p className="text-sm text-muted-foreground">This Month's Earnings</p>
                 <p className="text-2xl font-bold text-primary">
                   ${currentMonthEarnings.toFixed(2)}
                 </p>
               </div>
               <div className="h-[250px] w-full">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <LineChart
-                    accessibilityLayer
-                    data={chartData}
-                    margin={{ top: 20, right: 20, left: -10, bottom: 5 }}
-                  >
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      className="text-xs"
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(value) => `$${value}`}
-                      className="text-xs"
-                      width={60}
-                    />
-                    <ChartTooltip
-                      cursor={true}
-                      content={<ChartTooltipContent indicator="dot" labelFormatter={(value) => `Month: ${value}`} />}
-                    />
-                    <Line
-                      dataKey="earnings"
-                      type="monotone"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2.5}
-                      dot={{
-                        fill: "hsl(var(--primary))",
-                        r: 4,
-                      }}
-                      activeDot={{
-                        r: 7,
-                        fill: "hsl(var(--background))",
-                        stroke: "hsl(var(--primary))",
-                      }}
-                    />
-                  </LineChart>
-                </ChartContainer>
+                {isTransactionsLoading ? (
+                    <div className="flex justify-center items-center h-full">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <p className="ml-2 text-sm text-muted-foreground">Loading earnings data...</p>
+                    </div>
+                ) : chartData.every(d => d.earnings === 0) ? (
+                     <div className="flex justify-center items-center h-full text-center">
+                        <p className="text-sm text-muted-foreground">No earnings recorded in the last 6 months.<br/>Approve bookings to see your earnings here!</p>
+                     </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <LineChart
+                      accessibilityLayer
+                      data={chartData}
+                      margin={{ top: 20, right: 20, left: -10, bottom: 5 }}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs"
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => `$${value}`}
+                        className="text-xs"
+                        width={60}
+                      />
+                      <RechartsTooltip
+                        cursor={true}
+                        content={<ChartTooltipContent indicator="dot" />}
+                      />
+                      <Line
+                        dataKey="earnings"
+                        type="monotone"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2.5}
+                        dot={{
+                          fill: "hsl(var(--primary))",
+                          r: 4,
+                        }}
+                        activeDot={{
+                          r: 7,
+                          fill: "hsl(var(--background))",
+                          stroke: "hsl(var(--primary))",
+                        }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                )}
               </div>
               <Button asChild variant="outline" className="w-full sm:w-auto" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
                 <Link href="/transactions">View Transaction History</Link>
@@ -271,7 +312,7 @@ export default function DashboardPage() {
             <CardDescription>Check your conversations with renters/landowners.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>You have <strong>Z unread messages</strong>. (Dynamic count coming soon)</p>
+            <p className="text-sm text-muted-foreground">This feature is currently using placeholder data.</p>
             <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/messages">Go to Messages</Link>
             </Button>
@@ -333,3 +374,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
