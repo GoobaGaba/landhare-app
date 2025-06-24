@@ -45,7 +45,8 @@ const amenitiesList = [
   { id: 'fire pit', label: 'Fire Pit'},
 ];
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10; // Premium users can upload more
+const MAX_IMAGES_FREE = 5;
 const MAX_FILE_SIZE_MB = 5;
 
 const editListingFormSchema = z.object({
@@ -129,6 +130,9 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const watchedLeaseTerm = watch('leaseTerm');
 
   const isPremiumUser = subscriptionStatus === 'premium';
+  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
+  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
+
 
   const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
@@ -191,8 +195,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     setImageUploadError(null);
     const files = Array.from(event.target.files || []);
 
-    if (imagePreviews.length + files.length > MAX_IMAGES) {
-      setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
+    if (imagePreviews.length + files.length > imageUploadLimit) {
+      setImageUploadError(`Cannot exceed ${imageUploadLimit} images.`);
       return;
     }
 
@@ -287,7 +291,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                      disabled={isAiLoading || !watchedLocation || isMockModeNoUser}
                       className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
@@ -314,7 +318,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                         variant="outline"
                         size="icon"
                         onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser}
                         className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
                         {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
@@ -335,13 +339,13 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           </div>
 
           <div>
-            <Label>Images (up to {MAX_IMAGES})</Label>
+            <Label>Images ({imagePreviews.length} / {imageUploadLimit})</Label>
             <div className="mt-2">
               <label htmlFor="image-upload" className={cn("flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary", imageUploadError && "border-destructive")}>
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag & drop</span>
                 <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB</p>
-                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= MAX_IMAGES} />
+                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
@@ -360,7 +364,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                     )}
                   </div>
                 ))}
-                {imagePreviews.length < MAX_IMAGES && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
+                {imagePreviews.length < imageUploadLimit && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
               </div>
             )}
             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
@@ -384,7 +388,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser?.appProfile)} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
+              {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || isMockModeNoUser} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -410,14 +414,22 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           </div>
           
           <div className="flex items-center space-x-2 pt-2">
-            <Controller name="isAvailable" control={control} render={({ field }) => (<Switch id="isAvailable" checked={field.value} onCheckedChange={field.onChange} aria-label="Listing Availability"/>)} />
-            <Label htmlFor="isAvailable" className="cursor-pointer">Make this listing available for booking</Label>
+            <Controller name="isAvailable" control={control} render={({ field }) => (
+                <Switch 
+                    id="isAvailable-edit" 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                    aria-label="Listing Availability"
+                />
+            )} />
+            <Label htmlFor="isAvailable-edit" className="cursor-pointer">Make this listing available for booking</Label>
             {errors.isAvailable && <p className="text-sm text-destructive mt-1">{errors.isAvailable.message}</p>}
           </div>
+
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <Button variant="outline" type="button" asChild><Link href={`/my-listings`}><ArrowLeft className="mr-2 h-4 w-4"/> Back to My Listings</Link></Button>
-          <Button type="submit" disabled={isSubmitting || !isDirty || (firebaseInitializationError !== null && !currentUser?.appProfile)}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
+          <Button type="submit" disabled={isSubmitting || !isDirty || isMockModeNoUser}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
         </CardFooter>
       </form>
       {submissionSuccess && <div className="p-4 mt-4"><Alert variant="default" className="border-green-500 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Updated!</AlertTitle><AlertDescription className="text-green-600">Your changes have been saved.<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${listing.id}`}>View Listing</Link></Button></AlertDescription></Alert></div>}

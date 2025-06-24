@@ -83,6 +83,9 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     }
   }, [id, toast]);
 
+  const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
+  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
+
   const handleContactLandowner = () => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "default" });
@@ -186,7 +189,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-     if (firebaseInitializationError && !currentUser?.appProfile) {
+     if (isMockModeNoUser) {
       toast({ title: "Preview Mode", description: "Booking is disabled in full preview mode (no mock user).", variant: "default" });
       return;
     }
@@ -219,7 +222,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         return;
     }
 
-     if (firebaseInitializationError && !currentUser?.appProfile) {
+     if (isMockModeNoUser) {
       toast({ title: "Preview Mode", description: "Booking submission is disabled in full preview mode.", variant: "default" });
       setShowBookingDialog(false);
       return;
@@ -292,7 +295,6 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     );
   }
 
-  const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
   const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
   const otherImages = listing?.images ? listing.images.slice(1,3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
 
@@ -324,7 +326,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 isBookmarked ? "text-primary bg-primary/20 hover:bg-primary/30" : "text-muted-foreground bg-background/80 hover:bg-background"
               )}
               onClick={handleBookmarkToggle}
-              disabled={isBookmarking || (firebaseInitializationError !== null && !currentUser.appProfile)}
+              disabled={isBookmarking || isMockModeNoUser}
               title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
             >
               {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary")} />}
@@ -419,7 +421,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               )) : <p className="text-muted-foreground">No reviews yet for this listing.</p>}
                <AlertDialog open={showReviewPlaceholderDialog} onOpenChange={setShowReviewPlaceholderDialog}>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="mt-4" onClick={() => setShowReviewPlaceholderDialog(true)} disabled={isCurrentUserLandowner || (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}>
+                    <Button variant="outline" className="mt-4" onClick={() => setShowReviewPlaceholderDialog(true)} disabled={isCurrentUserLandowner || isMockModeNoUser}>
                          <Edit className="mr-2 h-4 w-4" /> Write a Review
                     </Button>
                 </AlertDialogTrigger>
@@ -535,9 +537,9 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                         <UserCircle className="h-4 w-4 mr-1" /> Please <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
                     </p>
                 )}
-                 {firebaseInitializationError && !currentUser?.appProfile && !currentUser && (
+                 {isMockModeNoUser && (
                     <p className="text-xs text-amber-600 flex items-center mt-2">
-                        <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode without mock user login.
+                        <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode.
                     </p>
                  )}
              </CardContent>
@@ -551,7 +553,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                         !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
                         isBookingRequested || isSubmittingBooking ||
-                        (firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)
+                        isMockModeNoUser
                     }
                     >
                      {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
@@ -576,7 +578,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                             size="sm"
                             className="ml-auto"
                             onClick={handleContactLandowner}
-                            disabled={(firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}
+                            disabled={isMockModeNoUser}
                         >
                             <MessageSquare className="h-4 w-4 mr-1.5" /> Contact
                         </Button>
@@ -588,7 +590,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                         variant="outline"
                         className="w-full"
                         onClick={handleContactLandowner}
-                        disabled={(firebaseInitializationError !== null && !currentUser?.appProfile && !currentUser)}
+                        disabled={isMockModeNoUser}
                     >
                         <MessageSquare className="h-4 w-4 mr-2" /> Contact Landowner
                     </Button>
@@ -653,7 +655,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             <Button variant="outline" onClick={() => setShowBookingDialog(false)} disabled={isSubmittingBooking}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
                 isSubmittingBooking ||
-                !currentUser || (firebaseInitializationError !== null && !currentUser?.appProfile) ||
+                !currentUser || isMockModeNoUser ||
                 (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && (differenceInDays(dateRange?.to || new Date(), dateRange?.from || new Date()) + 1) < (listing.minLeaseDurationMonths * 28))
             }>
                 {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
