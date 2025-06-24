@@ -75,7 +75,7 @@ export function MapView({ listings }: MapViewProps) {
   }
 
   return (
-    <Card className="sticky top-24 shadow-md h-[calc(100vh-12rem)] flex flex-col bg-muted/30">
+    <Card className="sticky top-24 shadow-md h-[calc(100vh-12rem)] flex flex-col bg-muted/30 overflow-hidden">
       <APIProvider apiKey={apiKey}>
         <Map
           defaultCenter={defaultPosition}

@@ -34,42 +34,6 @@ interface ProfileDisplayData {
   subscriptionTier: SubscriptionStatus;
 }
 
-function StripeStatusHandler() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { toast } = useToast();
-  const { refreshUserProfile } = useAuth();
-
-  useEffect(() => {
-    const stripeStatus = searchParams.get('status');
-
-    if (stripeStatus) {
-      if (stripeStatus === 'success') {
-        toast({
-          title: "Subscription Successful!",
-          description: "Your premium plan is active. It may take a moment for all features to update.",
-          variant: "default",
-          duration: 8000,
-        });
-        // Refresh user profile to get latest subscription status from backend
-        refreshUserProfile();
-      } else if (stripeStatus === 'cancelled') {
-        toast({
-          title: "Subscription Process Cancelled",
-          description: "You have cancelled the subscription process. Your plan has not changed.",
-          variant: "default",
-          duration: 7000,
-        });
-      }
-      // Clean the URL by removing Stripe query parameters regardless of status
-      router.replace('/profile', { shallow: true });
-    }
-  }, [searchParams, toast, router, refreshUserProfile]);
-
-  return null; // This component doesn't render any UI itself
-}
-
-
 function ProfilePageContent() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
   const { myListings } = useListingsData();
