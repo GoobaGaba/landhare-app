@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +8,7 @@ import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.
 import type { Listing } from '@/lib/types';
 import { Button } from '../ui/button';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 interface MapViewProps {
   listings: Listing[];
@@ -90,13 +92,19 @@ export function MapView({ listings }: MapViewProps) {
         >
           {listings.map((listing) => {
             if (!listing.lat || !listing.lng) return null;
+            const isSelected = selectedListingId === listing.id;
             return (
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => setSelectedListingId(listing.id)}
               >
-                <Pin background={'hsl(var(--primary))'} glyphColor={'hsl(var(--primary-foreground))'} borderColor={'hsl(var(--primary-foreground))'} />
+                <Pin 
+                  background={isSelected ? 'hsl(var(--accent))' : 'hsl(var(--primary))'}
+                  borderColor={isSelected ? 'hsl(var(--accent-foreground))' : 'hsl(var(--primary-foreground))'}
+                  glyphColor={isSelected ? 'hsl(var(--accent-foreground))' : 'hsl(var(--primary-foreground))'}
+                  scale={isSelected ? 1.5 : 1}
+                />
               </AdvancedMarker>
             )
           })}
