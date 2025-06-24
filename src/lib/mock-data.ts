@@ -531,6 +531,46 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
     }
 };
 
+export const createSubscriptionTransaction = async (userId: string): Promise<void> => {
+    const newTransaction: Omit<Transaction, 'id'> = {
+        userId,
+        type: 'Subscription',
+        status: 'Completed',
+        amount: -5.00,
+        currency: 'USD',
+        date: new Date(),
+        description: 'Premium Subscription - Monthly'
+    };
+    if (firebaseInitializationError || !db) {
+        mockTransactions.unshift({ ...newTransaction, id: `txn-sub-${Date.now()}` });
+        incrementMockDataVersion('createSubscriptionTransaction_mock');
+    } else {
+        await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+    }
+};
+
+export const createRefundTransaction = async (userId: string): Promise<void> => {
+    const lastSubPayment = mockTransactions.find(t => t.userId === userId && t.type === 'Subscription' && t.amount < 0);
+    const refundAmount = lastSubPayment ? Math.abs(lastSubPayment.amount) : 5.00;
+
+    const newTransaction: Omit<Transaction, 'id'> = {
+        userId,
+        type: 'Subscription',
+        status: 'Completed',
+        amount: refundAmount,
+        currency: 'USD',
+        date: new Date(),
+        description: 'Premium Subscription - Refund'
+    };
+     if (firebaseInitializationError || !db) {
+        mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
+        incrementMockDataVersion('createRefundTransaction_mock');
+    } else {
+        await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+    }
+};
+
+
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
@@ -603,20 +643,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
         if (data.subscriptionStatus) mockUsers[userIndex].subscriptionStatus = data.subscriptionStatus;
 
-        if (wasFree && data.subscriptionStatus === 'premium') {
-            const newTransaction: Transaction = {
-                id: `txn-sub-${Date.now()}`,
-                userId: userId,
-                type: 'Subscription',
-                status: 'Completed',
-                amount: -5.00,
-                currency: 'USD',
-                date: new Date(),
-                description: 'Premium Subscription - Monthly'
-            };
-            mockTransactions.unshift(newTransaction);
-        }
-
         if (data.bookmarkedListingIds !== undefined) mockUsers[userIndex].bookmarkedListingIds = data.bookmarkedListingIds;
         incrementMockDataVersion('updateUserProfile_mock');
         return mockUsers[userIndex];
@@ -627,10 +653,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
   // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userDocRef);
-    if (!userSnap.exists()) throw new Error("User not found for update.");
-
-    const wasFree = userSnap.data().subscriptionStatus === 'free';
 
     const firestoreData: any = { ...data };
     if (firestoreData.createdAt && firestoreData.createdAt instanceof Date) {
@@ -639,20 +661,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     if (firestoreData.id) delete firestoreData.id;
 
     await updateDoc(userDocRef, firestoreData);
-
-    if (wasFree && data.subscriptionStatus === 'premium') {
-        const newTransaction: Omit<Transaction, 'id'> = {
-            userId: userId,
-            type: 'Subscription',
-            status: 'Completed',
-            amount: -5.00,
-            currency: 'USD',
-            date: Timestamp.now(),
-            description: 'Premium Subscription - Monthly'
-        };
-        await addDoc(collection(db, "transactions"), newTransaction);
-    }
-
+    
     const updatedSnap = await getDoc(userDocRef);
     if (!updatedSnap.exists()) return undefined;
     return mapDocToUser(updatedSnap);
@@ -1035,7 +1044,6 @@ export const addBookingRequest = async (
 
 export const updateBookingStatus = async (bookingId: string, status: Booking['status']): Promise<Booking | undefined> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
     if (bookingIndex === -1) return undefined;
     
@@ -1053,10 +1061,21 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
         const landowner = mockUsers.find(u => u.id === booking.landownerId);
         const renter = mockUsers.find(u => u.id === booking.renterId);
         if (listing && landowner && renter) {
-            const { basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
+            let payoutBaseAmount = 0;
+            let descriptionSuffix = '';
+
+            if (listing.pricingModel === 'monthly') {
+                payoutBaseAmount = listing.price; // Payout for one month
+                descriptionSuffix = ' - Month 1';
+            } else {
+                // For nightly and LTO, calculate for the full duration
+                const { basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
+                payoutBaseAmount = basePrice;
+            }
+
             const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-            const serviceFee = basePrice * serviceFeeRate;
-            const payout = basePrice - serviceFee;
+            const serviceFee = payoutBaseAmount * serviceFeeRate;
+            const payout = payoutBaseAmount - serviceFee;
 
             mockTransactions.unshift({
                 id: `txn-payout-${booking.id}`,
@@ -1066,7 +1085,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 amount: payout,
                 currency: 'USD',
                 date: new Date(),
-                description: `Payout for "${listing.title}"`,
+                description: `Payout for "${listing.title}"${descriptionSuffix}`,
                 relatedBookingId: booking.id,
                 relatedListingId: listing.id
             });
@@ -1078,7 +1097,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 amount: -serviceFee,
                 currency: 'USD',
                 date: new Date(),
-                description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
+                description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
                 relatedBookingId: booking.id,
                 relatedListingId: listing.id
             });
@@ -1118,20 +1137,31 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
           const renter = await getUserById(bookingData.renterId);
 
           if (listing && landowner && renter) {
-              const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
+              let payoutBaseAmount = 0;
+              let descriptionSuffix = '';
+
+              if (listing.pricingModel === 'monthly') {
+                  payoutBaseAmount = listing.price; // Payout for one month
+                  descriptionSuffix = ' - Month 1';
+              } else {
+                  // For nightly and LTO, calculate for the full duration
+                  const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
+                  payoutBaseAmount = basePrice;
+              }
+
               const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-              const serviceFee = basePrice * serviceFeeRate;
-              const payout = basePrice - serviceFee;
+              const serviceFee = payoutBaseAmount * serviceFeeRate;
+              const payout = payoutBaseAmount - serviceFee;
 
               const transCol = collection(db, 'transactions');
               batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD',
-                  date: Timestamp.now(), description: `Payout for "${listing.title}"`,
+                  date: Timestamp.now(), description: `Payout for "${listing.title}"${descriptionSuffix}`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
               });
                batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
-                  date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
+                  date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
               });
           }
@@ -1231,7 +1261,3 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
         landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}...`,
     };
 };
-
-    
-
-    

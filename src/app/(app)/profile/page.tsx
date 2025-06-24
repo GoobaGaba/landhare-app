@@ -128,25 +128,35 @@ function ProfilePageContent() {
     }
   }
 
-  const handleDowngradeAttempt = async () => {
-    if (!currentUser || subscriptionStatus !== 'premium') return;
+  const handleSubscriptionToggle = async () => {
+    if (!currentUser || !profileDisplayData || profileDisplayData.subscriptionTier === 'loading') {
+        toast({ title: "Action Unavailable", description: "Subscription status is still loading.", variant: "default"});
+        return;
+    }
 
-    setIsSwitchingSubscription(true);
-    if (myListings.length > FREE_TIER_LISTING_LIMIT) {
+    const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
+    
+    // Check for listing limit before allowing a downgrade from this simple toggle
+    if (newStatus === 'free' && myListings.length > FREE_TIER_LISTING_LIMIT) {
         toast({
             title: "Listing Limit Exceeded",
-            description: `You have ${myListings.length} listings. Free tier only allows ${FREE_TIER_LISTING_LIMIT}. Redirecting to manage listings...`,
+            description: `You have ${myListings.length} listings. The Free tier only allows ${FREE_TIER_LISTING_LIMIT}. Please manage your listings to proceed.`,
             variant: "default",
+            action: <Button variant="link" size="sm" onClick={() => router.push('/downgrade')}>Manage Listings</Button>,
+            duration: 8000,
         });
-        router.push('/downgrade');
-    } else {
-        await updateCurrentAppUserProfile({ subscriptionStatus: 'free' });
-         toast({
-            title: 'Subscription Changed',
-            description: `Your account is now on the Free tier.`,
-        });
+        return;
     }
-    setIsSwitchingSubscription(false);
+
+    setIsSwitchingSubscription(true);
+    try {
+        await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
+        toast({ title: 'Subscription Changed', description: `Your account is now on the ${newStatus} tier.`});
+    } catch (error: any) {
+        // Error is handled by updateCurrentAppUserProfile
+    } finally {
+        setIsSwitchingSubscription(false);
+    }
   };
 
 
@@ -335,32 +345,38 @@ function ProfilePageContent() {
             <CardContent className="space-y-6">
               <div className="p-4 border rounded-lg bg-muted/30">
                 <h3 className="text-md font-semibold mb-1">Current Plan: <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
-                {profileDisplayData.subscriptionTier === 'free' ? (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
-                    <Button 
-                      asChild
-                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
-                      className="bg-premium hover:bg-premium/90 text-premium-foreground">
-                      <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
-                    </Button>
-                  </>
-                ) : profileDisplayData.subscriptionTier === 'premium' ? (
-                  <>
-                  <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
-                   <Button
-                        onClick={handleDowngradeAttempt}
+                <p className="text-sm text-muted-foreground mb-3">
+                  {profileDisplayData.subscriptionTier === 'premium' 
+                    ? "You're enjoying all the benefits of Premium! Thank you for your support." 
+                    : "Upgrade to Premium for unlimited listings, no renter fees, boosted listings, and lower service fees (0.49% vs 2%)."
+                  }
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  (For developer testing, you can freely toggle your subscription status below.)
+                </p>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Developer Tools: Subscription Simulation</CardTitle>
+                  <CardDescription>Instantly switch your account's subscription tier for testing purposes. Downgrading will simulate a refund.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button
+                        onClick={handleSubscriptionToggle}
                         variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
+                        disabled={isSwitchingSubscription || authLoading || profileDisplayData.subscriptionTier === 'loading' || isMockUserNoProfile}
+                        className="w-full sm:w-auto"
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
-                        Switch to Free
+                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
                     </Button>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Loading subscription details...</p>
-                )}
-              </div>
+                    {isMockUserNoProfile &&
+                        <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in preview mode without a mock user.</p>
+                    }
+                </CardContent>
+              </Card>
+              
               <div>
                 <h4 className="font-medium mb-2">Transaction History</h4>
                 <p className="text-sm text-muted-foreground mb-3">View all your payments, payouts, and service fees in one place.</p>

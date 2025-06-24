@@ -26,7 +26,9 @@ import {
   MOCK_USER_FOR_UI_TESTING,
   incrementMockDataVersion,
   addBookmarkToList,
-  removeBookmarkFromList
+  removeBookmarkFromList,
+  createSubscriptionTransaction,
+  createRefundTransaction,
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -358,21 +360,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
+        const wasPremium = currentUser.appProfile?.subscriptionStatus === 'premium';
         const updatedAppProfileFromDb = await updateAppUserProfileDb(currentUser.uid, data);
         if (!updatedAppProfileFromDb) {
             throw new Error("Failed to update user profile in the database.");
         }
         
+        const isNowPremium = updatedAppProfileFromDb.subscriptionStatus === 'premium';
+        const isNowFree = updatedAppProfileFromDb.subscriptionStatus === 'free';
+        
+        if (wasPremium && isNowFree) {
+            await createRefundTransaction(currentUser.uid);
+        } else if (!wasPremium && isNowPremium) {
+            await createSubscriptionTransaction(currentUser.uid);
+        }
+
         if (!firebaseInitializationError && firebaseAuthInstance && firebaseAuthInstance.currentUser) {
             const firebaseProfileUpdates: { displayName?: string; photoURL?: string } = {};
             if (data.name && currentUser.displayName !== data.name) {
                firebaseProfileUpdates.displayName = data.name;
             }
-            // Firebase photoURL updates are usually more complex if direct file uploads are involved.
-            // If avatarUrl is just a URL string, it can be updated.
-            // if (data.avatarUrl && currentUser.photoURL !== data.avatarUrl) {
-            //    firebaseProfileUpdates.photoURL = data.avatarUrl;
-            // }
             if (Object.keys(firebaseProfileUpdates).length > 0) {
               await updateFirebaseProfile(firebaseAuthInstance.currentUser, firebaseProfileUpdates);
             }
