@@ -11,8 +11,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
-import type { Listing } from '@/lib/types';
-import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
+import type { Listing, Booking } from '@/lib/types';
+import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -41,6 +41,8 @@ export default function DashboardPage() {
   const { allAvailableListings, myListings, isLoading: listingsLoading } = useListingsData();
   const [userName, setUserName] = useState("Guest");
   const [bookmarkedItems, setBookmarkedItems] = useState<Listing[]>([]);
+  const [bookingCount, setBookingCount] = useState<number>(0);
+  const [isBookingCountLoading, setIsBookingCountLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -61,6 +63,28 @@ export default function DashboardPage() {
       setBookmarkedItems([]);
     }
   }, [currentUser, allAvailableListings]);
+
+  useEffect(() => {
+    async function fetchBookingCount() {
+      if (!currentUser) {
+        setBookingCount(0);
+        setIsBookingCountLoading(false);
+        return;
+      }
+      setIsBookingCountLoading(true);
+      try {
+        const bookings = await getBookingsForUser(currentUser.uid);
+        const upcomingBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'Pending Confirmation');
+        setBookingCount(upcomingBookings.length);
+      } catch (error) {
+        console.error("Failed to fetch booking count:", error);
+        setBookingCount(0);
+      } finally {
+        setIsBookingCountLoading(false);
+      }
+    }
+    fetchBookingCount();
+  }, [currentUser]);
 
   if (authLoading || subscriptionStatus === 'loading' || (currentUser && listingsLoading)) {
      return (
@@ -230,8 +254,11 @@ export default function DashboardPage() {
             <CardDescription>View and manage your land rental bookings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Real data for bookings count would come from backend/context */}
-            <p>You have <strong>Y upcoming bookings/rentals</strong>. (Dynamic count needed)</p>
+            {isBookingCountLoading ? (
+               <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Loading bookings...</div>
+            ) : (
+               <p>You have <strong>{bookingCount} active bookings/requests</strong>.</p>
+            )}
             <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/bookings">View Bookings</Link>
             </Button>
@@ -244,8 +271,7 @@ export default function DashboardPage() {
             <CardDescription>Check your conversations with renters/landowners.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Real data for unread messages would come from backend/context */}
-            <p>You have <strong>Z unread messages</strong>. (Dynamic count needed)</p>
+            <p>You have <strong>Z unread messages</strong>. (Dynamic count coming soon)</p>
             <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/messages">Go to Messages</Link>
             </Button>

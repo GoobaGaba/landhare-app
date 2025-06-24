@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; 
+import { createCheckoutSessionAction } from '@/lib/actions/stripe-actions';
+import { isStripeEnabled } from '@/lib/stripe';
 
 const pricingPlans = [
   {
@@ -62,7 +64,7 @@ const pricingPlans = [
 ];
 
 export default function PricingPage() {
-  const { currentUser, subscriptionStatus, loading: authLoading, updateCurrentAppUserProfile } = useAuth();
+  const { currentUser, subscriptionStatus, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -75,25 +77,29 @@ export default function PricingPage() {
     );
   }
 
-  const handleSimulatedUpgrade = async () => {
+  const handleUpgradeClick = async () => {
     if (!currentUser) {
-      toast({ title: 'Please log in', description: 'You must be logged in to upgrade your plan.', action: <Button onClick={() => router.push('/login?redirect=/pricing')} variant="link">Log In</Button> });
+      toast({ title: 'Please log in', description: 'You must be logged in to upgrade your plan.', action: <Button onClick={() => router.push(`/login?redirect=${encodeURIComponent("/pricing")}`)} variant="link">Log In</Button> });
       return;
     }
     setIsUpgrading(true);
     try {
-      await updateCurrentAppUserProfile({ subscriptionStatus: 'premium' });
-      toast({
-        title: 'Upgrade Successful! (Simulation)',
-        description: 'Your account has been upgraded to Premium.',
-      });
+      // The action will handle the redirect, this form is mainly for progressive enhancement
+      // and to show a loading state. The actual navigation is done by server-side redirect.
+      await createCheckoutSessionAction();
     } catch (error: any) {
-      toast({
-        title: 'Upgrade Failed',
-        description: error.message || 'Could not complete the simulated upgrade.',
-        variant: 'destructive',
-      });
+       // Redirects throw an error, so this catch block might not be reached
+       // for successful cases. It's here for other potential errors.
+       console.error("Stripe Action Error:", error);
+       if (!error.message.includes('NEXT_REDIRECT')) { // Don't show toast for successful redirect
+         toast({
+          title: 'Upgrade Failed',
+          description: error.message || 'Could not initiate Stripe checkout. Please try again later.',
+          variant: 'destructive',
+         });
+       }
     } finally {
+      // This might not be reached if redirect is successful
       setIsUpgrading(false);
     }
   };
@@ -110,13 +116,15 @@ export default function PricingPage() {
         </p>
       </header>
 
-      <Alert variant="default" className="max-w-3xl mx-auto mb-8 border-amber-500 bg-amber-50 text-amber-700">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-700 font-semibold">Test Mode Active</AlertTitle>
-        <AlertDescription>
-          This page is in **simulation mode**. Clicking 'Upgrade' will instantly grant your account Premium status for testing purposes without any real payment.
-        </AlertDescription>
-      </Alert>
+      {!isStripeEnabled() && (
+        <Alert variant="destructive" className="max-w-3xl mx-auto mb-8">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Stripe Not Configured</AlertTitle>
+          <AlertDescription>
+            Live subscription upgrades are currently disabled. Please ensure all Stripe-related environment variables are set correctly in your `.env.local` or App Hosting configuration.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
         {pricingPlans.map((plan) => {
@@ -187,15 +195,17 @@ export default function PricingPage() {
                             <Link href={plan.hrefSelfIfPremium || '/profile'}><ShieldCheck className="mr-2 h-4 w-4" /> Manage Subscription</Link>
                           </Button>
                         ) : (
-                          <Button
-                            size="lg"
-                            className="w-full bg-premium hover:bg-premium/90 text-premium-foreground"
-                            onClick={handleSimulatedUpgrade}
-                            disabled={isUpgrading}
-                          >
-                            {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4"/>}
-                            {plan.cta} (Simulated)
-                          </Button>
+                          <form action={createCheckoutSessionAction} className="w-full">
+                             <Button
+                                type="submit"
+                                size="lg"
+                                className="w-full bg-premium hover:bg-premium/90 text-premium-foreground"
+                                disabled={isUpgrading || !isStripeEnabled()}
+                              >
+                                {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4"/>}
+                                {plan.cta}
+                              </Button>
+                          </form>
                         )}
                       </>
                     ) : (
@@ -225,7 +235,7 @@ export default function PricingPage() {
                     Service Fees (2% for Standard, 0.49% for Premium landowners) are calculated on the total lease value and deducted from the landowner's payout per booking. This applies whether the lease is short-term, long-term, or paid monthly.
                 </p>
                 <p>
-                    Please note: National or regional sales taxes (typically 5-7%) may apply to transactions and are handled according to local regulations. These are separate from LandShare Connect's fees.
+                    Please note: National or regional sales taxes may apply to transactions and are handled according to local regulations. These are separate from LandShare's fees.
                 </p>
             </CardContent>
          </Card>

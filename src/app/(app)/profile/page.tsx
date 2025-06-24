@@ -34,6 +34,42 @@ interface ProfileDisplayData {
   subscriptionTier: SubscriptionStatus;
 }
 
+function StripeStatusHandler() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { refreshUserProfile } = useAuth();
+
+  useEffect(() => {
+    const stripeStatus = searchParams.get('status');
+
+    if (stripeStatus) {
+      if (stripeStatus === 'success') {
+        toast({
+          title: "Subscription Successful!",
+          description: "Your premium plan is active. It may take a moment for all features to update.",
+          variant: "default",
+          duration: 8000,
+        });
+        // Refresh user profile to get latest subscription status from backend
+        refreshUserProfile();
+      } else if (stripeStatus === 'cancelled') {
+        toast({
+          title: "Subscription Process Cancelled",
+          description: "You have cancelled the subscription process. Your plan has not changed.",
+          variant: "default",
+          duration: 7000,
+        });
+      }
+      // Clean the URL by removing Stripe query parameters regardless of status
+      router.replace('/profile', { shallow: true });
+    }
+  }, [searchParams, toast, router, refreshUserProfile]);
+
+  return null; // This component doesn't render any UI itself
+}
+
+
 function ProfilePageContent() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
   const { myListings } = useListingsData();
@@ -142,7 +178,7 @@ function ProfilePageContent() {
     } else {
         await updateCurrentAppUserProfile({ subscriptionStatus: 'free' });
          toast({
-            title: 'Subscription Changed (Simulation)',
+            title: 'Subscription Changed',
             description: `Your account is now on the Free tier.`,
         });
     }
@@ -340,7 +376,7 @@ function ProfilePageContent() {
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
                     <Button 
                       asChild
-                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
+                      disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile || !!firebaseInitializationError}
                       className="bg-premium hover:bg-premium/90 text-premium-foreground">
                       <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
@@ -351,15 +387,16 @@ function ProfilePageContent() {
                    <Button
                         onClick={handleDowngradeAttempt}
                         variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
+                        disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile || !!firebaseInitializationError}
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
-                        Switch to Free (Simulated)
+                        Switch to Free
                     </Button>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                 )}
+                 {firebaseInitializationError && <p className="text-xs text-destructive mt-2">Live subscription management is disabled due to a Firebase configuration issue.</p>}
               </div>
             </CardContent>
           </Card>

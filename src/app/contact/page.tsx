@@ -70,23 +70,6 @@ export default function ContactPage() {
         </Card>
 
         <div className="space-y-8">
-          <Card className="shadow-md">
-            <CardHeader>
-                <CardTitle className="text-xl flex items-center gap-2">
-                    <HelpCircle className="h-5 w-5 text-accent"/> Frequently Asked Questions
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                    Many common questions are answered in our FAQ section.
-                </p>
-                {/* <Button variant="outline" asChild>
-                    <Link href="/faq">Visit FAQ</Link>
-                </Button> */}
-                 <p className="text-sm text-muted-foreground">FAQ page is temporarily unavailable while we resolve a build issue.</p>
-            </CardContent>
-          </Card>
-
            <Card className="shadow-md">
             <CardHeader>
                 <CardTitle className="text-xl flex items-center gap-2">

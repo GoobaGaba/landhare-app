@@ -108,7 +108,7 @@ export default function HomePage() {
                 <CardTitle className="text-xl font-semibold">Book Securely</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing and secure payments. (Payment integration coming soon!)</p>
+                <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing and secure payment processing through Stripe.</p>
               </CardContent>
             </Card>
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
@@ -239,4 +239,3 @@ export default function HomePage() {
     </div>
   );
 }
-
