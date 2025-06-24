@@ -12,7 +12,7 @@ const storage = firebaseInitializationError ? null : getStorage(app!);
 
 // Generates a unique file name to avoid collisions
 const generateUniqueFileName = (userId: string, fileName: string) => {
-  const fileExt = fileName.split('.').pop();
+  const fileExt = fileName.split('.').pop() || 'jpg';
   const randomString = Math.random().toString(36).substring(2, 10);
   return `${userId}-${Date.now()}-${randomString}.${fileExt}`;
 };
@@ -20,15 +20,14 @@ const generateUniqueFileName = (userId: string, fileName: string) => {
 
 /**
  * Uploads an image file to a dedicated path in Firebase Storage.
+ * The path is based on the user's ID to ensure security rules can be applied correctly.
  * @param file The image file to upload.
  * @param userId The ID of the user uploading the file, to organize storage paths.
- * @param listingId A temporary or final ID for the listing to further organize.
  * @returns The public downloadable URL of the uploaded image.
  */
 export const uploadListingImage = async (
   file: File,
   userId: string,
-  listingId: string = 'temp' // Use a temporary ID during initial upload
 ): Promise<string> => {
   if (!storage) {
     console.warn("Firebase Storage is not available. Returning a placeholder.");
@@ -38,7 +37,8 @@ export const uploadListingImage = async (
   }
 
   const uniqueFileName = generateUniqueFileName(userId, file.name);
-  const storagePath = `listings/${listingId}/${uniqueFileName}`;
+  // The path is now based on the user's ID, which aligns with the updated storage rules.
+  const storagePath = `listings/${userId}/${uniqueFileName}`;
   const imageRef = ref(storage, storagePath);
 
   try {
