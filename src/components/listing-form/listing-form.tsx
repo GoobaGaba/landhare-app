@@ -8,6 +8,7 @@ import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import heic2any from 'heic2any';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,7 +45,8 @@ const amenitiesList = [
   { id: 'fire pit', label: 'Fire Pit'},
 ];
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10;
+const MAX_IMAGES_FREE = 5;
 const MAX_FILE_SIZE_MB = 5;
 
 const listingFormSchema = z.object({
@@ -70,7 +72,7 @@ const listingFormSchema = z.object({
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
-type ImagePreview = { url: string; isLoading: boolean; file?: File };
+type ImagePreview = { url: string; isLoading: boolean; file?: File | Blob };
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
@@ -123,6 +125,7 @@ export function ListingForm() {
 
   const isPremiumUser = subscriptionStatus === 'premium';
   const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
+  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
 
   const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
@@ -188,32 +191,51 @@ export function ListingForm() {
     setImageUploadError(null);
     const files = Array.from(event.target.files || []);
 
-    if (imagePreviews.length + files.length > MAX_IMAGES) {
-      setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
+    if (imagePreviews.length + files.length > imageUploadLimit) {
+      setImageUploadError(`Cannot exceed ${imageUploadLimit} images.`);
       return;
     }
 
-    const newPreviews: ImagePreview[] = files.map(file => ({
-        url: URL.createObjectURL(file),
-        isLoading: true,
-        file: file,
+    const tempPreviews: ImagePreview[] = files.map(file => ({
+      url: URL.createObjectURL(file),
+      isLoading: true,
+      file: file
     }));
-    setImagePreviews(prev => [...prev, ...newPreviews]);
-    
-    for (let i = 0; i < newPreviews.length; i++) {
-        const preview = newPreviews[i];
-        if (preview.file) {
-            try {
-                const downloadURL = await uploadListingImage(preview.file, currentUser.uid);
-                setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false } : p));
-                const currentImages = getValues('images');
-                setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
-            } catch (error) {
-                console.error("Upload failed for a file:", error);
-                setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
-                toast({ title: "Upload Failed", description: `Could not upload ${preview.file?.name}.`, variant: "destructive" });
-            }
+    setImagePreviews(prev => [...prev, ...tempPreviews]);
+
+    for (const preview of tempPreviews) {
+      let fileToUpload: File | Blob = preview.file!;
+      let fileName = (preview.file as File).name;
+
+      // Convert HEIC to JPEG if necessary
+      if (fileToUpload.type === 'image/heic' || fileName.toLowerCase().endsWith('.heic')) {
+        try {
+          toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
+          const convertedBlob = await heic2any({ blob: fileToUpload, toType: 'image/jpeg', quality: 0.9 }) as Blob;
+          fileToUpload = convertedBlob;
+          fileName = fileName.replace(/\.[^/.]+$/, ".jpeg");
+        } catch (e) {
+          console.error("HEIC Conversion failed: ", e);
+          toast({ title: "Conversion Failed", description: `Could not convert ${fileName}. Please try a different image format.`, variant: "destructive" });
+          setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+          URL.revokeObjectURL(preview.url);
+          continue;
         }
+      }
+
+      // Upload the processed file (original or converted)
+      try {
+        const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
+        setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
+        URL.revokeObjectURL(preview.url); // Clean up blob URL
+        const currentImages = getValues('images');
+        setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
+      } catch (error) {
+        console.error("Upload failed for a file:", error);
+        setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+        URL.revokeObjectURL(preview.url);
+        toast({ title: "Upload Failed", description: `Could not upload ${fileName}.`, variant: "destructive" });
+      }
     }
   };
   
@@ -363,13 +385,13 @@ export function ListingForm() {
           </div>
 
           <div>
-            <Label>Images (up to {MAX_IMAGES})</Label>
+            <Label>Images (up to {imageUploadLimit})</Label>
             <div className="mt-2">
               <label htmlFor="image-upload" className={cn("flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors", imageUploadError ? "border-destructive" : "border-border")}>
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</span>
-                <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB each</p>
-                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= MAX_IMAGES} />
+                <p className="text-xs text-muted-foreground">PNG, JPG, HEIC up to {MAX_FILE_SIZE_MB}MB each</p>
+                <Input id="image-upload" type="file" multiple accept="image/*,.heic" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
@@ -387,7 +409,7 @@ export function ListingForm() {
                     )}
                   </div>
                 ))}
-                {imagePreviews.length < MAX_IMAGES && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
+                {imagePreviews.length < imageUploadLimit && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
             </div>
             {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>

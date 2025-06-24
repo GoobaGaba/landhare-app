@@ -8,6 +8,7 @@ import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import heic2any from 'heic2any';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +74,7 @@ const editListingFormSchema = z.object({
 });
 
 type EditListingFormData = z.infer<typeof editListingFormSchema>;
-type ImagePreview = { url: string; isLoading: boolean; file?: File };
+type ImagePreview = { url: string; isLoading: boolean; file?: File | Blob };
 
 interface EditListingFormProps {
   listing: Listing;
@@ -200,27 +201,46 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
       return;
     }
 
-    const newPreviews: ImagePreview[] = files.map(file => ({
-        url: URL.createObjectURL(file),
-        isLoading: true,
-        file: file,
+    const tempPreviews: ImagePreview[] = files.map(file => ({
+      url: URL.createObjectURL(file),
+      isLoading: true,
+      file: file
     }));
-    setImagePreviews(prev => [...prev, ...newPreviews]);
-    
-    for (let i = 0; i < newPreviews.length; i++) {
-        const preview = newPreviews[i];
-        if (preview.file) {
-            try {
-                const downloadURL = await uploadListingImage(preview.file, currentUser.uid);
-                setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false } : p));
-                const currentImages = getValues('images');
-                setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
-            } catch (error) {
-                console.error("Upload failed for a file:", error);
-                setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
-                toast({ title: "Upload Failed", description: `Could not upload ${preview.file?.name}.`, variant: "destructive" });
-            }
+    setImagePreviews(prev => [...prev, ...tempPreviews]);
+
+    for (const preview of tempPreviews) {
+      let fileToUpload: File | Blob = preview.file!;
+      let fileName = (preview.file as File).name;
+
+      // Convert HEIC to JPEG if necessary
+      if (fileToUpload.type === 'image/heic' || fileName.toLowerCase().endsWith('.heic')) {
+        try {
+          toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
+          const convertedBlob = await heic2any({ blob: fileToUpload, toType: 'image/jpeg', quality: 0.9 }) as Blob;
+          fileToUpload = convertedBlob;
+          fileName = fileName.replace(/\.[^/.]+$/, ".jpeg");
+        } catch (e) {
+          console.error("HEIC Conversion failed: ", e);
+          toast({ title: "Conversion Failed", description: `Could not convert ${fileName}. Please try a different image format.`, variant: "destructive" });
+          setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+          URL.revokeObjectURL(preview.url);
+          continue;
         }
+      }
+
+      // Upload the processed file (original or converted)
+      try {
+        const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
+        setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
+        URL.revokeObjectURL(preview.url); // Clean up blob URL
+        const currentImages = getValues('images');
+        setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
+      } catch (error) {
+        console.error("Upload failed for a file:", error);
+        setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+        URL.revokeObjectURL(preview.url);
+        toast({ title: "Upload Failed", description: `Could not upload ${fileName}.`, variant: "destructive" });
+      }
     }
   };
   
@@ -344,8 +364,8 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               <label htmlFor="image-upload" className={cn("flex flex-col justify-center items-center p-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary", imageUploadError && "border-destructive")}>
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag & drop</span>
-                <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to {MAX_FILE_SIZE_MB}MB</p>
-                <Input id="image-upload" type="file" multiple accept="image/*" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
+                <p className="text-xs text-muted-foreground">PNG, JPG, HEIC up to {MAX_FILE_SIZE_MB}MB</p>
+                <Input id="image-upload" type="file" multiple accept="image/*,.heic" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
