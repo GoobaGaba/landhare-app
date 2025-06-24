@@ -1,12 +1,17 @@
 
 'use server';
 
+// This file is now obsolete as the form submission logic has been moved
+// to the client-side component in `listing-form.tsx`.
+// It is safe to delete this file.
+
+// The old server action code is kept here for reference but is no longer used.
+/*
 import { z } from 'zod';
 import type { Listing, LeaseTerm, User } from '@/lib/types';
 import { addListing as dbAddListing, getUserById, getListingsByLandownerCount, FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; // Now uses Firestore
 import { auth as firebaseAuthInstance } from '@/lib/firebase'; // Import auth instance
 
-// Server-side schema: landownerId is expected from FormData and coerced to string
 const ListingFormSchema = z.object({
   title: z.string({ required_error: "Title is required." }).min(3, "Title must be at least 3 characters"),
   description: z.string({ required_error: "Description is required." }).min(10, "Description must be at least 10 characters"),
@@ -112,8 +117,6 @@ export async function createListingAction(
     landownerProfile = await getUserById(currentUserId); // This will use Firestore if configured, or mock
     if (!landownerProfile) {
       console.warn(`[createListingAction] Landowner profile not found in DB for ID: ${currentUserId}. Ensure user profile exists.`);
-       // Potentially create it here if it's truly a new user who just signed up.
-       // For now, we assume profile creation is handled reliably at signup.
     }
   } catch (e: any) {
     console.error("[createListingAction] Failed to fetch landowner profile:", e.message);
@@ -165,7 +168,7 @@ export async function createListingAction(
     const errorMessageText = (error instanceof Error) ? error.message : "An unexpected error occurred while creating the listing.";
     
     if (errorCode === 'permission-denied' || errorMessageText.toLowerCase().includes('permission')) {
-        const detailedMessage = `Firestore Permission Denied. This often means the server action's request to Firestore was seen as unauthenticated (request.auth was null in rules), or the landownerId ('${currentUserId}') did not match an authenticated user in rules. Server-side auth state (firebaseAuthInstance.currentUser?.uid): '${serverAuthUserUid}'. Review Firestore security rules for 'listings' and ensure the server action has a valid authentication context if rules require it.`;
+        const detailedMessage = `Firestore Permission Denied...`;
         console.error(`[createListingAction] PERMISSION_DENIED details: ${detailedMessage}`);
         return {
              message: detailedMessage,
@@ -179,4 +182,4 @@ export async function createListingAction(
     };
   }
 }
-
+*/

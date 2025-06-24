@@ -22,15 +22,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data'; 
+import { uploadListingImage } from '@/lib/storage';
+import { db, firebaseInitializationError } from '@/lib/firebase';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; 
-import { uploadListingImage } from '@/lib/storage';
-
-import { db, firebaseInitializationError } from '@/lib/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup' },
@@ -245,7 +244,7 @@ export function ListingForm() {
         images: finalImageUrls,
         landownerId: currentUser.uid,
         isAvailable: true,
-        rating: undefined,
+        rating: undefined, // Use undefined for new listings
         numberOfRatings: 0,
         isBoosted: subscriptionStatus === 'premium',
         createdAt: Timestamp.fromDate(new Date()),
@@ -254,6 +253,7 @@ export function ListingForm() {
       };
       
       const firestorePayload: any = {...newListingPayload};
+      // Ensure any explicit 'undefined' values are removed for Firestore
       Object.keys(firestorePayload).forEach(key => {
         if (firestorePayload[key as keyof typeof firestorePayload] === undefined) {
           delete firestorePayload[key as keyof typeof firestorePayload];
@@ -405,7 +405,7 @@ export function ListingForm() {
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} aria-invalid={errors.price ? "true" : "false"} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser.appProfile)} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
+              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser?.appProfile)} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -425,7 +425,7 @@ export function ListingForm() {
           
            <div><Label>Amenities</Label><Controller name="amenities" control={control} render={({ field }) => (<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2 p-4 border rounded-md">
                   {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2"><Checkbox id={`amenity-${amenity.id}`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}`} className="font-normal">{amenity.label}</Label></div>))}
-                </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities.message}</p>}
+                </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities[0]?.message}</p>}
           </div>
           <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{subscriptionStatus === 'premium' ? "Premium: 0.49% on payouts." : "Free: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
         </CardContent>

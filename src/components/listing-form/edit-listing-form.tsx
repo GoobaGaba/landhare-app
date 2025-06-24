@@ -23,13 +23,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
+import { useListingsData } from '@/hooks/use-listings-data';
+import { uploadListingImage } from '@/lib/storage';
 import { firebaseInitializationError, db } from '@/lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useListingsData } from '@/hooks/use-listings-data';
+
 
 const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup' },
@@ -55,7 +57,7 @@ const editListingFormSchema = z.object({
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
   leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Image URL invalid or missing.")).optional().default([]),
+  images: z.array(z.string().url("Image URL invalid or missing.")).min(1, "Please upload at least one image."),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   isAvailable: z.boolean().default(true),
@@ -70,6 +72,7 @@ const editListingFormSchema = z.object({
 });
 
 type EditListingFormData = z.infer<typeof editListingFormSchema>;
+type ImagePreview = { url: string; isLoading: boolean; file?: File };
 
 interface EditListingFormProps {
   listing: Listing;
@@ -92,7 +95,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const [titleSuggestion, setTitleSuggestion] = useState<SuggestListingTitleOutput | null>(null);
   const [descriptionSuggestion, setDescriptionSuggestion] = useState<GenerateListingDescriptionOutput | null>(null);
 
-  const [imagePreviews, setImagePreviews] = useState<string[]>(listing.images || []);
+  const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   const form = useForm<EditListingFormData>({
@@ -100,10 +103,21 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     defaultValues: {
       ...listing,
       minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
+      images: listing.images || [],
     },
   });
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors, isDirty } } = form;
+
+  useEffect(() => {
+    form.reset({
+      ...listing,
+      minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
+      images: listing.images || [],
+    });
+    setImagePreviews((listing.images || []).map(url => ({ url, isLoading: false })));
+  }, [listing, form.reset]);
+
 
   const watchedTitle = watch('title');
   const watchedDescription = watch('description');
@@ -116,15 +130,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
   const isPremiumUser = subscriptionStatus === 'premium';
 
-  useEffect(() => {
-    form.reset({
-      ...listing,
-      minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
-    });
-    setImagePreviews(listing.images || []);
-  }, [listing, form.reset]);
-
-    const handleSuggestPrice = async () => {
+  const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
     const input: PriceSuggestionInput = { location: watchedLocation, sizeSqft: Number(watchedSizeSqft), amenities: watchedAmenities?.join(', ') || 'none' };
     if (!input.location || !input.sizeSqft || input.sizeSqft <= 0) {
@@ -167,7 +173,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         amenities: watchedAmenities || [], pricingModel: watchedPricingModel, price: Number(watchedPrice),
         leaseTerm: watchedLeaseTerm || null, keywords: watchedAmenities?.join(', ')
     };
-     if (!input.listingTitle || !input.location || !input.sizeSqft || input.sizeSqft <= 0 || !input.pricingModel || !input.price || input.price <=0) {
+     if (!input.listingTitle || !input.location || !input.sizeSqft || !input.sizeSqft <= 0 || !input.pricingModel || !input.price || input.price <=0) {
         toast({ title: "Input Error", description: "Title, location, size, pricing model, and price needed for description.", variant: "destructive" }); return;
     }
     startAiTransition(async () => {
@@ -177,24 +183,50 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     });
   };
   
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    // This is a placeholder for file upload logic.
-    // In a real app, this would involve uploading to a service like Firebase Storage.
-    // For now, we will simulate by adding placeholder URLs.
-    if (imagePreviews.length >= MAX_IMAGES) {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!currentUser) {
+      toast({ title: "Authentication Error", description: "You must be logged in to upload images.", variant: "destructive"});
+      return;
+    }
+    setImageUploadError(null);
+    const files = Array.from(event.target.files || []);
+
+    if (imagePreviews.length + files.length > MAX_IMAGES) {
       setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
       return;
     }
-    const newPreviews = [...imagePreviews, `https://placehold.co/600x400.png?text=New+Image`];
-    setImagePreviews(newPreviews);
-    setValue('images', newPreviews, { shouldDirty: true });
-    toast({ title: 'Image Added (Placeholder)', description: 'A placeholder image has been added. Actual file uploads are not implemented in this prototype.' });
+
+    const newPreviews: ImagePreview[] = files.map(file => ({
+        url: URL.createObjectURL(file),
+        isLoading: true,
+        file: file,
+    }));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    
+    for (let i = 0; i < newPreviews.length; i++) {
+        const preview = newPreviews[i];
+        if (preview.file) {
+            try {
+                const downloadURL = await uploadListingImage(preview.file, currentUser.uid);
+                setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false } : p));
+                const currentImages = getValues('images');
+                setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
+            } catch (error) {
+                console.error("Upload failed for a file:", error);
+                setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+                toast({ title: "Upload Failed", description: `Could not upload ${preview.file?.name}.`, variant: "destructive" });
+            }
+        }
+    }
   };
   
   const handleRemoveImage = (indexToRemove: number) => {
-    setImagePreviews(prev => prev.filter((_, i) => i !== indexToRemove));
-    setValue('images', imagePreviews.filter((_,i) => i !== indexToRemove), { shouldDirty: true });
+    const newImagePreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
+    setImagePreviews(newImagePreviews);
+    // Update the form value with only the URLs of the remaining images
+    setValue('images', newImagePreviews.filter(p => !p.isLoading).map(p => p.url), { shouldDirty: true, shouldValidate: true });
   };
+
 
   const onSubmit = async (data: EditListingFormData) => {
     if (!currentUser?.uid || currentUser.uid !== listing.landownerId) {
@@ -205,22 +237,25 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     setSubmissionError(null);
     setSubmissionSuccess(false);
 
-    const updateData = { ...data };
-
     try {
-        if (firebaseInitializationError || !db) {
-            // Mock mode update - this path should now be handled by mock-data.ts
-            // which is not directly called here. We'll add a direct update for safety.
-            console.warn("Attempting to update in mock mode directly from form - this should be handled via mock-data updateListing function if possible.");
-        } else {
-            const listingDocRef = doc(db, "listings", listing.id);
-            await updateDoc(listingDocRef, updateData);
+        const finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
+        if(finalImageUrls.length === 0){
+            throw new Error("Please upload at least one image.");
         }
+
+        const updateData: Partial<Listing> = {
+            ...data,
+            images: finalImageUrls,
+            minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
+        };
+
+        const listingDocRef = doc(db, "listings", listing.id);
+        await updateDoc(listingDocRef, updateData);
         
         toast({ title: "Success!", description: `Listing "${data.title}" updated successfully!` });
         refreshListings(); // Refresh data context
         setSubmissionSuccess(true);
-        router.push(`/listings/${listing.id}`);
+        router.push(`/my-listings`);
 
     } catch(error: any) {
         console.error("Error updating listing:", error);
@@ -234,7 +269,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
   return (
     <Card className="w-full max-w-2xl mx-auto my-8">
-      <CardHeader><CardTitle>Edit Listing: <span className="text-primary">{listing.title}</span></CardTitle><CardDescription>Update details for your land listing.</CardDescription></CardHeader>
+      <CardHeader>
+        <CardTitle>Edit Listing: <span className="text-primary">{listing.title}</span></CardTitle>
+        <CardDescription>Update details for your land listing.</CardDescription>
+      </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
           <div>
@@ -309,16 +347,23 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
             {imagePreviews.length > 0 && (
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {imagePreviews.map((previewUrl, index) => (
-                  <div key={previewUrl || index} className="relative aspect-square group">
-                    <Image src={previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
-                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /></Button>
+                {imagePreviews.map((preview, index) => (
+                  <div key={preview.url || index} className="relative aspect-square group">
+                    <Image src={preview.url} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
+                     {preview.isLoading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 text-white animate-spin" />
+                        </div>
+                    )}
+                    {!preview.isLoading && (
+                        <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /></Button>
+                    )}
                   </div>
                 ))}
                 {imagePreviews.length < MAX_IMAGES && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
               </div>
             )}
-            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
           
           <div>

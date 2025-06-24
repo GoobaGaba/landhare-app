@@ -1,14 +1,18 @@
 
 'use server';
 
+// This file is now obsolete as the form submission logic has been moved
+// to the client-side component in `edit-listing-form.tsx`.
+// It is safe to delete this file.
+
+// The old server action code is kept here for reference but is no longer used.
+/*
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { updateListing as dbUpdateListing, getListingById } from '@/lib/mock-data';
 import type { Listing, LeaseTerm } from '@/lib/types';
 import type { ListingFormState } from '@/app/(app)/listings/new/actions'; // Reusing this state type
 
-// Schema for validating listing update data (can be similar to creation)
-// Note: landownerId, rating, numberOfRatings, isBoosted, createdAt are not updated via this form.
 const UpdateListingFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -80,7 +84,6 @@ export async function updateListingAction(
     };
   }
   
-  // Prepare data for the database update, excluding fields not directly updatable by user or managed systemically.
   const updateData: Partial<Omit<Listing, 'id' | 'landownerId' | 'createdAt' | 'rating' | 'numberOfRatings' | 'isBoosted'>> = {
     ...validatedFields.data,
     pricingModel: validatedFields.data.pricingModel as Listing['pricingModel'],
@@ -114,3 +117,4 @@ export async function updateListingAction(
     };
   }
 }
+*/
