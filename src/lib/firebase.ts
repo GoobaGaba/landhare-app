@@ -52,7 +52,7 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
-const isApiKeyEffectivelyMissing = !apiKey || apiKey === "your_actual_api_key_from_firebase" || apiKey.startsWith("AIzaSy_YOUR_ACTUAL_API_KEY") || apiKey.includes("PLACEHOLDER");
+const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.includes("PLACEHOLDER");
 
 if (isApiKeyEffectivelyMissing) {
   const warningMessage = `
@@ -63,19 +63,18 @@ if (isApiKeyEffectivelyMissing) {
   ** Firebase features (like Authentication and Firestore) will be DISABLED until this is corrected. **
   **                                                                                               **
   ** TO FIX THIS (these steps are crucial and MUST be done by YOU in YOUR local environment):      **
-  ** 1. VERIFY '.env.local' FILE:                                                                  **
+  ** 1. CREATE/VERIFY '.env.local' FILE:                                                           **
   **    - Ensure a file named EXACTLY '.env.local' exists in the ROOT directory of your project.   **
   **    - This is NOT '.env'. It MUST be '.env.local'.                                             **
   ** 2. CHECK VARIABLE NAME & VALUE:                                                               **
-  **    - Inside '.env.local', the variable MUST be 'NEXT_PUBLIC_FIREBASE_API_KEY'.                **
-  **    - The value MUST be your ACTUAL API key from Firebase Console > Project Settings.          **
-  **    - Ensure ALL 'NEXT_PUBLIC_FIREBASE_...' variables are correctly set.                       **
-  **    - DO NOT use placeholder values like "your_actual_api_key_from_firebase".                  **
+  **    - Inside '.env.local', copy the keys from '.env.example' and fill in your values.          **
+  **    - The value for 'NEXT_PUBLIC_FIREBASE_API_KEY' MUST be your ACTUAL API key.                **
+  **    - DO NOT use placeholder values like "AIzaSy...".                                          **
   ** 3. RESTART DEVELOPMENT SERVER:                                                                **
   **    - FULLY RESTART your Next.js server (Ctrl+C, then 'npm run dev') after ANY changes        **
   **      to '.env.local'. Next.js loads these variables only at startup.                          **
   **                                                                                               **
-  ** The app will continue to run, but Firebase-dependent functionality will not work.             **
+  ** The app will continue to run in a mock mode, but real Firebase functionality is disabled.     **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
