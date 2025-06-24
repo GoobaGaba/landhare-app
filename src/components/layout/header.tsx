@@ -47,7 +47,6 @@ export default function AppHeader() {
     { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
-    { href: '/transactions', label: 'Transactions', icon: ReceiptText },
     { href: '/settings', label: 'Settings', icon: Settings },
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
   ];

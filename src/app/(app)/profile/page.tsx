@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat } from "lucide-react";
+import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat, ReceiptText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -360,6 +360,13 @@ function ProfilePageContent() {
                 ) : (
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                 )}
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Transaction History</h4>
+                <p className="text-sm text-muted-foreground mb-3">View all your payments, payouts, and service fees in one place.</p>
+                <Button asChild variant="outline" disabled={(isMockUserNoProfile)}>
+                    <Link href="/transactions"><ReceiptText className="mr-2 h-4 w-4"/> View All Transactions</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
