@@ -18,7 +18,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
@@ -28,6 +27,7 @@ import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescripti
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; 
+import { uploadListingImage } from '@/lib/storage';
 
 import { db, firebaseInitializationError } from '@/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
@@ -56,7 +56,7 @@ const listingFormSchema = z.object({
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
+  images: z.array(z.string().url("Each image must be a valid URL.")).min(1, "Please upload at least one image."),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
 }).superRefine((data, ctx) => {
@@ -70,6 +70,7 @@ const listingFormSchema = z.object({
 });
 
 type ListingFormData = z.infer<typeof listingFormSchema>;
+type ImagePreview = { url: string; isLoading: boolean; file?: File };
 
 export function ListingForm() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
@@ -87,7 +88,7 @@ export function ListingForm() {
   const [titleSuggestion, setTitleSuggestion] = useState<SuggestListingTitleOutput | null>(null);
   const [descriptionSuggestion, setDescriptionSuggestion] = useState<GenerateListingDescriptionOutput | null>(null);
   
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   
   const [formSubmittedSuccessfully, setFormSubmittedSuccessfully] = useState(false);
@@ -179,27 +180,50 @@ export function ListingForm() {
     });
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    // This is a placeholder for file upload logic.
-    // In a real app, this would involve uploading to a service like Firebase Storage.
-    // For now, we will simulate by adding placeholder URLs.
-    if (imagePreviews.length >= MAX_IMAGES) {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!currentUser) {
+      toast({ title: "Authentication Error", description: "You must be logged in to upload images.", variant: "destructive"});
+      return;
+    }
+    setImageUploadError(null);
+    const files = Array.from(event.target.files || []);
+
+    if (imagePreviews.length + files.length > MAX_IMAGES) {
       setImageUploadError(`Cannot exceed ${MAX_IMAGES} images.`);
       return;
     }
-    const newPreviews = [...imagePreviews, `https://placehold.co/600x400.png?text=New+Image`];
-    setImagePreviews(newPreviews);
-    setValue('images', newPreviews, { shouldValidate: true, shouldDirty: true });
-    toast({ title: 'Image Added (Placeholder)', description: 'A placeholder image has been added. Actual file uploads are not implemented in this prototype.' });
+
+    const newPreviews: ImagePreview[] = files.map(file => ({
+        url: URL.createObjectURL(file),
+        isLoading: true,
+        file: file,
+    }));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+    
+    for (let i = 0; i < newPreviews.length; i++) {
+        const preview = newPreviews[i];
+        if (preview.file) {
+            try {
+                const downloadURL = await uploadListingImage(preview.file, currentUser.uid);
+                setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false } : p));
+                const currentImages = getValues('images');
+                setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
+            } catch (error) {
+                console.error("Upload failed for a file:", error);
+                setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
+                toast({ title: "Upload Failed", description: `Could not upload ${preview.file?.name}.`, variant: "destructive" });
+            }
+        }
+    }
   };
   
-  const handleRemoveImage = (index: number) => {
-    const newImagePreviews = imagePreviews.filter((_, i) => i !== index);
+  const handleRemoveImage = (indexToRemove: number) => {
+    const newImagePreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
     setImagePreviews(newImagePreviews);
-    setValue('images', newImagePreviews, { shouldValidate: true, shouldDirty: true });
+    // Update the form value with only the URLs of the remaining images
+    setValue('images', newImagePreviews.filter(p => !p.isLoading).map(p => p.url), { shouldDirty: true, shouldValidate: true });
   };
-
-
+  
   const onSubmit = async (data: ListingFormData) => {
     if (authLoading || !currentUser?.uid) {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" }); return;
@@ -211,11 +235,16 @@ export function ListingForm() {
     
     setIsSubmitting(true); setSubmissionError(null); setSubmissionSuccess(null); setFormSubmittedSuccessfully(false);
     try {
-      const newListingPayload: Omit<Listing, 'id'> = {
+      const finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
+      if(finalImageUrls.length === 0){
+        throw new Error("Please upload at least one image.");
+      }
+
+      const newListingPayload = {
         ...data,
+        images: finalImageUrls,
         landownerId: currentUser.uid,
         isAvailable: true,
-        images: imagePreviews.length > 0 ? imagePreviews : [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title.substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
         rating: undefined,
         numberOfRatings: 0,
         isBoosted: subscriptionStatus === 'premium',
@@ -225,13 +254,12 @@ export function ListingForm() {
       };
       
       const firestorePayload: any = {...newListingPayload};
-      // Convert undefined to null for Firestore compatibility if needed
       Object.keys(firestorePayload).forEach(key => {
         if (firestorePayload[key as keyof typeof firestorePayload] === undefined) {
-          firestorePayload[key as keyof typeof firestorePayload] = null;
+          delete firestorePayload[key as keyof typeof firestorePayload];
         }
       });
-
+      
       const docRef = await addDoc(collection(db, "listings"), firestorePayload);
       
       setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: docRef.id });
@@ -242,12 +270,10 @@ export function ListingForm() {
       setTitleSuggestion(null); 
       setDescriptionSuggestion(null); 
       setFormSubmittedSuccessfully(true);
-      refreshListings(); // Refresh the listings data context
+      refreshListings();
     } catch (error: any) {
       console.error("Error creating listing:", error);
-      let errorMessage = "Failed to create listing. Firestore error.";
-      if (error.message?.includes("permission-denied")) errorMessage = "Permission denied. Check Firestore rules.";
-      else if (error.message) errorMessage = error.message;
+      let errorMessage = error.message || "Failed to create listing. Please try again.";
       setSubmissionError(errorMessage); toast({ title: "Error Creating Listing", description: errorMessage, variant: "destructive" });
     } finally { setIsSubmitting(false); }
   };
@@ -256,7 +282,7 @@ export function ListingForm() {
     return <div className="flex justify-center items-center min-h-[300px]"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Loading form...</p></div>;
   }
   if (!currentUser) {
-    return <Card className="w-full max-w-2xl mx-auto"><CardHeader><CardTitle>Create New Listing</CardTitle></CardHeader><CardContent><Alert variant="destructive"><UserCircle className="h-4 w-4" /><AlertTitle>Login Required</AlertTitle><AlertDescription>You must be <Link href={`/login?redirect=${encodeURIComponent("/listings/new")}`} className="underline">logged in</Link>.</AlertDescription></Alert></CardContent></Card>;
+    return <Card className="w-full max-w-2xl mx-auto"><CardHeader><CardTitle>Create New Land Listing</CardTitle></CardHeader><CardContent><Alert variant="destructive"><UserCircle className="h-4 w-4" /><AlertTitle>Login Required</AlertTitle><AlertDescription>You must be <Link href={`/login?redirect=${encodeURIComponent("/listings/new")}`} className="underline">logged in</Link>.</AlertDescription></Alert></CardContent></Card>;
   }
   
   const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)" : watchedPricingModel === 'monthly' ? "Price per Month ($)" : "Est. Monthly Payment ($) for LTO";
@@ -346,18 +372,23 @@ export function ListingForm() {
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
-            {imagePreviews.length > 0 && (
-              <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {imagePreviews.map((previewUrl, index) => (
+            <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                {imagePreviews.map((preview, index) => (
                   <div key={index} className="relative aspect-square group">
-                    <Image src={previewUrl} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
-                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /><span className="sr-only">Remove image</span></Button>
+                    <Image src={preview.url} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" sizes="100px"/>
+                    {preview.isLoading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 text-white animate-spin" />
+                        </div>
+                    )}
+                    {!preview.isLoading && (
+                         <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={() => handleRemoveImage(index)}><Trash2 className="h-3 w-3" /><span className="sr-only">Remove image</span></Button>
+                    )}
                   </div>
                 ))}
                 {imagePreviews.length < MAX_IMAGES && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
-              </div>
-            )}
-             {errors.images && imagePreviews.length === 0 && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
+            </div>
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
           </div>
 
           <div>

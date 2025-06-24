@@ -2,48 +2,22 @@
 rules_version = '2';
 
 service firebase.storage {
-  match /b/{bucket}/o { // Matches all files in your bucket
-
-    // Listing Images: Stored under a path like /listings/{listingId}/imageName.jpg
-    match /listings/{listingId}/{allPaths=**} {
-      // Anyone can read (download) listing images.
-      allow read: if true;
-
-      // To write (upload, update, delete) listing images:
-      // User must be authenticated.
-      // The authenticated user's UID must match the `landownerId` of the corresponding
-      // listing document in Firestore. This requires the Firestore listing document to exist.
-      allow write: if request.auth != null &&
-                      get(/databases/$(database)/documents/listings/$(listingId)).data.landownerId == request.auth.uid;
+  match /b/{bucket}/o {
+    // Allow public read access to all files in the listings folder
+    match /listings/{listingId}/{fileName} {
+      allow read;
+      
+      // Allow write only for authenticated users.
+      // You might want to add further restrictions, e.g.,
+      // checking the file size or type, or matching the userId
+      // in the path with request.auth.uid.
+      allow write: if request.auth != null;
     }
 
-    // User Avatars (if you implement avatar uploads later):
-    // Stored under a path like /avatars/{userId}/avatar.jpg
-    match /avatars/{userId}/{allPaths=**} {
-      // Anyone can read user avatars.
-      allow read: if true;
-
-      // Only an authenticated user can write (upload/update/delete) their own avatar.
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Lease Contracts: Stored under a path like /leaseContracts/{bookingId}/{fileName}.pdf
-    // These rules rely on custom metadata being set during file upload:
-    // bookingId, renterId, landownerId
-    match /leaseContracts/{bookingId}/{fileName} {
-      // Allow read if user is the renter or landowner associated with this booking (via custom metadata)
-      allow read: if request.auth != null &&
-                    (request.auth.uid == resource.metadata.renterId || request.auth.uid == resource.metadata.landownerId) &&
-                    resource.metadata.bookingId == bookingId;
-
-      // Allow write (upload) if user is the renter or landowner for the booking being created/updated,
-      // file is a PDF, and size is less than 5MB.
-      // Metadata (bookingId, renterId, landownerId) must be provided with the upload.
-      allow write: if request.auth != null &&
-                     (request.auth.uid == request.resource.metadata.renterId || request.auth.uid == request.resource.metadata.landownerId) &&
-                     request.resource.metadata.bookingId == bookingId &&
-                     request.resource.size < 5 * 1024 * 1024 && // Max 5MB
-                     request.resource.contentType.matches('application/pdf');
-    }
+    // You could add rules for user profile pictures here
+    // match /avatars/{userId}/{fileName} {
+    //   allow read;
+    //   allow write: if request.auth != null && request.auth.uid == userId;
+    // }
   }
 }
