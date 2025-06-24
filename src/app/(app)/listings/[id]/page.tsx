@@ -248,7 +248,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       setShowBookingDialog(false);
       setIsBookingRequested(true);
       toast({
-        title: isLTOInquiry ? "Inquiry Sent!" : "Booking Confirmed! (Simulated)",
+        title: isLTOInquiry ? "Inquiry Sent!" : "Booking Confirmed!",
         description: isLTOInquiry
             ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
             : `Your booking for "${listing.title}" is confirmed. Check 'My Bookings' for details.`,
@@ -557,8 +557,8 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                     }
                     >
                      {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Booking Confirmed")
-                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Book Now (Simulated)")
+                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Request Confirmed")
+                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
                         : "Currently Unavailable")}
                     </Button>
                 )}
@@ -610,12 +610,12 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking (Simulated)"}
+                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking"}
             </DialogTitle>
             <DialogDescription>
                {listing.pricingModel === 'lease-to-own'
                 ? `You are about to send an inquiry for "${listing.title}". The landowner will contact you.`
-                : `Please review the details for "${listing.title}". This is a simulation; no payment will be processed, and the booking will be instantly confirmed.`}
+                : `Please review the details for "${listing.title}". This will send a booking request to the landowner for confirmation.`}
             </DialogDescription>
           </DialogHeader>
           {listing.pricingModel !== 'lease-to-own' && priceDetails && dateRange?.from && dateRange?.to && (
@@ -659,7 +659,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && (differenceInDays(dateRange?.to || new Date(), dateRange?.from || new Date()) + 1) < (listing.minLeaseDurationMonths * 28))
             }>
                 {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Confirm Booking"}
+                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Confirm Booking Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -667,4 +667,3 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
-

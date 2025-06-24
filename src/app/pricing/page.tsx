@@ -54,7 +54,7 @@ const pricingPlans = [
       { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true, premiumIconColor: true },
       { text: "Priority support", icon: Crown, isBenefit: true, premiumIconColor: true },
     ],
-    cta: "Upgrade to Premium (Simulated)",
+    cta: "Upgrade to Premium",
     actionKey: "upgradePremium", 
     hrefSelfIfPremium: "/profile", 
     highlight: true,
@@ -85,7 +85,7 @@ export default function PricingPage() {
       const updatedUser = await updateCurrentAppUserProfile({ subscriptionStatus: 'premium' });
       if (updatedUser) {
         toast({
-          title: 'Upgrade Successful! (Simulated)',
+          title: 'Upgrade Successful!',
           description: 'Your account is now on the Premium tier.',
         });
         router.push('/profile');

@@ -108,7 +108,7 @@ export default function HomePage() {
                 <CardTitle className="text-xl font-semibold">Book Securely</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing. Our simulation shows how payments and contracts work.</p>
+                <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing. Our platform helps manage bookings and agreements.</p>
               </CardContent>
             </Card>
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
@@ -183,7 +183,7 @@ export default function HomePage() {
             {[
               { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
               { icon: Home, title: 'Flexible Terms', description: 'Daily, monthly, or lease-to-own options with transparent pricing.' },
-              { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'Simulated in-app payments, ratings, and 24/7 support.' },
+              { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'In-app payments, ratings, and 24/7 support.' },
               { icon: Users, title: 'Direct Communication', description: 'Connect directly with landowners or renters through our secure messaging.' },
               { icon: DollarSign, title: 'Dynamic Pricing', description: 'AI-powered suggestions to help landowners price competitively.' },
               { icon: MapPin, title: 'Lease-to-Own Pathway', description: 'Opportunities for renters to convert leases into property ownership.' },
@@ -239,5 +239,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
