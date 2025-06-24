@@ -19,7 +19,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails } from './lib/types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
@@ -1231,5 +1231,7 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
         landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}...`,
     };
 };
+
+    
 
     
