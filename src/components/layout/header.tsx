@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,7 @@ export default function AppHeader() {
     { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
+    { href: '/transactions', label: 'Transactions', icon: ReceiptText },
     { href: '/settings', label: 'Settings', icon: Settings },
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
   ];

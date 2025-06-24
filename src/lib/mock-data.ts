@@ -19,7 +19,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction } from './types';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
@@ -380,6 +380,19 @@ export let mockReviews: Review[] = [
   },
 ];
 
+export const mockTransactions: Transaction[] = [
+  // Mock User's transactions
+  { id: 'txn1', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
+  { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 196.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -4.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  // Jane Doe's transactions
+  { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
+  { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
+  // John Smith's transactions
+  { id: 'txn6', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Completed', amount: -2100.00, currency: 'USD', date: new Date('2023-12-15T00:00:00Z'), description: 'Payment for Sunny Meadow Plot (6 months)', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
+  { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.00, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+];
+
 
 const mapDocToUser = (docSnap: any): User => {
   const data = docSnap.data();
@@ -452,6 +465,42 @@ const mapDocToReview = (docSnap: any): Review => {
     comment: data.comment,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
   };
+};
+
+const mapDocToTransaction = (docSnap: any): Transaction => {
+    const data = docSnap.data();
+    return {
+        id: docSnap.id,
+        userId: data.userId,
+        type: data.type,
+        status: data.status,
+        amount: data.amount,
+        currency: data.currency || 'USD',
+        date: data.date?.toDate ? data.date.toDate() : new Date(),
+        description: data.description,
+        relatedBookingId: data.relatedBookingId,
+        relatedListingId: data.relatedListingId,
+    };
+};
+
+// --- Transaction Functions ---
+export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
+    if (firebaseInitializationError || !db) {
+        return mockTransactions.filter(t => t.userId === userId).sort((a,b) => {
+            const timeA = (a.date instanceof Date ? a.date : (a.date as Timestamp)?.toDate() || new Date(0)).getTime();
+            const timeB = (b.date instanceof Date ? b.date : (b.date as Timestamp)?.toDate() || new Date(0)).getTime();
+            return timeB - timeA;
+        });
+    }
+    try {
+        const transactionsCol = collection(db, "transactions");
+        const q = query(transactionsCol, where("userId", "==", userId), orderBy("date", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(mapDocToTransaction);
+    } catch (error) {
+        console.error("[Firestore Error] getTransactionsForUser:", error);
+        throw error;
+    }
 };
 
 // --- User Functions ---

@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 </ChartContainer>
               </div>
               <Button asChild variant="outline" className="w-full sm:w-auto" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
-                <Link href="/earnings">View Full Earnings Report</Link>
+                <Link href="/transactions">View Transaction History</Link>
               </Button>
             </CardContent>
           </Card>

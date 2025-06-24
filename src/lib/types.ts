@@ -95,6 +95,20 @@ export interface Conversation {
   updatedAt?: Date | Timestamp;
 }
 
+export type Transaction = {
+  id: string;
+  userId: string; // The user this transaction record belongs to
+  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee';
+  status: 'Completed' | 'Pending' | 'Failed';
+  amount: number; // Positive for income, negative for expense
+  currency: 'USD';
+  date: Date | Timestamp;
+  description: string;
+  relatedListingId?: string;
+  relatedBookingId?: string;
+};
+
+
 export type PriceSuggestionInput = {
   location: string;
   sizeSqft: number;
