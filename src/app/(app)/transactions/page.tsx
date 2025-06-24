@@ -67,12 +67,13 @@ export default function TransactionsPage() {
   }, [transactions, filterType, searchTerm]);
 
   const summary = useMemo(() => {
-    return filteredTransactions.reduce((acc, t) => {
-      if (t.amount > 0) acc.income += t.amount;
-      else acc.expenses += Math.abs(t.amount);
-      return acc;
+    return transactions.reduce((acc, t) => {
+        if (t.status !== 'Completed') return acc; // Only count completed transactions for summary
+        if (t.type === 'Landowner Payout') acc.income += t.amount;
+        if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee') acc.expenses += Math.abs(t.amount);
+        return acc;
     }, { income: 0, expenses: 0 });
-  }, [filteredTransactions]);
+  }, [transactions]);
 
   if (authLoading) {
     return (
@@ -112,7 +113,7 @@ export default function TransactionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">${summary.income.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">From landowner payouts</p>
+                <p className="text-xs text-muted-foreground">From completed payouts</p>
               </CardContent>
             </Card>
             <Card>
@@ -122,7 +123,7 @@ export default function TransactionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">${summary.expenses.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">From bookings and subscriptions</p>
+                <p className="text-xs text-muted-foreground">From bookings, fees & subscriptions</p>
               </CardContent>
             </Card>
             <Card>
@@ -134,7 +135,7 @@ export default function TransactionsPage() {
                 <div className={cn("text-2xl font-bold", (summary.income - summary.expenses) >= 0 ? 'text-primary' : 'text-destructive')}>
                   ${(summary.income - summary.expenses).toFixed(2)}
                 </div>
-                <p className="text-xs text-muted-foreground">Total income minus expenses</p>
+                <p className="text-xs text-muted-foreground">Completed income minus expenses</p>
               </CardContent>
             </Card>
           </div>
@@ -186,7 +187,7 @@ export default function TransactionsPage() {
                 ) : filteredTransactions.length > 0 ? (
                   filteredTransactions.map(t => {
                      const date = t.date instanceof Date ? t.date : (t.date as any).toDate();
-                     const isIncome = t.amount > 0;
+                     const isIncome = t.type === 'Landowner Payout';
                      let typeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
                      switch(t.type) {
                         case 'Landowner Payout': typeVariant = 'default'; break;
@@ -199,7 +200,7 @@ export default function TransactionsPage() {
                             <TableCell className="text-muted-foreground">{format(date, 'MMM d, yyyy')}</TableCell>
                             <TableCell className="font-medium">{t.description}</TableCell>
                             <TableCell><Badge variant={typeVariant}>{t.type}</Badge></TableCell>
-                            <TableCell><Badge variant={t.status === 'Completed' ? 'default' : t.status === 'Pending' ? 'outline' : 'destructive'} className={t.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}>{t.status}</Badge></TableCell>
+                            <TableCell><Badge variant={t.status === 'Completed' ? 'default' : t.status === 'Pending' ? 'outline' : 'destructive'} className={t.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-200' : ''}>{t.status}</Badge></TableCell>
                             <TableCell className={cn("text-right font-mono", isIncome ? 'text-green-600' : 'text-red-600')}>
                                 {isIncome ? '+' : '-'}${Math.abs(t.amount).toFixed(2)}
                             </TableCell>
@@ -208,7 +209,7 @@ export default function TransactionsPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center h-24">No transactions found.</TableCell>
+                    <TableCell colSpan={5} className="text-center h-24">No transactions found for the selected filters.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -219,3 +220,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
