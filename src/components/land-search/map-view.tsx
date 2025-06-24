@@ -21,13 +21,10 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
   useEffect(() => {
     if (!map || !listings) return;
 
-    // When there are no listings, don't change the map view.
-    // It will remain at the default centered on the US.
     if (listings.length === 0) {
-        // Optional: you could reset the view here if desired
-        // map.setCenter({ lat: 39.8283, lng: -98.5795 });
-        // map.setZoom(4);
-        return;
+      // Optional: you could reset the view here if desired, but for now we do nothing
+      // to avoid unnecessary map movements when filters result in no listings.
+      return;
     }
 
     const bounds = new google.maps.LatLngBounds();
@@ -41,7 +38,6 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
 
     if (validListings === 0) return;
 
-    // If there's only one valid listing, center on it with a fixed zoom.
     if (validListings === 1) {
         const firstValidListing = listings.find(l => l.lat && l.lng);
         if (firstValidListing) {
@@ -49,7 +45,6 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
             map.setZoom(12);
         }
     } else {
-        // If there are multiple listings, fit them all within the map view.
         map.fitBounds(bounds, 100); // 100px padding
     }
 
@@ -91,7 +86,7 @@ export function MapView({ listings }: MapViewProps) {
           className="w-full h-full rounded-lg"
         >
           {listings.map((listing) => {
-            if (!listing.lat || !listing.lng) return null;
+            if (listing.lat === undefined || listing.lng === undefined) return null;
             const isSelected = selectedListingId === listing.id;
             return (
               <AdvancedMarker
