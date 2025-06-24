@@ -22,7 +22,6 @@ export default function HomePage() {
   useEffect(() => {
     if (listingsError) {
       console.error("Error fetching recent listings for homepage:", listingsError);
-      // Optionally: toast({ title: "Error", description: "Could not load recent listings.", variant: "destructive" });
     }
   }, [listingsError]);
 

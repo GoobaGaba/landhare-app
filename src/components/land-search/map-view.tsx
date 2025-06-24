@@ -22,8 +22,7 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
     if (!map || !listings) return;
 
     if (listings.length === 0) {
-      // Optional: you could reset the view here if desired, but for now we do nothing
-      // to avoid unnecessary map movements when filters result in no listings.
+      // Don't move the map if there are no listings to show
       return;
     }
 
@@ -62,7 +61,7 @@ export function MapView({ listings }: MapViewProps) {
   
   if (!apiKey) {
     return (
-      <Card className="sticky top-20 shadow-md h-[calc(100vh-10rem)] flex items-center justify-center bg-muted/30">
+      <Card className="sticky top-20 shadow-md h-[calc(100vh-10rem)] flex items-center justify-center bg-muted/30 rounded-lg">
         <div className="text-center p-4">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-destructive">Map Service Unavailable</h3>
@@ -75,7 +74,7 @@ export function MapView({ listings }: MapViewProps) {
   }
 
   return (
-    <Card className="sticky top-24 shadow-md h-[calc(100vh-12rem)] flex flex-col bg-muted/30 overflow-hidden">
+    <Card className="sticky top-24 shadow-md h-[calc(100vh-12rem)] flex flex-col bg-muted/30 overflow-hidden rounded-lg">
       <APIProvider apiKey={apiKey}>
         <Map
           defaultCenter={defaultPosition}

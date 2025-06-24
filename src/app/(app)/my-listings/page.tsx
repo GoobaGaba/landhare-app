@@ -26,10 +26,7 @@ import type { Listing } from '@/lib/types';
 
 export default function MyListingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
-  // console.log("[MyListingsPage] Render. currentUser from useAuth():", currentUser?.uid, "Auth Loading:", authLoading);
   const { myListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
-  // console.log(`[MyListingsPage] Render. From useListingsData - myListings count: ${myListings.length}, isLoading: ${listingsLoading}, error: ${listingsError}`);
-
   const { toast } = useToast();
 
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
@@ -54,7 +51,7 @@ export default function MyListingsPage() {
 
     if (result.success) {
       toast({ title: "Listing Deleted", description: result.message });
-      refreshListings();
+      await refreshListings();
     } else {
       toast({ title: "Deletion Failed", description: result.message, variant: "destructive" });
     }
@@ -83,7 +80,7 @@ export default function MyListingsPage() {
     );
   }
   
-  if (listingsError && !listingsLoading) { // Only show error if not also loading
+  if (listingsError && !listingsLoading) {
      return (
       <Card>
         <CardHeader>
@@ -108,7 +105,7 @@ export default function MyListingsPage() {
         </Button>
       </div>
 
-      {myListings.length === 0 && !listingsLoading ? ( // Ensure not loading when showing "no listings"
+      {myListings.length === 0 && !listingsLoading ? (
         <>
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet</CardTitle></CardHeader>
