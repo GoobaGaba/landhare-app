@@ -187,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus(newMockAppUser.subscriptionStatus || 'free');
       incrementMockDataVersion('signUpWithEmailPassword_mock');
       setLoading(false);
-      toast({ title: "Mock Signup Successful", description: "Account created in mock environment."});
+      toast({ title: "Signup Successful", description: "Account created."});
       return newMockCurrentUser;
     }
 
@@ -235,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'free');
         incrementMockDataVersion('signInWithEmailPassword_mock');
         setLoading(false);
-        toast({ title: "Mock Login Successful", description: `Welcome back, ${fullMockUser.displayName} (mock).`});
+        toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
         return fullMockUser;
       } else {
         const genericError = "Invalid mock credentials. Try 'mocktester@example.com' or other mock user emails.";
@@ -279,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus(userToSignIn.appProfile?.subscriptionStatus || 'free');
       incrementMockDataVersion('signInWithGoogle_mock');
       setLoading(false);
-      toast({ title: "Mock Google Sign-In Successful", description: `Welcome, ${userToSignIn.displayName} (mock Google user).`});
+      toast({ title: "Google Sign-In Successful", description: `Welcome, ${userToSignIn.displayName}.`});
       return userToSignIn;
     }
 
@@ -309,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus('free');
       incrementMockDataVersion('logoutUser_mock');
       setLoading(false);
-      toast({ title: 'Mock Logout', description: 'Simulated logout.' });
+      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
       return;
     }
     try {

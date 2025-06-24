@@ -388,6 +388,3 @@ export default function ProfilePageWithSuspense() {
         </Suspense>
     )
 }
-
-
-    
