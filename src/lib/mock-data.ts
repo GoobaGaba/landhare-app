@@ -21,7 +21,7 @@ import {
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel } from './types';
 
-export const FREE_TIER_LISTING_LIMIT = 1;
+export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 
 export let mockDataVersion = 0;

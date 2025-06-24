@@ -19,6 +19,8 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
 import { GoogleAuthProvider } from 'firebase/auth';
 import { cn } from '@/lib/utils';
+import { useListingsData } from '@/hooks/use-listings-data';
+import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
 
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +36,9 @@ interface ProfileDisplayData {
 
 function ProfilePageContent() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
+  const { myListings } = useListingsData();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isEditing, setIsEditing] = useState(false);
   const [profileFormData, setProfileFormData] = useState<{name: string, bio: string}>({name: '', bio: ''});
@@ -124,28 +128,25 @@ function ProfilePageContent() {
     }
   }
 
-  const handleSubscriptionToggle = async () => {
-    if (!currentUser || !profileDisplayData || profileDisplayData.subscriptionTier === 'loading') {
-        toast({ title: "Action Unavailable", description: "Subscription status is still loading or user data is incomplete.", variant: "default"});
-        return;
-    }
-    if (firebaseInitializationError && !currentUser.appProfile) {
-        toast({ title: "Preview Mode", description: "Subscription simulation is disabled in full preview mode.", variant: "default" });
-        return;
-    }
+  const handleDowngradeAttempt = async () => {
+    if (!currentUser || subscriptionStatus !== 'premium') return;
+
     setIsSwitchingSubscription(true);
-    const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
-    try {
-      await updateCurrentAppUserProfile({ subscriptionStatus: newStatus });
-       toast({
-        title: 'Subscription Changed! (Simulation)',
-        description: `Your account is now on the ${newStatus} tier.`,
-      });
-    } catch (error: any) {
-      // Error handled by AuthContext
-    } finally {
-      setIsSwitchingSubscription(false);
+    if (myListings.length > FREE_TIER_LISTING_LIMIT) {
+        toast({
+            title: "Listing Limit Exceeded",
+            description: `You have ${myListings.length} listings. Free tier only allows ${FREE_TIER_LISTING_LIMIT}. Redirecting to manage listings...`,
+            variant: "default",
+        });
+        router.push('/downgrade');
+    } else {
+        await updateCurrentAppUserProfile({ subscriptionStatus: 'free' });
+         toast({
+            title: 'Subscription Changed (Simulation)',
+            description: `Your account is now on the Free tier.`,
+        });
     }
+    setIsSwitchingSubscription(false);
   };
 
 
@@ -338,18 +339,17 @@ function ProfilePageContent() {
                   <>
                     <p className="text-sm text-muted-foreground mb-3">Upgrade to Premium for unlimited listings, no contract fees, boosted exposure, market insights, and lower closing fees (0.49% vs 2%).</p>
                     <Button 
-                      onClick={handleSubscriptionToggle}
+                      asChild
                       disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
                       className="bg-premium hover:bg-premium/90 text-premium-foreground">
-                      {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-                      Upgrade to Premium (Simulated)
+                      <Link href="/pricing"><Crown className="mr-2 h-4 w-4" /> Upgrade to Premium</Link>
                     </Button>
                   </>
                 ) : profileDisplayData.subscriptionTier === 'premium' ? (
                   <>
                   <p className="text-sm text-muted-foreground mb-3">You're enjoying all the benefits of Premium! Thank you for your support.</p>
                    <Button
-                        onClick={handleSubscriptionToggle}
+                        onClick={handleDowngradeAttempt}
                         variant="outline"
                         disabled={isSwitchingSubscription || authLoading || isMockUserNoProfile}
                     >
@@ -361,30 +361,6 @@ function ProfilePageContent() {
                   <p className="text-sm text-muted-foreground">Loading subscription details...</p>
                 )}
               </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Simulate Subscription Tier</CardTitle>
-                  <CardDescription>For testing purposes, you can switch your account's simulated subscription status. This will affect UI elements like fees and feature access across the app.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button
-                        onClick={handleSubscriptionToggle}
-                        variant="outline"
-                        disabled={isSwitchingSubscription || authLoading || profileDisplayData.subscriptionTier === 'loading' || isMockUserNoProfile}
-                        className="w-full sm:w-auto"
-                    >
-                        {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
-                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
-                    </Button>
-                    {isMockUserNoProfile &&
-                        <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in Firebase preview mode without a mock user.</p>
-                    }
-                     <p className="text-xs text-muted-foreground mt-2">
-                        This simulation affects UI elements like displayed fees and listing limits for testing. It does not involve real payments. A page refresh might be needed to see changes on other pages.
-                    </p>
-                </CardContent>
-              </Card>
             </CardContent>
           </Card>
         </TabsContent>
