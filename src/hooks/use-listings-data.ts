@@ -89,4 +89,3 @@ export function useListingsData(): ListingsDataState {
     refreshListings,
   };
 }
-

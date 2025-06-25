@@ -1444,17 +1444,38 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
 
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-    // This function now ALWAYS returns the in-memory mock metrics
-    // to power the simulation dashboard, preventing Firestore reads.
-    platformMetrics.totalUsers = mockUsers.length;
-    platformMetrics.totalListings = mockListings.length;
-    platformMetrics.totalBookings = mockBookings.length;
-    // Note: totalRevenue, totalServiceFees, etc., are updated by other mock functions.
-    return platformMetrics;
+    if (firebaseInitializationError || !db) {
+        // Mock Mode: Use the in-memory object, ensuring counts are up-to-date
+        platformMetrics.totalUsers = mockUsers.length;
+        platformMetrics.totalListings = mockListings.length;
+        platformMetrics.totalBookings = mockBookings.length;
+        return platformMetrics;
+    }
+    // Live Mode: Fetch from Firestore
+    try {
+        const metricsRef = doc(db, "metrics", "global_metrics");
+        const metricsSnap = await getDoc(metricsRef);
+        if (metricsSnap.exists()) {
+            return metricsSnap.data() as PlatformMetrics;
+        }
+        // If no metrics doc exists, calculate and create it
+        const usersSnap = await getCountFromServer(collection(db, "users"));
+        const listingsSnap = await getCountFromServer(collection(db, "listings"));
+        const bookingsSnap = await getCountFromServer(collection(db, "bookings"));
+        const initialMetrics: PlatformMetrics = {
+            id: 'global_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0,
+            totalUsers: usersSnap.data().count, totalListings: listingsSnap.data().count, totalBookings: bookingsSnap.data().count,
+        };
+        await setDoc(metricsRef, initialMetrics);
+        return initialMetrics;
+    } catch(error) {
+        console.error("[Firestore Error] getPlatformMetrics:", error);
+        throw error;
+    }
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
-    // This function now directly manipulates the mock data arrays for simulation.
+    // This function now uses the hybrid data functions, so it works in both modes.
     const botLandownerIds = mockUsers.filter(u => u.id.startsWith('bot-landowner')).map(u => u.id);
     const botRenterIds = mockUsers.filter(u => u.id.startsWith('bot-renter')).map(u => u.id);
 
@@ -1469,11 +1490,10 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
     ];
     const selectedLocation = botLocations[Math.floor(Math.random() * botLocations.length)];
     const landownerToUseId = botLandownerIds[Math.floor(Math.random() * botLandownerIds.length)];
-    const landownerUser = mockUsers.find(u => u.id === landownerToUseId);
+    const landownerUser = await getUserById(landownerToUseId);
 
     if (landownerUser) {
-        const newListingData: Listing = {
-            id: `listing-bot-${Date.now()}`,
+        const newListingData: Omit<Listing, 'id'> = {
             title: `Bot Listing #${Math.floor(Math.random() * 1000)}`,
             description: 'This is an automatically generated listing by a bot for simulation purposes.',
             location: selectedLocation.name,
@@ -1486,88 +1506,29 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
             images: [`https://placehold.co/800x600.png?text=Bot+Listing`],
             landownerId: landownerUser.id,
             isAvailable: true,
-            isBoosted: landownerUser.subscriptionStatus === 'premium',
             createdAt: new Date(),
-            rating: undefined,
-            numberOfRatings: 0,
         };
-        mockListings.unshift(newListingData);
+        await addListing(newListingData, landownerUser.subscriptionStatus === 'premium');
         listingsCreated++;
     }
 
     // 2. Bots create bookings
+    const allListings = await getListings();
     for (const renterId of botRenterIds) {
-        const renter = mockUsers.find(u => u.id === renterId);
-        const bookableListings = mockListings.filter(l => l.isAvailable && l.landownerId !== renterId && l.pricingModel !== 'lease-to-own');
+        const renter = await getUserById(renterId);
+        const bookableListings = allListings.filter(l => l.isAvailable && l.landownerId !== renterId && l.pricingModel !== 'lease-to-own');
         if (renter && bookableListings.length > 0) {
             const listingToBook = bookableListings[Math.floor(Math.random() * bookableListings.length)];
             const bookingDurationDays = listingToBook.pricingModel === 'nightly' ? Math.floor(Math.random() * 5) + 2 : 30;
             const dateRange = { from: addDays(new Date(), Math.floor(Math.random() * 10) + 1), to: addDays(new Date(), Math.floor(Math.random() * 10) + 1 + bookingDurationDays) };
             
             try {
-                // Manually replicate the logic of addBookingRequest for mocks
-                const landownerInfo = mockUsers.find(u => u.id === listingToBook.landownerId);
-                if (!landownerInfo) continue;
-
-                const { totalPrice, basePrice } = calculatePriceDetails(listingToBook, dateRange, renter.subscriptionStatus || 'free');
-
-                if ((renter.walletBalance ?? 0) < totalPrice) {
-                    console.log(`Bot ${renter.name} has insufficient funds.`);
-                    continue;
-                }
-                const renterIndex = mockUsers.findIndex(u => u.id === renter.id);
-                if(renterIndex > -1) {
-                    mockUsers[renterIndex].walletBalance = (renter.walletBalance ?? 0) - totalPrice;
-                }
-                
-                const newBookingId = `booking-bot-${Date.now()}`;
-                const newBooking: Booking = {
-                    id: newBookingId,
+                const booking = await addBookingRequest({
                     listingId: listingToBook.id,
                     renterId: renter.id,
-                    landownerId: listingToBook.landownerId,
-                    status: 'Confirmed',
                     dateRange: dateRange,
-                    createdAt: new Date(),
-                    listingTitle: listingToBook.title,
-                    renterName: renter.name,
-                    landownerName: landownerInfo.name,
-                };
-                mockBookings.unshift(newBooking);
-
-                mockTransactions.unshift({
-                    id: `txn-bot-pmt-${newBookingId}`, userId: renter.id, type: 'Booking Payment',
-                    status: 'Completed', amount: -totalPrice, currency: 'USD',
-                    date: new Date(), description: `Payment for "${listingToBook.title}"`,
-                    relatedBookingId: newBookingId, relatedListingId: listingToBook.id,
-                });
-                
-                // Replicate payout logic from updateBookingStatus for mocks
-                const serviceFeeRate = landownerInfo.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-                const serviceFee = basePrice * serviceFeeRate;
-                const payout = basePrice - serviceFee;
-                
-                const landownerIndex = mockUsers.findIndex(u => u.id === landownerInfo.id);
-                if(landownerIndex > -1) {
-                    mockUsers[landownerIndex].walletBalance = (landownerInfo.walletBalance ?? 0) + payout;
-                }
-
-                mockTransactions.unshift({
-                    id: `txn-bot-payout-${newBookingId}`, userId: landownerInfo.id, type: 'Landowner Payout',
-                    status: 'Completed', amount: payout, currency: 'USD', date: new Date(),
-                    description: `Payout for "${listingToBook.title}"`, relatedBookingId: newBookingId,
-                    relatedListingId: listingToBook.id
-                });
-                mockTransactions.unshift({
-                    id: `txn-bot-fee-${newBookingId}`, userId: landownerInfo.id, type: 'Service Fee',
-                    status: 'Completed', amount: -serviceFee, currency: 'USD', date: new Date(),
-                    description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listingToBook.title}"`,
-                    relatedBookingId: newBookingId, relatedListingId: listingToBook.id
-                });
-                
-                platformMetrics.totalServiceFees += serviceFee;
-                platformMetrics.totalRevenue += serviceFee;
-
+                }, 'Confirmed'); // Bots auto-confirm
+                await updateBookingStatus(booking.id, 'Confirmed');
                 bookingsCreated++;
             } catch (e: any) {
                 console.log(`Bot ${renter.name} could not book "${listingToBook.title}": ${e.message}`);
@@ -1575,7 +1536,6 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
         }
     }
     
-    incrementMockDataVersion('runBotSimulationCycle');
     return { message: `Simulation complete. Created ${listingsCreated} new listings and ${bookingsCreated} new bookings.` };
 };
 
