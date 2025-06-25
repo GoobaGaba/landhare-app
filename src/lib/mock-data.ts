@@ -492,7 +492,6 @@ const mapDocToUser = (docSnap: any): User => {
     email: data.email || '',
     avatarUrl: data.avatarUrl || `https://placehold.co/100x100.png?text=${(data.name || data.email || 'U').charAt(0).toUpperCase()}`,
     subscriptionStatus: data.subscriptionStatus || 'free',
-    stripeCustomerId: data.stripeCustomerId,
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
     bio: data.bio || '',
     bookmarkedListingIds: data.bookmarkedListingIds || [],

@@ -1,7 +1,7 @@
 
 'use client';
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +22,6 @@ import { cn } from '@/lib/utils';
 import { useListingsData } from '@/hooks/use-listings-data';
 import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
 
-
-export const dynamic = 'force-dynamic';
-
 interface ProfileDisplayData {
   name: string;
   email: string;
@@ -35,7 +32,7 @@ interface ProfileDisplayData {
   walletBalance: number;
 }
 
-function ProfilePageContent() {
+export default function ProfilePage() {
   const { currentUser, loading: authLoading, subscriptionStatus, refreshUserProfile, updateCurrentAppUserProfile, sendPasswordReset } = useAuth();
   const { myListings } = useListingsData();
   const { toast } = useToast();
@@ -403,17 +400,4 @@ function ProfilePageContent() {
       </Tabs>
     </div>
   );
-}
-
-export default function ProfilePageWithSuspense() {
-    return (
-        <Suspense fallback={
-            <div className="flex justify-center items-center min-h-[300px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2 text-muted-foreground">Loading profile page...</p>
-            </div>
-        }>
-            <ProfilePageContent />
-        </Suspense>
-    )
 }

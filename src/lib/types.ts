@@ -39,7 +39,6 @@ export interface User {
   bio?: string;
   createdAt?: Date | Timestamp;
   subscriptionStatus?: SubscriptionStatus;
-  stripeCustomerId?: string;
   bookmarkedListingIds?: string[];
   walletBalance?: number;
 }

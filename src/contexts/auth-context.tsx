@@ -114,7 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: currentSubStatus,
         createdAt: appProfileData?.createdAt || (firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date()),
         bio: appProfileData?.bio || '',
-        stripeCustomerId: appProfileData?.stripeCustomerId,
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
         walletBalance: appProfileData.walletBalance ?? 10000,
       };
