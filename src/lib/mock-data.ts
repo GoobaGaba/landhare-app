@@ -1625,5 +1625,3 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         demandByPricingModel
     };
 };
-
-    
