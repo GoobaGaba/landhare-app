@@ -56,7 +56,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
         <Map
           defaultCenter={defaultPosition}
-          defaultZoom={5}
+          defaultZoom={7}
           gestureHandling={'greedy'}
           disableDefaultUI={true}
           mapId={'landshare-map'}
