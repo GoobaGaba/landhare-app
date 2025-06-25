@@ -24,7 +24,6 @@ import {
   mockUsers, 
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
   MOCK_USER_FOR_UI_TESTING,
-  MOCK_GABE_ADMIN_USER,
   incrementMockDataVersion,
   addBookmarkToList,
   removeBookmarkFromList,
@@ -480,5 +479,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-    
