@@ -669,20 +669,20 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
 
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
-  if (firebaseInitializationError || !db) {
-    return mockUsers.find(user => user.id === id);
-  }
-  try {
-    const userDocRef = doc(db, "users", id);
-    const userSnap = await getDoc(userDocRef);
-    if (userSnap.exists()) {
-      return mapDocToUser(userSnap);
+  if (!firebaseInitializationError && db) {
+    try {
+      const userDocRef = doc(db, "users", id);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        return mapDocToUser(userSnap);
+      }
+    } catch (error) {
+      console.error(`[Firestore Error] getUserById for ID ${id}, will fall back to mock:`, error);
     }
-    return undefined;
-  } catch (error) {
-    console.error("[Firestore Error] getUserById:", error);
-    throw error;
   }
+  
+  // If not found in Firestore or if Firebase is not configured, check mock data.
+  return mockUsers.find(user => user.id === id);
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
@@ -770,25 +770,45 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 
 // --- Listing Functions ---
 export const getListings = async (): Promise<Listing[]> => {
-  if (firebaseInitializationError || !db) {
-    const sortedMockListings = [...mockListings].sort((a, b) => {
-        if (a.isBoosted && !b.isBoosted) return -1;
-        if (!a.isBoosted && b.isBoosted) return 1;
-        const timeA = (a.createdAt instanceof Date ? a.createdAt : (a.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
-        const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
-        return timeB - timeA;
-    });
-    return [...sortedMockListings];
+  let liveListings: Listing[] = [];
+
+  if (!firebaseInitializationError && db) {
+    try {
+      const listingsCol = collection(db, "listings");
+      const q = query(listingsCol, orderBy("isBoosted", "desc"), orderBy("createdAt", "desc"));
+      const listingSnapshot = await getDocs(q);
+      liveListings = listingSnapshot.docs.map(mapDocToListing);
+    } catch (error) {
+      console.error("[Firestore Error] getListings failed, will proceed with mock data only:", error);
+      // Don't throw, just log and proceed with mocks
+    }
   }
-  try {
-    const listingsCol = collection(db, "listings");
-    const q = query(listingsCol, orderBy("isBoosted", "desc"), orderBy("createdAt", "desc"));
-    const listingSnapshot = await getDocs(q);
-    return listingSnapshot.docs.map(mapDocToListing);
-  } catch (error) {
-    console.error("[Firestore Error] getListings:", error);
-    throw error;
+
+  // Use a Map to handle potential duplicates, giving precedence to live data.
+  const combinedListingsMap = new Map<string, Listing>();
+
+  // Add all mock listings first
+  for (const listing of mockListings) {
+    combinedListingsMap.set(listing.id, listing);
   }
+
+  // Overwrite with live listings. If a listing with the same ID exists, it will be replaced.
+  for (const listing of liveListings) {
+    combinedListingsMap.set(listing.id, listing);
+  }
+
+  const combinedListings = Array.from(combinedListingsMap.values());
+  
+  // Sort the final combined list
+  const sortedListings = combinedListings.sort((a, b) => {
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+      const timeA = (a.createdAt instanceof Date ? a.createdAt : (a.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
+      const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
+      return timeB - timeA;
+  });
+
+  return sortedListings;
 };
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
@@ -807,20 +827,20 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
-  if (firebaseInitializationError || !db) {
-    return mockListings.find(listing => listing.id === id);
-  }
-  try {
-    const listingDocRef = doc(db, "listings", id);
-    const listingSnap = await getDoc(listingDocRef);
-    if (listingSnap.exists()) {
-      return mapDocToListing(listingSnap);
+  if (!firebaseInitializationError && db) {
+    try {
+      const listingDocRef = doc(db, "listings", id);
+      const listingSnap = await getDoc(listingDocRef);
+      if (listingSnap.exists()) {
+        return mapDocToListing(listingSnap);
+      }
+    } catch (error) {
+      console.error(`[Firestore Error] getListingById for ID ${id}, will fall back to mock:`, error);
     }
-    return undefined;
-  } catch (error) {
-    console.error(`[Firestore Error] getListingById for ID ${id}:`, error);
-    throw error;
   }
+
+  // If not found in Firestore or if Firebase is not configured, check mock data.
+  return mockListings.find(listing => listing.id === id);
 };
 
 export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: boolean = false): Promise<Listing> => {
@@ -1485,7 +1505,7 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
     const renter = await getUserById(renterToUseId);
     
     if (renter) {
-        const bookableListings = allListings.filter(l => l.isAvailable && l.landownerId !== renterId && l.pricingModel !== 'lease-to-own');
+        const bookableListings = allListings.filter(l => l.isAvailable && l.landownerId !== renter?.id && l.pricingModel !== 'lease-to-own');
         if (bookableListings.length > 0) {
             const listingToBook = bookableListings[Math.floor(Math.random() * bookableListings.length)];
             const bookingDurationDays = listingToBook.pricingModel === 'nightly' ? Math.floor(Math.random() * 5) + 2 : 30;
