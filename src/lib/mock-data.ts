@@ -826,20 +826,22 @@ export const getListings = async (): Promise<Listing[]> => {
     }
   }
 
-  // Use a Map to handle potential duplicates, giving precedence to live data.
-  const combinedListingsMap = new Map<string, Listing>();
+  // Use a Map to combine listings, giving precedence to live data.
+  const listingsMap = new Map<string, Listing>();
 
-  // Add all mock listings first
-  for (const listing of mockListings) {
-    combinedListingsMap.set(listing.id, listing);
-  }
-
-  // Overwrite with live listings. If a listing with the same ID exists, it will be replaced.
+  // Add all live listings first.
   for (const listing of liveListings) {
-    combinedListingsMap.set(listing.id, listing);
+    listingsMap.set(listing.id, listing);
   }
 
-  const combinedListings = Array.from(combinedListingsMap.values());
+  // Then, add mock listings only if an entry with the same ID doesn't already exist from the live data.
+  for (const mockListing of mockListings) {
+    if (!listingsMap.has(mockListing.id)) {
+      listingsMap.set(mockListing.id, mockListing);
+    }
+  }
+
+  const combinedListings = Array.from(listingsMap.values());
   
   // Sort the final combined list
   const sortedListings = combinedListings.sort((a, b) => {
@@ -869,20 +871,29 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
+  // First, attempt to fetch the live data from Firestore if configured.
   if (!firebaseInitializationError && db) {
     try {
       const listingDocRef = doc(db, "listings", id);
       const listingSnap = await getDoc(listingDocRef);
+      // If the live document exists, it takes precedence. Return it immediately.
       if (listingSnap.exists()) {
         return mapDocToListing(listingSnap);
       }
     } catch (error) {
-      console.error(`[Firestore Error] getListingById for ID ${id}, will fall back to mock:`, error);
+      console.error(`[Firestore Error] getListingById for ID ${id}. This may be a permissions issue or network error. Falling back to mock data.`, error);
     }
   }
 
-  // If not found in Firestore or if Firebase is not configured, check mock data.
-  return mockListings.find(listing => listing.id === id);
+  // If we're in mock mode, or if the listing was not found in Firestore,
+  // search the mock listings array.
+  const mockListing = mockListings.find(listing => listing.id === id);
+  if (mockListing) {
+    return mockListing;
+  }
+  
+  // If not found in either live or mock data, return undefined.
+  return undefined;
 };
 
 export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: boolean = false): Promise<Listing> => {
