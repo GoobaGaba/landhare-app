@@ -3,9 +3,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,21 +14,19 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } from '@/lib/types';
+import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, SubscriptionStatus } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
-import { addDays, format, differenceInDays, isBefore } from 'date-fns';
+import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 
-// This function now only calculates the detailed breakdown for the confirmation dialog
-function calculatePriceDetails(listing: Listing, dateRange: DateRange, subscriptionStatus: 'free' | 'premium' | 'loading'): PriceDetails | null {
-  if (!dateRange.from || !dateRange.to) return null;
+const calculatePriceDetails = (listing: Listing, dateRange: DateRange, renterSubscription: SubscriptionStatus): PriceDetails | null => {
+  if (!listing || !dateRange?.from || !dateRange.to) return null;
 
   let baseRate = 0;
   let durationValue = 0;
@@ -40,21 +38,27 @@ function calculatePriceDetails(listing: Listing, dateRange: DateRange, subscript
     if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
     durationUnitText = durationValue === 1 ? 'night' : 'nights';
     baseRate = (listing.price || 0) * durationValue;
-    displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s', '')}`;
+    displayRateString = `$${listing.price.toFixed(0)} / ${durationUnitText.replace('s', '')}`;
   } else if (listing.pricingModel === 'monthly') {
     durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
     if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
     baseRate = (listing.price / 30) * durationValue;
     durationUnitText = durationValue === 1 ? 'day' : 'days';
-    displayRateString = `$${listing.price.toFixed(0)}/month (prorated for ${durationValue} ${durationUnitText})`;
-  } else {
-    // No price breakdown for lease-to-own in this simplified model
+    displayRateString = `$${listing.price.toFixed(0)} / month (prorated for ${durationValue} ${durationUnitText})`;
+  } else if (listing.pricingModel === 'lease-to-own') {
+      const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
+      durationValue = fullMonths > 0 ? fullMonths : 1;
+      durationUnitText = fullMonths === 1 ? 'month' : 'months';
+      baseRate = listing.price * durationValue;
+      displayRateString = `$${listing.price.toFixed(0)} / month`;
+  }
+  else {
     return null;
   }
 
   const taxRate = 0.05;
   if (isNaN(baseRate)) baseRate = 0;
-  const renterFee = (listing.pricingModel !== 'lease-to-own' && subscriptionStatus !== 'premium') ? 0.99 : 0;
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? 0.99 : 0;
   const subtotal = baseRate + renterFee;
   const estimatedTax = subtotal * taxRate;
   let totalPrice = subtotal + estimatedTax;
@@ -65,10 +69,10 @@ function calculatePriceDetails(listing: Listing, dateRange: DateRange, subscript
     duration: durationValue, durationUnit: durationUnitText,
     pricingModelUsed: listing.pricingModel, displayRate: displayRateString,
   };
-}
-
+};
 
 export default function ListingDetailPage({ params }: { params: { id: string } }) {
+  // Core State & Hooks
   const { id } = params;
   const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
   const router = useRouter();
@@ -85,14 +89,9 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [showReviewPlaceholderDialog, setShowReviewPlaceholderDialog] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
-
-  const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
-  const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  // Data Fetching
+  // Data Fetching Effect
   useEffect(() => {
     async function fetchData() {
       if (!id) {
@@ -108,9 +107,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         setListing(listingData || null);
 
         if (listingData) {
-          const landownerData = await getUserById(listingData.landownerId);
+          const [landownerData, reviewsData] = await Promise.all([
+            getUserById(listingData.landownerId),
+            getReviewsForListing(listingData.id)
+          ]);
           setLandowner(landownerData || null);
-          const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
         }
       } catch (error: any) {
@@ -121,14 +122,40 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         setIsLoading(false);
       }
     }
-    if (id) {
-      fetchData();
-    } else {
-      setIsLoading(false);
-      setListing(null);
-    }
+    fetchData();
   }, [id, toast]);
   
+  // Memoized values for derived state
+  const derivedData = useMemo(() => {
+    const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
+    const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
+
+    if (!listing) {
+      return {
+        mainImage: "https://placehold.co/1200x800.png",
+        otherImages: ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"],
+        displayAmount: "N/A",
+        displayUnit: "",
+        isBookmarked,
+        isCurrentUserLandowner,
+      };
+    }
+    
+    const mainImage = listing.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
+    const otherImages = listing.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
+
+    let displayAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    let displayUnit = 'month';
+    if (listing.pricingModel === 'nightly') displayUnit = 'night';
+    if (listing.pricingModel === 'lease-to-own') displayAmount = `Est. ${displayAmount}`;
+
+    return { mainImage, otherImages, displayAmount, displayUnit, isBookmarked, isCurrentUserLandowner };
+  }, [listing, currentUser, id]);
+
+  const priceDetails = useMemo(() => {
+    if (!listing || !dateRange) return null;
+    return calculatePriceDetails(listing, dateRange, subscriptionStatus);
+  }, [listing, dateRange, subscriptionStatus]);
 
   // Event Handlers
   const handleContactLandowner = useCallback(() => {
@@ -137,12 +164,12 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (isCurrentUserLandowner) {
+    if (derivedData.isCurrentUserLandowner) {
       toast({ title: "Action Not Available", description: "You cannot contact yourself.", variant: "default" });
       return;
     }
     router.push(`/messages?contact=${listing?.landownerId}&listing=${listing?.id}`);
-  }, [currentUser, isCurrentUserLandowner, listing?.id, listing?.landownerId, pathname, router, toast]);
+  }, [currentUser, derivedData.isCurrentUserLandowner, listing?.id, listing?.landownerId, pathname, router, toast]);
 
   const handleBookmarkToggle = useCallback(async () => {
     if (!currentUser) {
@@ -157,7 +184,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
 
     setIsBookmarking(true);
     try {
-      if (isBookmarked) {
+      if (derivedData.isBookmarked) {
         await removeBookmark(listing.id);
       } else {
         await addBookmark(listing.id);
@@ -167,7 +194,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     } finally {
       setIsBookmarking(false);
     }
-  }, [currentUser, listing, isBookmarked, pathname, router, toast, addBookmark, removeBookmark]);
+  }, [currentUser, listing, derivedData.isBookmarked, pathname, router, toast, addBookmark, removeBookmark]);
 
   const handleBookingRequestOpen = useCallback(() => {
     if (!currentUser) {
@@ -248,7 +275,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     }
   }, [currentUser, listing, dateRange, isMockModeNoUser, router, toast]);
 
-  // Render Logic
+  const today = useMemo(() => {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d;
+  }, []);
+
+  // Render Logic: Early returns for loading/error states
   if (isLoading || authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-var(--header-height,8rem)-var(--footer-height,4rem))]">
@@ -278,21 +311,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     );
   }
 
-  const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
-  const otherImages = listing?.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
-
-  let displayAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  let displayUnit = 'month';
-  if(listing.pricingModel === 'nightly') displayUnit = 'night';
-  if(listing.pricingModel === 'lease-to-own') displayAmount = `Est. ${displayAmount}`;
-
-  const priceDetails = dateRange ? calculatePriceDetails(listing, dateRange, subscriptionStatus) : null;
-
+  const { mainImage, otherImages, displayAmount, displayUnit, isBookmarked, isCurrentUserLandowner } = derivedData;
+  
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
         <div className="relative w-full h-72 md:h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
-          <Image src={mainImage} alt={listing.title} data-ai-hint={listing?.images && listing.images.length > 0 ? "landscape field" : "listing placeholder"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
+          <Image src={mainImage} alt={listing.title} data-ai-hint={listing.images && listing.images.length > 0 ? "landscape field" : "listing placeholder"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
            {currentUser && !isCurrentUserLandowner && (
             <Button
               size="icon"
@@ -305,13 +330,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               disabled={isBookmarking || isMockModeNoUser}
               title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
             >
-              {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary"))} />}
+              {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary")} />}
             </Button>
           )}
         </div>
         {otherImages.map((img, index) => (
           <div key={index} className="relative w-full h-48 md:h-72 rounded-lg overflow-hidden shadow-md">
-            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint={listing?.images && listing.images.length > (index+1) ? "nature detail" : "detail placeholder"} fill sizes="50vw" className="object-cover" />
+            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint={listing.images && listing.images.length > (index+1) ? "nature detail" : "detail placeholder"} fill sizes="50vw" className="object-cover" />
           </div>
         ))}
       </div>
@@ -341,7 +366,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
                 <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" />
-                    Price: <span className="font-bold ml-1">{listing.pricingModel === 'lease-to-own' ? displayAmount : `$${displayAmount}`}</span> / {displayUnit}
+                    Price: <span className="font-bold ml-1">{displayAmount}</span> / {displayUnit}
                 </div>
                 <div className="flex items-center col-span-1 sm:col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
                 {listing.leaseTerm && listing.pricingModel !== 'nightly' && (
@@ -429,7 +454,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
                      <span className={cn("text-3xl font-bold font-body", listing.pricingModel === 'lease-to-own' ? "text-2xl" : "text-primary")}>
-                        {listing.pricingModel === 'lease-to-own' ? displayAmount : `$${displayAmount}`}
+                        {displayAmount}
                     </span>
                     <span className="text-sm text-muted-foreground self-end pb-0.5">/ {displayUnit}</span>
                 </div>
@@ -642,4 +667,3 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
-
