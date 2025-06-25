@@ -303,7 +303,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(firebaseAuthInstance, provider);
+      const result = await signInWithPopup(firebaseAuthInstance, provider);
+      const additionalInfo = getAdditionalUserInfo(result);
+      if (additionalInfo?.isNewUser) {
+        // Proactively create the profile. The onAuthStateChanged listener will still run and pick it up.
+        await dbCreateUserProfile(result.user.uid, result.user.email!, result.user.displayName, result.user.photoURL);
+      }
       return null; 
     } catch (err) {
       const firebaseErr = err as AuthError;
