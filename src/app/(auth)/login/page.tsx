@@ -54,8 +54,9 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      if (err.code) {
+      let errorMessage = err.message || "An unexpected error occurred. Please try again.";
+
+      if (err.code) { // Firebase specific errors
         switch (err.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':

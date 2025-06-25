@@ -5,7 +5,7 @@ import type { User as FirebaseUserType, AuthError } from 'firebase/auth';
 import { 
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
   updateProfile as updateFirebaseProfile,
@@ -214,54 +214,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithEmailPassword = async (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>): Promise<CurrentUser | null> => {
     setAuthError(null);
     setLoading(true);
-     if (firebaseInitializationError || !firebaseAuthInstance) {
-      let userToSignInAppProfile = mockUsers.find(u => u.email === credentials.email);
-      let firebaseUserPart: Partial<FirebaseUserType> = {};
+    
+    const mockUserEmails = mockUsers.map(u => u.email);
+    const isMockLoginAttempt = mockUserEmails.includes(credentials.email);
 
-      // Explicitly handle special mock users first for robustness
-      if (credentials.email === MOCK_GABE_ADMIN_USER.email) {
-        userToSignInAppProfile = MOCK_GABE_ADMIN_USER;
-        firebaseUserPart = { uid: MOCK_GABE_ADMIN_USER.id, email: MOCK_GABE_ADMIN_USER.email, displayName: MOCK_GABE_ADMIN_USER.name, photoURL: MOCK_GABE_ADMIN_USER.avatarUrl };
-      } else if (credentials.email === MOCK_USER_FOR_UI_TESTING.email) {
-        userToSignInAppProfile = MOCK_USER_FOR_UI_TESTING;
-        firebaseUserPart = { uid: MOCK_USER_FOR_UI_TESTING.id, email: MOCK_USER_FOR_UI_TESTING.email, displayName: MOCK_USER_FOR_UI_TESTING.name, photoURL: MOCK_USER_FOR_UI_TESTING.avatarUrl };
-      } else if (userToSignInAppProfile) {
-        // General fallback for other mock users
-        firebaseUserPart = { uid: userToSignInAppProfile.id, email: userToSignInAppProfile.email, displayName: userToSignInAppProfile.name, photoURL: userToSignInAppProfile.avatarUrl };
+    // --- MOCK/ADMIN LOGIN PATH ---
+    // If the email matches a known mock user, ALWAYS use the mock logic, regardless of Firebase connection status.
+    if (isMockLoginAttempt) {
+      const userToSignInAppProfile = mockUsers.find(u => u.email === credentials.email);
+      if (!userToSignInAppProfile) {
+          const genericError = `Mock user with email ${credentials.email} not found.`;
+          setAuthError(genericError);
+          setLoading(false);
+          throw new Error(genericError);
       }
 
-      if (userToSignInAppProfile && firebaseUserPart.uid) {
-        const fullMockUser: CurrentUser = {
-            ...(firebaseUserPart as FirebaseUserType), 
-            emailVerified: true, isAnonymous: false, 
-            getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
-            reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
-            metadata: { creationTime: (userToSignInAppProfile.createdAt instanceof Date ? userToSignInAppProfile.createdAt : new Date()).toISOString(), lastSignInTime: new Date().toISOString() },
-            providerData: [], refreshToken: 'mock-refresh-token', tenantId: null,
-            appProfile: userToSignInAppProfile,
-        } as CurrentUser;
+      const firebaseUserPart: Partial<FirebaseUserType> = {
+          uid: userToSignInAppProfile.id,
+          email: userToSignInAppProfile.email,
+          displayName: userToSignInAppProfile.name,
+          photoURL: userToSignInAppProfile.avatarUrl
+      };
 
-        setCurrentUser(fullMockUser);
-        setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'free');
-        incrementMockDataVersion('signInWithEmailPassword_mock');
-        setLoading(false);
-        toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
-        return fullMockUser;
-      } else {
-        const genericError = "Invalid mock credentials. Try a valid mock user email.";
-        setAuthError(genericError);
-        setLoading(false);
-        throw new Error(genericError);
-      }
+      const fullMockUser: CurrentUser = {
+          ...(firebaseUserPart as FirebaseUserType), 
+          emailVerified: true, isAnonymous: false, 
+          getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
+          reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
+          metadata: { creationTime: (userToSignInAppProfile.createdAt instanceof Date ? userToSignInAppProfile.createdAt : new Date()).toISOString(), lastSignInTime: new Date().toISOString() },
+          providerData: [], refreshToken: 'mock-refresh-token', tenantId: null,
+          appProfile: userToSignInAppProfile,
+      } as CurrentUser;
+
+      setCurrentUser(fullMockUser);
+      setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'free');
+      incrementMockDataVersion('signInWithEmailPassword_mock');
+      setLoading(false);
+      toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
+      return fullMockUser;
     }
+
+    // --- LIVE FIREBASE LOGIN PATH ---
+    // If not a mock user, proceed with live logic ONLY if Firebase is configured.
+    if (firebaseInitializationError || !firebaseAuthInstance) {
+      const genericError = "Invalid credentials. This app is in preview mode and only accepts known mock user emails.";
+      setAuthError(genericError);
+      setLoading(false);
+      throw new Error(genericError);
+    }
+    
     try {
-      await signInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
-      return null; 
+      await firebaseSignInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
+      // The onAuthStateChanged listener will handle setting the current user.
+      return null;
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message || "Error during sign in.");
       setLoading(false);
-      throw firebaseErr;
+      throw firebaseErr; // Re-throw to be caught by the login page UI
     }
   };
 
