@@ -24,6 +24,7 @@ import {
   mockUsers, 
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
   MOCK_USER_FOR_UI_TESTING,
+  MOCK_GABE_ADMIN_USER,
   incrementMockDataVersion,
   addBookmarkToList,
   removeBookmarkFromList,
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bio: appProfileData?.bio || '',
         stripeCustomerId: appProfileData?.stripeCustomerId,
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
-        walletBalance: appProfileData?.walletBalance ?? 10000,
+        walletBalance: appProfileData.walletBalance ?? 10000,
       };
       
       return { ...firebaseUser, appProfile: finalAppProfile } as CurrentUser;
@@ -217,10 +218,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let userToSignInAppProfile = mockUsers.find(u => u.email === credentials.email);
       let firebaseUserPart: Partial<FirebaseUserType> = {};
 
-      if (credentials.email === MOCK_USER_FOR_UI_TESTING.email) {
+      // Explicitly handle special mock users first for robustness
+      if (credentials.email === MOCK_GABE_ADMIN_USER.email) {
+        userToSignInAppProfile = MOCK_GABE_ADMIN_USER;
+        firebaseUserPart = { uid: MOCK_GABE_ADMIN_USER.id, email: MOCK_GABE_ADMIN_USER.email, displayName: MOCK_GABE_ADMIN_USER.name, photoURL: MOCK_GABE_ADMIN_USER.avatarUrl };
+      } else if (credentials.email === MOCK_USER_FOR_UI_TESTING.email) {
         userToSignInAppProfile = MOCK_USER_FOR_UI_TESTING;
         firebaseUserPart = { uid: MOCK_USER_FOR_UI_TESTING.id, email: MOCK_USER_FOR_UI_TESTING.email, displayName: MOCK_USER_FOR_UI_TESTING.name, photoURL: MOCK_USER_FOR_UI_TESTING.avatarUrl };
       } else if (userToSignInAppProfile) {
+        // General fallback for other mock users
         firebaseUserPart = { uid: userToSignInAppProfile.id, email: userToSignInAppProfile.email, displayName: userToSignInAppProfile.name, photoURL: userToSignInAppProfile.avatarUrl };
       }
 
@@ -242,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
         return fullMockUser;
       } else {
-        const genericError = "Invalid mock credentials. Try 'mocktester@example.com' or other mock user emails.";
+        const genericError = "Invalid mock credentials. Try a valid mock user email.";
         setAuthError(genericError);
         setLoading(false);
         throw new Error(genericError);

@@ -44,6 +44,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const { toast } = useToast();
   
+  const isUserAdmin = useMemo(() => {
+      if (!currentUser) return false;
+      return ADMIN_UIDS.includes(currentUser.uid);
+  }, [currentUser]);
+
   useEffect(() => {
     if (currentUser) {
       setUserName(currentUser.displayName || currentUser.appProfile?.name || currentUser.email || "User");
@@ -193,8 +198,8 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
-      {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
-        <Card className="bg-primary/5 border-primary/20">
+      {isUserAdmin && (
+        <Card className="bg-primary/5 border-primary/20 ring-2 ring-primary/30 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
               <Shield className="h-6 w-6"/>
