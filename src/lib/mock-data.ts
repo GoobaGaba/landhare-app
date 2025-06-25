@@ -24,7 +24,7 @@ import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth,
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3', 'AdminGNL6965'];
+export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3'];
 
 
 export let mockDataVersion = 0;
@@ -44,18 +44,6 @@ export const MOCK_ADMIN_USER: User = {
   bio: 'Platform Administrator.',
   bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
   walletBalance: 1000000,
-};
-
-export const MOCK_ADMIN_USER_2: User = {
-  id: 'AdminGNL6965',
-  name: 'Gabeh',
-  email: 'gabeh@landshare.app',
-  avatarUrl: 'https://placehold.co/100x100.png?text=GB',
-  subscriptionStatus: 'premium',
-  createdAt: new Date('2023-01-02T10:00:00Z'),
-  bio: 'Platform Co-Administrator.',
-  bookmarkedListingIds: ['listing-2-forest-retreat'],
-  walletBalance: 2000000,
 };
 
 export const MOCK_USER_FOR_UI_TESTING: User = {
@@ -82,59 +70,8 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   walletBalance: 10000,
 };
 
-const BOT_LANDOWNER_1: User = {
-  id: 'bot-landowner-1',
-  name: 'Bot Alice',
-  email: 'bot.alice@landshare.bot',
-  avatarUrl: 'https://placehold.co/100x100.png?text=BA',
-  subscriptionStatus: 'premium',
-  createdAt: new Date('2024-01-01'),
-  bio: 'I am a bot who owns land.',
-  bookmarkedListingIds: [],
-  walletBalance: 50000,
-};
-
-const BOT_LANDOWNER_2: User = {
-  id: 'bot-landowner-2',
-  name: 'Bot Bob',
-  email: 'bot.bob@landshare.bot',
-  avatarUrl: 'https://placehold.co/100x100.png?text=BB',
-  subscriptionStatus: 'free',
-  createdAt: new Date('2024-01-01'),
-  bio: 'I am another bot who owns land.',
-  bookmarkedListingIds: [],
-  walletBalance: 25000,
-};
-
-const BOT_RENTER_1: User = {
-  id: 'bot-renter-1',
-  name: 'Bot Charlie',
-  email: 'bot.charlie@landshare.bot',
-  avatarUrl: 'https://placehold.co/100x100.png?text=BC',
-  subscriptionStatus: 'free',
-  createdAt: new Date('2024-01-01'),
-  bio: 'I am a bot who rents land.',
-  bookmarkedListingIds: [],
-  walletBalance: 8000,
-};
-
-const BOT_RENTER_2: User = {
-  id: 'bot-renter-2',
-  name: 'Bot Diana',
-  email: 'bot.diana@landshare.bot',
-  avatarUrl: 'https://placehold.co/100x100.png?text=BD',
-  subscriptionStatus: 'premium',
-  createdAt: new Date('2024-01-01'),
-  bio: 'I am a bot who rents premium land.',
-  bookmarkedListingIds: [],
-  walletBalance: 15000,
-};
-
-const BOT_USERS = [BOT_LANDOWNER_1, BOT_LANDOWNER_2, BOT_RENTER_1, BOT_RENTER_2];
-
 export let mockUsers: User[] = [
   MOCK_ADMIN_USER,
-  MOCK_ADMIN_USER_2,
   MOCK_USER_FOR_UI_TESTING,
   {
     id: 'landowner-jane-doe',
@@ -159,7 +96,6 @@ export let mockUsers: User[] = [
     walletBalance: 10000,
   },
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
-  ...BOT_USERS,
 ];
 
 export let mockListings: Listing[] = [
@@ -196,12 +132,12 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 200,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
-    landownerId: MOCK_ADMIN_USER.id,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
     leaseTerm: 'flexible',
-    isBoosted: true,
+    isBoosted: false,
     createdAt: new Date('2024-06-15T14:30:00Z'),
   },
   {
@@ -237,13 +173,13 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 400,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
-    landownerId: MOCK_ADMIN_USER.id,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
     rating: 4.9,
     numberOfRatings: 22,
     leaseTerm: 'long-term',
     minLeaseDurationMonths: 12,
-    isBoosted: true,
+    isBoosted: false,
     createdAt: new Date('2024-07-10T10:00:00Z'),
   },
   {
@@ -279,11 +215,11 @@ export let mockListings: Listing[] = [
     price: 650, // LTO monthly payment
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
-    landownerId: MOCK_ADMIN_USER.id,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: true,
     rating: 4.3,
     numberOfRatings: 5,
-    isBoosted: true,
+    isBoosted: false,
     leaseTerm: 'long-term', // LTO is inherently long-term
     minLeaseDurationMonths: 60, // Example: 5 years
     createdAt: new Date('2024-05-15T11:00:00Z'),
@@ -320,7 +256,7 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 1200,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
-    landownerId: MOCK_ADMIN_USER.id,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
     isAvailable: false,
     rating: 4.9,
     numberOfRatings: 35,
@@ -350,8 +286,8 @@ export let mockBookings: Booking[] = [
     listingTitle: 'Forest Retreat Lot (Monthly)',
     renterId: 'renter-john-smith',
     renterName: 'John Smith',
-    landownerId: MOCK_ADMIN_USER.id,
-    landownerName: MOCK_ADMIN_USER.name,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerName: MOCK_USER_FOR_UI_TESTING.name,
     status: 'Pending Confirmation',
     dateRange: { from: new Date('2024-08-01'), to: new Date('2024-09-01') },
     createdAt: new Date('2024-07-20T11:00:00Z'),
@@ -386,8 +322,8 @@ export let mockBookings: Booking[] = [
     listingTitle: 'Mountain Homestead - Lease to Own!',
     renterId: 'renter-john-smith',
     renterName: 'John Smith',
-    landownerId: MOCK_ADMIN_USER.id,
-    landownerName: MOCK_ADMIN_USER.name,
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerName: MOCK_USER_FOR_UI_TESTING.name,
     status: 'Pending Confirmation',
     dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') },
     createdAt: new Date('2024-07-25T10:00:00Z'),
@@ -396,8 +332,8 @@ export let mockBookings: Booking[] = [
     id: 'booking-6-mockuser-pending',
     listingId: 'listing-1-sunny-meadow',
     listingTitle: 'Sunny Meadow Plot',
-    renterId: MOCK_ADMIN_USER.id,
-    renterName: MOCK_ADMIN_USER.name,
+    renterId: MOCK_USER_FOR_UI_TESTING.id,
+    renterName: MOCK_USER_FOR_UI_TESTING.name,
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Pending Confirmation',
@@ -464,10 +400,10 @@ export let mockReviews: Review[] = [
 ];
 
 export let mockTransactions: Transaction[] = [
-  // Admin User's transactions
-  { id: 'txn1', userId: MOCK_ADMIN_USER.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
-  { id: 'txn2', userId: MOCK_ADMIN_USER.id, type: 'Landowner Payout', status: 'Completed', amount: 199.02, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
-  { id: 'txn3', userId: MOCK_ADMIN_USER.id, type: 'Service Fee', status: 'Completed', amount: -0.98, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (0.49%) for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  // Mock User's transactions
+  { id: 'txn1', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
+  { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 196.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -4.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (2%) for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
   // Jane Doe's transactions
   { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
   { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee (2%) for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
@@ -476,113 +412,6 @@ export let mockTransactions: Transaction[] = [
   { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
 ];
 
-export let mockPlatformMetrics: PlatformMetrics = {
-  id: 'global_metrics',
-  totalRevenue: 206.02,
-  totalServiceFees: 7.98,
-  totalSubscriptionRevenue: 5.00,
-  totalUsers: mockUsers.length,
-  totalListings: mockListings.length,
-  totalBookings: mockBookings.length,
-};
-
-// --- Bot Simulation ---
-const botListingTemplates = {
-    titles: ["Quiet Woodland Clearing", "Creekside Camping Spot", "Mountain View Acreage", "Rural Pasture Land", "Secluded Desert Getaway"],
-    descriptions: [
-        "A peaceful and private spot surrounded by trees. Perfect for a tiny home or long-term camping.",
-        "Beautiful location right next to a running creek. Features a fire pit and basic road access.",
-        "Stunning panoramic views of the mountains. A large, open space ready for your project.",
-        "Flat, open pasture land. Great for small-scale agriculture or a simple homesite.",
-        "Escape it all on this remote desert property. Ideal for stargazing and solitude."
-    ],
-    locations: ["Estes Park, CO", "Bozeman, MT", "Bend, OR", "Taos, NM", "Ithaca, NY"]
-};
-
-function getRandomElement<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
-
-async function createBotListing(landownerBot: User) {
-    const newListingData: Omit<Listing, 'id'> = {
-        title: getRandomElement(botListingTemplates.titles),
-        description: getRandomElement(botListingTemplates.descriptions),
-        location: getRandomElement(botListingTemplates.locations),
-        lat: Math.random() * 20 + 30, // Random US-ish coordinates
-        lng: -(Math.random() * 40 + 80),
-        sizeSqft: Math.floor(Math.random() * 40000) + 5000, // 5k to 45k sqft
-        amenities: ['road access', 'pet friendly'].filter(() => Math.random() > 0.5), // some random amenities
-        pricingModel: 'monthly',
-        price: Math.floor(Math.random() * 500) + 100, // $100-$600
-        images: ['https://placehold.co/800x600.png?text=Bot+Listing'],
-        landownerId: landownerBot.id,
-        isAvailable: true,
-        isBoosted: landownerBot.subscriptionStatus === 'premium',
-        createdAt: new Date(),
-        leaseTerm: getRandomElement(['flexible', 'short-term', 'long-term'])
-    };
-    await addListing(newListingData, newListingData.isBoosted);
-}
-
-async function createBotBooking(renterBot: User) {
-    const availableListings = mockListings.filter(l => l.isAvailable && l.landownerId !== renterBot.id);
-    if (availableListings.length === 0) return null; // No listings to book
-
-    const listingToBook = getRandomElement(availableListings);
-    
-    // Check wallet balance
-    const bookingCost = listingToBook.pricingModel === 'nightly' ? listingToBook.price * 5 : listingToBook.price; // Simulate 5 nights or 1 month
-    if ((renterBot.walletBalance || 0) < bookingCost) {
-        return null; // Not enough money
-    }
-    
-    const fromDate = addDays(new Date(), Math.floor(Math.random() * 30) + 1);
-    const toDate = listingToBook.pricingModel === 'nightly' 
-        ? addDays(fromDate, Math.floor(Math.random() * 10) + 2) // 2-12 nights
-        : addDays(fromDate, Math.floor(Math.random() * 90) + 30); // 1-4 months
-
-    const bookingRequest: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}} = {
-        listingId: listingToBook.id,
-        renterId: renterBot.id,
-        landownerId: listingToBook.landownerId,
-        dateRange: { from: fromDate, to: toDate },
-    };
-    
-    const newBooking = await addBookingRequest(bookingRequest, 'Pending Confirmation');
-    // Simulate landowner confirming the booking
-    await updateBookingStatus(newBooking.id, 'Confirmed');
-    return newBooking;
-}
-
-export async function runBotSimulationCycle(): Promise<{ success: boolean, message: string }> {
-    if (firebaseInitializationError || !db) {
-        let listingsCreated = 0;
-        let bookingsCreated = 0;
-
-        // 1. Create a new listing from a bot landowner
-        const landownerBots = BOT_USERS.filter(u => u.id.includes('landowner'));
-        if (landownerBots.length > 0) {
-            await createBotListing(getRandomElement(landownerBots));
-            listingsCreated++;
-        }
-        
-        // 2. Create 1-2 new bookings from bot renters
-        const renterBots = BOT_USERS.filter(u => u.id.includes('renter'));
-        const bookingAttempts = Math.floor(Math.random() * 2) + 1; // 1 or 2 bookings
-        for (let i = 0; i < bookingAttempts; i++) {
-            if (renterBots.length > 0) {
-                const bookingResult = await createBotBooking(getRandomElement(renterBots));
-                if(bookingResult) bookingsCreated++;
-            }
-        }
-        
-        incrementMockDataVersion('runBotSimulationCycle');
-        return { success: true, message: `Simulation complete: ${listingsCreated} listing(s) and ${bookingsCreated} booking(s) created.`};
-    }
-    // In live mode, this would require a cloud function or more complex setup.
-    // For now, we only support this in mock mode.
-    return { success: false, message: "Bot simulation is only available in mock/preview mode." };
-}
 
 // --- Data Mapping Functions ---
 const mapDocToUser = (docSnap: any): User => {
@@ -703,96 +532,6 @@ const calculatePriceDetails = (listing: Listing, dateRange: { from: Date, to: Da
   return { totalPrice, basePrice: baseRate, renterFee, estimatedTax } as PriceDetails;
 };
 
-// --- Platform Metrics Functions ---
-export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-  if (firebaseInitializationError || !db) {
-    const totalServiceFees = mockTransactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((acc, t) => acc + Math.abs(t.amount), 0);
-    const totalSubscriptionRevenue = mockTransactions.filter(t => (t.type === 'Subscription' || t.type === 'Subscription Refund') && t.status === 'Completed').reduce((acc, t) => acc + t.amount, 0);
-    
-    mockPlatformMetrics.totalServiceFees = totalServiceFees;
-    mockPlatformMetrics.totalSubscriptionRevenue = totalSubscriptionRevenue;
-    mockPlatformMetrics.totalRevenue = totalServiceFees + totalSubscriptionRevenue;
-    mockPlatformMetrics.totalUsers = mockUsers.length;
-    mockPlatformMetrics.totalListings = mockListings.length;
-    mockPlatformMetrics.totalBookings = mockBookings.length;
-
-    return { ...mockPlatformMetrics };
-  }
-
-  try {
-    const metricsDocRef = doc(db, "platform", "metrics");
-    const metricsSnap = await getDoc(metricsDocRef);
-    if (metricsSnap.exists()) {
-      const data = metricsSnap.data();
-      return {
-        id: metricsSnap.id,
-        totalRevenue: data.totalRevenue || 0,
-        totalServiceFees: data.totalServiceFees || 0,
-        totalSubscriptionRevenue: data.totalSubscriptionRevenue || 0,
-        totalUsers: data.totalUsers || 0,
-        totalListings: data.totalListings || 0,
-        totalBookings: data.totalBookings || 0,
-      }
-    } else {
-      const initialMetrics = { totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
-      await setDoc(metricsDocRef, initialMetrics);
-      return { id: 'metrics', ...initialMetrics };
-    }
-  } catch (error) {
-    console.error("[Firestore Error] getPlatformMetrics:", error);
-    throw error;
-  }
-};
-
-export const updatePlatformMetrics = async (updates: { serviceFee?: number; subscriptionRevenue?: number, userChange?: number, listingChange?: number, bookingChange?: number }): Promise<void> => {
-    if (firebaseInitializationError || !db) {
-        if (updates.serviceFee) {
-            mockPlatformMetrics.totalServiceFees += updates.serviceFee;
-            mockPlatformMetrics.totalRevenue += updates.serviceFee;
-        }
-        if (updates.subscriptionRevenue) {
-            mockPlatformMetrics.totalSubscriptionRevenue += updates.subscriptionRevenue;
-            mockPlatformMetrics.totalRevenue += updates.subscriptionRevenue;
-        }
-        if (updates.userChange) mockPlatformMetrics.totalUsers += updates.userChange;
-        if (updates.listingChange) mockPlatformMetrics.totalListings += updates.listingChange;
-        if (updates.bookingChange) mockPlatformMetrics.totalBookings += updates.bookingChange;
-
-        incrementMockDataVersion('updatePlatformMetrics_mock');
-        return;
-    }
-    
-    try {
-        const metricsDocRef = doc(db, "platform", "metrics");
-        const currentMetrics = await getPlatformMetrics();
-
-        const dataToUpdate: Partial<PlatformMetrics> = {};
-        let revenueChange = 0;
-        if (updates.serviceFee) {
-          dataToUpdate.totalServiceFees = (currentMetrics.totalServiceFees || 0) + updates.serviceFee;
-          revenueChange += updates.serviceFee;
-        }
-        if (updates.subscriptionRevenue) {
-          dataToUpdate.totalSubscriptionRevenue = (currentMetrics.totalSubscriptionRevenue || 0) + updates.subscriptionRevenue;
-          revenueChange += updates.subscriptionRevenue;
-        }
-        if (revenueChange !== 0) {
-            dataToUpdate.totalRevenue = (currentMetrics.totalRevenue || 0) + revenueChange;
-        }
-        if (updates.userChange) dataToUpdate.totalUsers = (currentMetrics.totalUsers || 0) + updates.userChange;
-        if (updates.listingChange) dataToUpdate.totalListings = (currentMetrics.totalListings || 0) + updates.listingChange;
-        if (updates.bookingChange) dataToUpdate.totalBookings = (currentMetrics.totalBookings || 0) + updates.bookingChange;
-
-
-        if (Object.keys(dataToUpdate).length > 0) {
-            await updateDoc(metricsDocRef, dataToUpdate);
-        }
-    } catch (error) {
-        console.error("[Firestore Error] updatePlatformMetrics:", error);
-        throw error;
-    }
-};
-
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
     if (firebaseInitializationError || !db) {
@@ -829,7 +568,6 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-sub-${Date.now()}` });
-        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
         incrementMockDataVersion('createSubscriptionTransaction_mock');
     } else {
         const userDocRef = doc(db, "users", userId);
@@ -839,7 +577,6 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
             await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
-        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
     }
 };
 
@@ -859,7 +596,6 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
-        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
         incrementMockDataVersion('createRefundTransaction_mock');
     } else {
         const userDocRef = doc(db, "users", userId);
@@ -869,7 +605,6 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
             await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
-        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
     }
 };
 
@@ -914,7 +649,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
     } else {
       mockUsers.push(profileData);
-      updatePlatformMetrics({ userChange: 1 });
     }
     incrementMockDataVersion('createUserProfile_mock');
     return profileData;
@@ -930,7 +664,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     delete (firestoreProfileData as any).id; // ID is path parameter
 
     await setDoc(userDocRef, firestoreProfileData, { merge: true });
-    updatePlatformMetrics({ userChange: 1 });
     const newUserSnap = await getDoc(userDocRef);
     if (!newUserSnap.exists()) throw new Error("Failed to retrieve user profile from Firestore after creation/update.");
     return mapDocToUser(newUserSnap);
@@ -1048,7 +781,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
     const mockId = `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const fullMockListing = { ...newListingData, id: mockId } as Listing;
     mockListings.unshift(fullMockListing);
-    updatePlatformMetrics({ listingChange: 1 });
     incrementMockDataVersion('addListing_mock');
     return fullMockListing;
   }
@@ -1056,7 +788,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   try {
     const listingsCol = collection(db, "listings");
     const docRef = await addDoc(listingsCol, newListingData);
-    updatePlatformMetrics({ listingChange: 1 });
     const newDocSnap = await getDoc(docRef);
     if (!newDocSnap.exists()) throw new Error("Failed to retrieve new listing.");
     return mapDocToListing(newDocSnap);
@@ -1103,7 +834,6 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     mockReviews = mockReviews.filter(r => r.listingId !== listingId);
     const deleted = mockListings.length < initialLength;
     if (deleted) {
-      updatePlatformMetrics({ listingChange: -1 });
       incrementMockDataVersion('deleteListing_mock');
     }
     return deleted;
@@ -1128,7 +858,6 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     reviewsSnapshot.forEach(doc => batch.delete(doc.ref));
     
     await batch.commit();
-    updatePlatformMetrics({ listingChange: -1, bookingChange: -bookingsSnapshot.size });
     return true;
   } catch (error) {
     console.error(`[Firestore Error] deleteListing for ID ${listingId}:`, error);
@@ -1311,7 +1040,6 @@ export const addBookingRequest = async (
     const mockId = newPaymentTransaction.relatedBookingId!;
     const newMockBooking: Booking = { id: mockId, ...newBookingBase };
     mockBookings.unshift(newMockBooking);
-    updatePlatformMetrics({ bookingChange: 1 });
     incrementMockDataVersion('addBookingRequest_mock');
     return newMockBooking;
   }
@@ -1346,7 +1074,6 @@ export const addBookingRequest = async (
 
     const bookingsCol = collection(db, "bookings");
     const docRef = await addDoc(bookingsCol, newBookingBase);
-    updatePlatformMetrics({ bookingChange: 1 });
 
     const newPaymentTransaction: Omit<Transaction, 'id'> = {
         userId: renterInfo.id,
@@ -1409,8 +1136,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
             
             mockUsers[landownerIndex].walletBalance = (landowner.walletBalance ?? 0) + payout;
             
-            updatePlatformMetrics({ serviceFee: serviceFee });
-
             mockTransactions.unshift({
                 id: `txn-payout-${booking.id}`,
                 userId: landowner.id,
@@ -1436,47 +1161,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 relatedListingId: listing.id
             });
         }
-    } else if (status === 'Refund Approved') {
-      const paymentTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
-      if (paymentTxn) {
-          const renterIndex = mockUsers.findIndex(u => u.id === paymentTxn.userId);
-          if (renterIndex !== -1) {
-            mockUsers[renterIndex].walletBalance = (mockUsers[renterIndex].walletBalance ?? 0) + Math.abs(paymentTxn.amount);
-          }
-          mockTransactions.unshift({
-              id: `txn-refund-${booking.id}`,
-              userId: paymentTxn.userId,
-              type: 'Booking Refund',
-              status: 'Completed',
-              amount: Math.abs(paymentTxn.amount),
-              currency: 'USD',
-              date: new Date(),
-              description: `Refund for "${booking.listingTitle}"`,
-              relatedBookingId: booking.id,
-              relatedListingId: booking.listingId,
-          });
-          
-          const payoutTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Landowner Payout');
-          if (payoutTxn) {
-            payoutTxn.status = 'Reversed';
-            const landownerIndex = mockUsers.findIndex(u => u.id === payoutTxn.userId);
-            if (landownerIndex !== -1) {
-              mockUsers[landownerIndex].walletBalance = (mockUsers[landownerIndex].walletBalance ?? 0) - payoutTxn.amount;
-            }
-            mockTransactions.unshift({
-                id: `txn-reversal-${booking.id}`,
-                userId: payoutTxn.userId,
-                type: 'Payout Reversal',
-                status: 'Completed',
-                amount: -payoutTxn.amount,
-                currency: 'USD',
-                date: new Date(),
-                description: `Payout Reversal for "${booking.listingTitle}"`,
-                relatedBookingId: booking.id,
-                relatedListingId: booking.listingId,
-            });
-          }
-      }
     }
 
     incrementMockDataVersion('updateBookingStatus_mock');
@@ -1532,8 +1216,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
               const landownerDocRef = doc(db, 'users', landowner.id);
               batch.update(landownerDocRef, { walletBalance: (landowner.walletBalance ?? 0) + payout });
               
-              await updatePlatformMetrics({ serviceFee: serviceFee });
-
               const transCol = collection(db, 'transactions');
               batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD',
@@ -1544,47 +1226,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                   userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
                   date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
-              });
-          }
-      }
-    } else if (status === 'Refund Approved') {
-      const paymentTxnQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Booking Payment"));
-      const paymentTxnSnap = await getDocs(paymentTxnQuery);
-
-      if (!paymentTxnSnap.empty) {
-          const paymentTxnDoc = paymentTxnSnap.docs[0];
-          const paymentData = paymentTxnDoc.data() as Transaction;
-          
-          const renterDocRef = doc(db, 'users', paymentData.userId);
-          const renterSnap = await getDoc(renterDocRef);
-          if (renterSnap.exists()) {
-            batch.update(renterDocRef, { walletBalance: (renterSnap.data().walletBalance ?? 0) + Math.abs(paymentData.amount) });
-          }
-
-          const transCol = collection(db, 'transactions');
-          batch.set(doc(transCol), {
-              userId: paymentData.userId, type: 'Booking Refund', status: 'Completed', amount: Math.abs(paymentData.amount), currency: 'USD',
-              date: Timestamp.now(), description: `Refund for "${paymentData.description.replace('Payment for ', '')}"`,
-              relatedBookingId: bookingId, relatedListingId: paymentData.relatedListingId
-          });
-
-          const payoutTxnQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Landowner Payout"));
-          const payoutTxnSnap = await getDocs(payoutTxnQuery);
-          if(!payoutTxnSnap.empty) {
-              const payoutTxnDoc = payoutTxnSnap.docs[0];
-              const payoutData = payoutTxnDoc.data() as Transaction;
-              batch.update(payoutTxnDoc.ref, {status: 'Reversed'});
-              
-              const landownerDocRef = doc(db, 'users', payoutData.userId);
-              const landownerSnap = await getDoc(landownerDocRef);
-              if (landownerSnap.exists()) {
-                batch.update(landownerDocRef, { walletBalance: (landownerSnap.data().walletBalance ?? 0) - payoutData.amount });
-              }
-
-              batch.set(doc(transCol), {
-                  userId: payoutData.userId, type: 'Payout Reversal', status: 'Completed', amount: -payoutData.amount, currency: 'USD',
-                  date: Timestamp.now(), description: `Reversal for "${payoutData.description.replace('Payout for ', '')}"`,
-                  relatedBookingId: bookingId, relatedListingId: payoutData.relatedListingId,
               });
           }
       }
