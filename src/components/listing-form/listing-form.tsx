@@ -26,13 +26,13 @@ import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data'; 
 import { uploadListingImage } from '@/lib/storage';
-import { db, firebaseInitializationError } from '@/lib/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { addListing } from '@/lib/mock-data';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data'; 
+import { firebaseInitializationError } from '@/lib/firebase';
 
 const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup' },
@@ -142,6 +142,7 @@ export function ListingForm() {
   const isPremiumUser = subscriptionStatus === 'premium';
   const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
   const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
+  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
 
   const handleSuggestPrice = async () => {
     setPriceSuggestion(null);
@@ -305,7 +306,7 @@ export function ListingForm() {
         throw new Error("Please upload at least one image.");
       }
 
-      const newListingPayload = {
+      const newListingPayload: Omit<Listing, 'id'> = {
         ...data,
         images: finalImageUrls,
         landownerId: currentUser.uid,
@@ -313,29 +314,22 @@ export function ListingForm() {
         rating: undefined,
         numberOfRatings: 0,
         isBoosted: subscriptionStatus === 'premium',
-        createdAt: Timestamp.fromDate(new Date()),
+        createdAt: new Date(),
         leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : undefined,
         minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
       };
       
-      const firestorePayload: any = {...newListingPayload};
-      Object.keys(firestorePayload).forEach(key => {
-        if (firestorePayload[key as keyof typeof firestorePayload] === undefined) {
-          delete firestorePayload[key as keyof typeof firestorePayload];
-        }
-      });
+      const newListing = await addListing(newListingPayload, subscriptionStatus === 'premium');
       
-      const docRef = await addDoc(collection(db, "listings"), firestorePayload);
-      
-      setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: docRef.id });
-      toast({ title: "Success!", description: `Listing "${data.title}" created!`, action: <ToastAction altText="View Listing" onClick={() => router.push(`/listings/${docRef.id}`)}>View</ToastAction> });
+      setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: newListing.id });
+      toast({ title: "Success!", description: `Listing "${data.title}" created!`, action: <ToastAction altText="View Listing" onClick={() => router.push(`/listings/${newListing.id}`)}>View</ToastAction> });
       form.reset(); 
       setImagePreviews([]); 
       setPriceSuggestion(null); 
       setTitleSuggestion(null); 
       setDescriptionSuggestion(null); 
       setFormSubmittedSuccessfully(true);
-      refreshListings();
+      // refreshListings() is now implicitly handled by the data hook via mockDataVersion increment
     } catch (error: any) {
       console.error("Error creating listing:", error);
       let errorMessage = error.message || "Failed to create listing. Please try again.";
@@ -351,7 +345,7 @@ export function ListingForm() {
   }
   
   const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)" : watchedPricingModel === 'monthly' ? "Price per Month ($)" : "Est. Monthly Payment ($) for LTO";
-  const isActualSubmitButtonDisabled = isSubmitting || authLoading || !currentUser?.uid || atListingLimit || (firebaseInitializationError !== null && !currentUser.appProfile);
+  const isActualSubmitButtonDisabled = isSubmitting || authLoading || !currentUser?.uid || atListingLimit || isMockModeNoUser;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -379,7 +373,7 @@ export function ListingForm() {
                       variant="outline"
                       size="icon"
                       onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation || (firebaseInitializationError !== null && !currentUser?.appProfile)}
+                      disabled={isAiLoading || !watchedLocation || isMockModeNoUser || !isPremiumUser}
                       className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                     >
                       {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
@@ -406,7 +400,7 @@ export function ListingForm() {
                         variant="outline"
                         size="icon"
                         onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || (firebaseInitializationError !== null && !currentUser.appProfile)}
+                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser || !isPremiumUser}
                         className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
                         >
                         {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
@@ -446,7 +440,7 @@ export function ListingForm() {
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</span>
                 <p className="text-xs text-muted-foreground">PNG, JPG, HEIC up to {MAX_FILE_SIZE_MB}MB each</p>
-                <Input id="image-upload" type="file" multiple accept="image/*,.heic" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit} />
+                <Input id="image-upload" type="file" multiple accept="image/*,.heic" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
@@ -483,7 +477,7 @@ export function ListingForm() {
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
               <Input id="price" type="number" {...register('price')} aria-invalid={errors.price ? "true" : "false"} className="flex-grow" />
-              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || (firebaseInitializationError !== null && !currentUser?.appProfile)} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
+              {watchedPricingModel !== 'lease-to-own' && (<Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || isMockModeNoUser} title="Suggest Price with AI (for monthly rates)"><Sparkles className="h-4 w-4 text-accent" /></Button>)}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}

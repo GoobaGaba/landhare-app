@@ -4,7 +4,7 @@
 import { deleteListing as dbDeleteListing } from '@/lib/mock-data';
 import { revalidatePath } from 'next/cache';
 import { firebaseInitializationError } from '@/lib/firebase';
-import { writeBatch, doc } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export async function deleteListingAction(listingId: string): Promise<{ success: boolean; message: string }> {
