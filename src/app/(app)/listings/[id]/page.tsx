@@ -329,7 +329,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               disabled={isBookmarking || isMockModeNoUser}
               title={isBookmarked ? "Remove bookmark" : "Add bookmark"}
             >
-              {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary")} />}
+              {isBookmarking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bookmark className={cn("h-6 w-6", isBookmarked && "fill-primary stroke-primary"))} />}
             </Button>
           )}
         </div>
@@ -625,7 +625,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               <p><strong>Duration:</strong> {priceDetails.duration} {priceDetails.durationUnit}</p>
               <Separator className="my-2"/>
               <div className="flex justify-between">
-                <span>{priceDetails.displayRate}:</span>
+                <span>{priceDetails.displayRate}</span>
                 <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
               </div>
               {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
