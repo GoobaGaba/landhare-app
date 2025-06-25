@@ -19,12 +19,12 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails, PlatformMetrics } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails, PlatformMetrics, MarketInsightsData } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth, addDays } from 'date-fns';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3'];
+export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3', 'AdminGNL6965'];
 
 
 export let mockDataVersion = 0;
@@ -44,6 +44,17 @@ export const MOCK_ADMIN_USER: User = {
   bio: 'Platform Administrator.',
   bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
   walletBalance: 1000000,
+};
+export const MOCK_GABE_ADMIN_USER: User = {
+  id: 'AdminGNL6965',
+  name: 'Gabeh',
+  email: 'gabeh@landshare.app',
+  avatarUrl: 'https://placehold.co/100x100.png?text=GNL',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2023-01-02T10:00:00Z'),
+  bio: 'Platform Co-Administrator.',
+  bookmarkedListingIds: [],
+  walletBalance: 500000,
 };
 
 export const MOCK_USER_FOR_UI_TESTING: User = {
@@ -72,6 +83,7 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
 
 export let mockUsers: User[] = [
   MOCK_ADMIN_USER,
+  MOCK_GABE_ADMIN_USER,
   MOCK_USER_FOR_UI_TESTING,
   {
     id: 'landowner-jane-doe',
@@ -97,6 +109,13 @@ export let mockUsers: User[] = [
   },
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
 ];
+
+// Additional bot users for simulation
+const BOT_LANDOWNER_1: User = { id: 'bot-landowner-1', name: 'Bot Host Alice', email: 'bot.alice@landshare.app', subscriptionStatus: 'premium', walletBalance: 50000, createdAt: new Date() };
+const BOT_RENTER_1: User = { id: 'bot-renter-1', name: 'Bot Renter Bob', email: 'bot.bob@landshare.app', subscriptionStatus: 'free', walletBalance: 3000, createdAt: new Date() };
+const BOT_RENTER_2: User = { id: 'bot-renter-2', name: 'Bot Renter Charlie', email: 'bot.charlie@landshare.app', subscriptionStatus: 'premium', walletBalance: 8000, createdAt: new Date() };
+mockUsers.push(BOT_LANDOWNER_1, BOT_RENTER_1, BOT_RENTER_2);
+
 
 export let mockListings: Listing[] = [
   {
@@ -412,6 +431,15 @@ export let mockTransactions: Transaction[] = [
   { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
 ];
 
+export let platformMetrics: PlatformMetrics = {
+  id: 'global_metrics',
+  totalRevenue: 16.00, // Sum of fees and sub revenue
+  totalServiceFees: 11.00,
+  totalSubscriptionRevenue: 5.00,
+  totalUsers: mockUsers.length,
+  totalListings: mockListings.length,
+  totalBookings: mockBookings.length,
+};
 
 // --- Data Mapping Functions ---
 const mapDocToUser = (docSnap: any): User => {
@@ -568,15 +596,30 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-sub-${Date.now()}` });
+        platformMetrics.totalSubscriptionRevenue += Math.abs(newTransaction.amount);
+        platformMetrics.totalRevenue += Math.abs(newTransaction.amount);
         incrementMockDataVersion('createSubscriptionTransaction_mock');
     } else {
+        const batch = writeBatch(db);
         const userDocRef = doc(db, "users", userId);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
             const currentBalance = userSnap.data().walletBalance ?? 0;
-            await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
+            batch.update(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
-        await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+        batch.set(doc(collection(db, "transactions")), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+
+        const metricsRef = doc(db, "metrics", "global_metrics");
+        const metricsSnap = await getDoc(metricsRef);
+        if (metricsSnap.exists()) {
+            const currentSubRevenue = metricsSnap.data().totalSubscriptionRevenue ?? 0;
+            const currentTotalRevenue = metricsSnap.data().totalRevenue ?? 0;
+            batch.update(metricsRef, { 
+                totalSubscriptionRevenue: currentSubRevenue + Math.abs(newTransaction.amount),
+                totalRevenue: currentTotalRevenue + Math.abs(newTransaction.amount)
+            });
+        }
+        await batch.commit();
     }
 };
 
@@ -596,15 +639,30 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
+        platformMetrics.totalSubscriptionRevenue -= newTransaction.amount;
+        platformMetrics.totalRevenue -= newTransaction.amount;
         incrementMockDataVersion('createRefundTransaction_mock');
     } else {
+        const batch = writeBatch(db);
         const userDocRef = doc(db, "users", userId);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
             const currentBalance = userSnap.data().walletBalance ?? 0;
-            await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
+            batch.update(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
-        await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+        batch.set(doc(collection(db, "transactions")), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+        
+        const metricsRef = doc(db, "metrics", "global_metrics");
+        const metricsSnap = await getDoc(metricsRef);
+        if (metricsSnap.exists()) {
+            const currentSubRevenue = metricsSnap.data().totalSubscriptionRevenue ?? 0;
+            const currentTotalRevenue = metricsSnap.data().totalRevenue ?? 0;
+            batch.update(metricsRef, { 
+                totalSubscriptionRevenue: currentSubRevenue - newTransaction.amount,
+                totalRevenue: currentTotalRevenue - newTransaction.amount
+            });
+        }
+        await batch.commit();
     }
 };
 
@@ -649,6 +707,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
     } else {
       mockUsers.push(profileData);
+      platformMetrics.totalUsers = mockUsers.length;
     }
     incrementMockDataVersion('createUserProfile_mock');
     return profileData;
@@ -664,6 +723,12 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     delete (firestoreProfileData as any).id; // ID is path parameter
 
     await setDoc(userDocRef, firestoreProfileData, { merge: true });
+    
+    // Update platform metrics
+    const metricsRef = doc(db, "metrics", "global_metrics");
+    const usersCountSnap = await getCountFromServer(collection(db, "users"));
+    await updateDoc(metricsRef, { totalUsers: usersCountSnap.data().count });
+    
     const newUserSnap = await getDoc(userDocRef);
     if (!newUserSnap.exists()) throw new Error("Failed to retrieve user profile from Firestore after creation/update.");
     return mapDocToUser(newUserSnap);
@@ -781,6 +846,7 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
     const mockId = `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const fullMockListing = { ...newListingData, id: mockId } as Listing;
     mockListings.unshift(fullMockListing);
+    platformMetrics.totalListings = mockListings.length;
     incrementMockDataVersion('addListing_mock');
     return fullMockListing;
   }
@@ -788,6 +854,12 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   try {
     const listingsCol = collection(db, "listings");
     const docRef = await addDoc(listingsCol, newListingData);
+    
+    // Update metrics
+    const metricsRef = doc(db, "metrics", "global_metrics");
+    const listingsCountSnap = await getCountFromServer(collection(db, "listings"));
+    await updateDoc(metricsRef, { totalListings: listingsCountSnap.data().count });
+
     const newDocSnap = await getDoc(docRef);
     if (!newDocSnap.exists()) throw new Error("Failed to retrieve new listing.");
     return mapDocToListing(newDocSnap);
@@ -834,6 +906,7 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     mockReviews = mockReviews.filter(r => r.listingId !== listingId);
     const deleted = mockListings.length < initialLength;
     if (deleted) {
+      platformMetrics.totalListings = mockListings.length;
       incrementMockDataVersion('deleteListing_mock');
     }
     return deleted;
@@ -858,6 +931,11 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     reviewsSnapshot.forEach(doc => batch.delete(doc.ref));
     
     await batch.commit();
+
+    const metricsRef = doc(db, "metrics", "global_metrics");
+    const listingsCountSnap = await getCountFromServer(collection(db, "listings"));
+    await updateDoc(metricsRef, { totalListings: listingsCountSnap.data().count });
+
     return true;
   } catch (error) {
     console.error(`[Firestore Error] deleteListing for ID ${listingId}:`, error);
@@ -1040,6 +1118,9 @@ export const addBookingRequest = async (
     const mockId = newPaymentTransaction.relatedBookingId!;
     const newMockBooking: Booking = { id: mockId, ...newBookingBase };
     mockBookings.unshift(newMockBooking);
+
+    platformMetrics.totalBookings = mockBookings.length;
+
     incrementMockDataVersion('addBookingRequest_mock');
     return newMockBooking;
   }
@@ -1058,8 +1139,11 @@ export const addBookingRequest = async (
     if ((renterInfo.walletBalance ?? 0) < totalPrice) {
       throw new Error(`Insufficient funds. Your balance is $${(renterInfo.walletBalance ?? 0).toFixed(2)}, but the booking costs $${totalPrice.toFixed(2)}.`);
     }
+    
+    const batch = writeBatch(db);
+
     const renterDocRef = doc(db, 'users', renterInfo.id);
-    await updateDoc(renterDocRef, { walletBalance: (renterInfo.walletBalance ?? 0) - totalPrice });
+    batch.update(renterDocRef, { walletBalance: (renterInfo.walletBalance ?? 0) - totalPrice });
 
     const newBookingBase: Omit<Booking, 'id' | 'createdAt'> & {createdAt: Timestamp} = {
       ...data,
@@ -1073,7 +1157,8 @@ export const addBookingRequest = async (
     };
 
     const bookingsCol = collection(db, "bookings");
-    const docRef = await addDoc(bookingsCol, newBookingBase);
+    const docRef = doc(bookingsCol); // Create a reference with a new ID
+    batch.set(docRef, newBookingBase);
 
     const newPaymentTransaction: Omit<Transaction, 'id'> = {
         userId: renterInfo.id,
@@ -1086,7 +1171,14 @@ export const addBookingRequest = async (
         relatedBookingId: docRef.id,
         relatedListingId: listingInfo.id,
     };
-    await addDoc(collection(db, "transactions"), newPaymentTransaction);
+    batch.set(doc(collection(db, "transactions")), newPaymentTransaction);
+    
+    // Update metrics
+    const metricsRef = doc(db, "metrics", "global_metrics");
+    const bookingsCountSnap = await getCountFromServer(collection(db, "bookings"));
+    batch.update(metricsRef, { totalBookings: bookingsCountSnap.data().count + 1 });
+
+    await batch.commit();
 
     const newDocSnap = await getDoc(docRef);
     if (!newDocSnap.exists()) throw new Error("Failed to retrieve newly created booking request from Firestore.");
@@ -1108,7 +1200,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const paymentTxnIndex = mockTransactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
     if (paymentTxnIndex !== -1) {
         if (status === 'Confirmed') mockTransactions[paymentTxnIndex].status = 'Completed';
-        if (status === 'Declined') mockTransactions[paymentTxnIndex].status = 'Failed';
+        if (status === 'Declined' || status === 'Cancelled by Renter') mockTransactions[paymentTxnIndex].status = 'Failed';
     }
 
     if (status === 'Confirmed') {
@@ -1117,22 +1209,12 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
         const renter = mockUsers.find(u => u.id === booking.renterId);
 
         if (listing && landownerIndex !== -1 && renter) {
-            let payoutBaseAmount = 0;
-            let descriptionSuffix = '';
-
-            if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
-                payoutBaseAmount = listing.price; // Payout for one month
-                descriptionSuffix = ' - Month 1';
-            } else { // 'nightly'
-                const { basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
-                payoutBaseAmount = basePrice;
-                descriptionSuffix = ' - Full Stay';
-            }
+            const { totalPrice, basePrice } = calculatePriceDetails(listing, { from: booking.dateRange.from as Date, to: booking.dateRange.to as Date }, renter.subscriptionStatus || 'free');
 
             const landowner = mockUsers[landownerIndex];
             const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-            const serviceFee = payoutBaseAmount * serviceFeeRate;
-            const payout = payoutBaseAmount - serviceFee;
+            const serviceFee = basePrice * serviceFeeRate;
+            const payout = basePrice - serviceFee;
             
             mockUsers[landownerIndex].walletBalance = (landowner.walletBalance ?? 0) + payout;
             
@@ -1144,7 +1226,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 amount: payout,
                 currency: 'USD',
                 date: new Date(),
-                description: `Payout for "${listing.title}"${descriptionSuffix}`,
+                description: `Payout for "${listing.title}"`,
                 relatedBookingId: booking.id,
                 relatedListingId: listing.id
             });
@@ -1156,11 +1238,28 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 amount: -serviceFee,
                 currency: 'USD',
                 date: new Date(),
-                description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
+                description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
                 relatedBookingId: booking.id,
                 relatedListingId: listing.id
             });
+            
+            platformMetrics.totalServiceFees += serviceFee;
+            platformMetrics.totalRevenue += serviceFee;
         }
+    } else if (status === 'Refund Approved') {
+      // Find original payment to refund
+      const paymentTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
+      if (paymentTxn) {
+          const renterIndex = mockUsers.findIndex(u => u.id === booking.renterId);
+          if (renterIndex !== -1) {
+              mockUsers[renterIndex].walletBalance = (mockUsers[renterIndex].walletBalance ?? 0) + Math.abs(paymentTxn.amount);
+              mockTransactions.unshift({
+                id: `txn-refund-${booking.id}`, userId: booking.renterId, type: 'Booking Refund', status: 'Completed',
+                amount: Math.abs(paymentTxn.amount), currency: 'USD', date: new Date(),
+                description: `Refund for "${booking.listingTitle}"`, relatedBookingId: booking.id, relatedListingId: booking.listingId
+              });
+          }
+      }
     }
 
     incrementMockDataVersion('updateBookingStatus_mock');
@@ -1185,7 +1284,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const paymentSnap = await getDocs(paymentQuery);
     paymentSnap.forEach(doc => {
       if (status === 'Confirmed') batch.update(doc.ref, { status: 'Completed' });
-      if (status === 'Declined') batch.update(doc.ref, { status: 'Failed' });
+      if (status === 'Declined' || status === 'Cancelled by Renter') batch.update(doc.ref, { status: 'Failed' });
     });
 
     if (status === 'Confirmed') {
@@ -1197,21 +1296,11 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
           const renter = await getUserById(bookingData.renterId);
 
           if (listing && landowner && renter) {
-              let payoutBaseAmount = 0;
-              let descriptionSuffix = '';
-
-              if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
-                  payoutBaseAmount = listing.price; // Payout for one month
-                  descriptionSuffix = ' - Month 1';
-              } else { // 'nightly'
-                  const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
-                  payoutBaseAmount = basePrice;
-                  descriptionSuffix = ' - Full Stay';
-              }
+              const { basePrice } = calculatePriceDetails(listing, { from: (bookingData.dateRange.from as Timestamp).toDate(), to: (bookingData.dateRange.to as Timestamp).toDate() }, renter.subscriptionStatus || 'free');
 
               const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-              const serviceFee = payoutBaseAmount * serviceFeeRate;
-              const payout = payoutBaseAmount - serviceFee;
+              const serviceFee = basePrice * serviceFeeRate;
+              const payout = basePrice - serviceFee;
 
               const landownerDocRef = doc(db, 'users', landowner.id);
               batch.update(landownerDocRef, { walletBalance: (landowner.walletBalance ?? 0) + payout });
@@ -1219,15 +1308,44 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
               const transCol = collection(db, 'transactions');
               batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD',
-                  date: Timestamp.now(), description: `Payout for "${listing.title}"${descriptionSuffix}`,
+                  date: Timestamp.now(), description: `Payout for "${listing.title}"`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
               });
                batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
-                  date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
+                  date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
               });
+
+              // Update metrics
+              const metricsRef = doc(db, "metrics", "global_metrics");
+              const metricsSnap = await getDoc(metricsRef);
+              if (metricsSnap.exists()) {
+                  const currentFeeRevenue = metricsSnap.data().totalServiceFees ?? 0;
+                  const currentTotalRevenue = metricsSnap.data().totalRevenue ?? 0;
+                  batch.update(metricsRef, { 
+                      totalServiceFees: currentFeeRevenue + serviceFee,
+                      totalRevenue: currentTotalRevenue + serviceFee
+                  });
+              }
           }
+      }
+    } else if (status === 'Refund Approved') {
+      const q = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Booking Payment"));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const paymentDoc = querySnapshot.docs[0];
+        const paymentData = paymentDoc.data() as Transaction;
+        const renterRef = doc(db, "users", paymentData.userId);
+        const renterSnap = await getDoc(renterRef);
+        if (renterSnap.exists()) {
+          batch.update(renterRef, { walletBalance: (renterSnap.data().walletBalance ?? 0) + Math.abs(paymentData.amount) });
+          batch.set(doc(collection(db, "transactions")), {
+            userId: paymentData.userId, type: 'Booking Refund', status: 'Completed', amount: Math.abs(paymentData.amount),
+            currency: 'USD', date: Timestamp.now(), description: `Refund for "${bookingId}"`,
+            relatedBookingId: bookingId, relatedListingId: paymentData.relatedListingId
+          });
+        }
       }
     }
     
@@ -1324,3 +1442,150 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
         landownerName: landowner?.name || booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}...`,
     };
 };
+
+// --- Admin & Bot Functions ---
+export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
+    if (firebaseInitializationError || !db) {
+        platformMetrics.totalUsers = mockUsers.length;
+        platformMetrics.totalListings = mockListings.length;
+        platformMetrics.totalBookings = mockBookings.length;
+        return platformMetrics;
+    }
+    try {
+        const metricsDoc = await getDoc(doc(db, 'metrics', 'global_metrics'));
+        if (metricsDoc.exists()) {
+            return metricsDoc.data() as PlatformMetrics;
+        }
+        // Fallback if doc doesn't exist
+        return { id: 'global_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
+    } catch(e) {
+        console.error("Error fetching platform metrics: ", e);
+        throw e;
+    }
+};
+
+export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
+    const botLandownerIds = mockUsers.filter(u => u.id.startsWith('bot-landowner')).map(u => u.id);
+    const botRenterIds = mockUsers.filter(u => u.id.startsWith('bot-renter')).map(u => u.id);
+
+    let listingsCreated = 0;
+    let bookingsCreated = 0;
+
+    // 1. Bots create listings
+    const landownerToUse = botLandownerIds[Math.floor(Math.random() * botLandownerIds.length)];
+    const landownerUser = mockUsers.find(u => u.id === landownerToUse);
+    if (landownerUser) {
+        const newListingData: Omit<Listing, 'id'> = {
+            title: `Bot Listing #${Math.floor(Math.random() * 1000)}`,
+            description: 'This is an automatically generated listing by a bot for simulation purposes.',
+            location: ['Austin, TX', 'Portland, OR', 'Denver, CO'][Math.floor(Math.random() * 3)],
+            sizeSqft: Math.floor(Math.random() * 20000) + 1000,
+            amenities: ['road access', 'pet friendly'],
+            pricingModel: 'monthly',
+            price: Math.floor(Math.random() * 400) + 100,
+            images: [`https://placehold.co/800x600.png?text=Bot+Listing`],
+            landownerId: landownerToUse,
+            isAvailable: true,
+            createdAt: new Date(),
+        };
+        await addListing(newListingData, landownerUser.subscriptionStatus === 'premium');
+        listingsCreated++;
+    }
+
+    // 2. Bots create bookings
+    const availableListings = await getListings();
+    for (const renterId of botRenterIds) {
+        const renter = mockUsers.find(u => u.id === renterId);
+        const bookableListings = availableListings.filter(l => l.landownerId !== renterId && l.pricingModel !== 'lease-to-own');
+        if (renter && bookableListings.length > 0) {
+            const listingToBook = bookableListings[Math.floor(Math.random() * bookableListings.length)];
+            const bookingDurationDays = listingToBook.pricingModel === 'nightly' ? Math.floor(Math.random() * 5) + 2 : 30;
+            const dateRange = { from: addDays(new Date(), Math.floor(Math.random() * 10) + 1), to: addDays(new Date(), Math.floor(Math.random() * 10) + 1 + bookingDurationDays) };
+            
+            try {
+                await addBookingRequest({
+                    listingId: listingToBook.id,
+                    renterId: renter.id,
+                    landownerId: listingToBook.landownerId,
+                    dateRange,
+                }, 'Confirmed'); // Auto-confirm bot bookings for simulation
+                bookingsCreated++;
+            } catch (e: any) {
+                console.log(`Bot ${renter.name} could not book "${listingToBook.title}": ${e.message}`);
+            }
+        }
+    }
+
+    return { message: `Simulation complete. Created ${listingsCreated} new listings and ${bookingsCreated} new bookings.` };
+};
+
+export const getMarketInsights = async (): Promise<MarketInsightsData> => {
+    let allListings: Listing[] = [];
+    let allConfirmedBookings: Booking[] = [];
+    if (firebaseInitializationError || !db) {
+        allListings = mockListings.filter(l => l.isAvailable);
+        allConfirmedBookings = mockBookings.filter(b => b.status === 'Confirmed');
+    } else {
+        allListings = await getListings().then(l => l.filter(li => li.isAvailable));
+        const bookingsCollection = collection(db, "bookings");
+        const q = query(bookingsCollection, where("status", "==", "Confirmed"));
+        const bookingSnapshot = await getDocs(q);
+        allConfirmedBookings = bookingSnapshot.docs.map(mapDocToBooking);
+    }
+
+    // Calculate Avg Prices
+    const monthlyListings = allListings.filter(l => l.pricingModel === 'monthly' && l.price > 0 && l.sizeSqft > 0);
+    const nightlyListings = allListings.filter(l => l.pricingModel === 'nightly' && l.price > 0 && l.sizeSqft > 0);
+
+    const totalMonthlyPricePerSqft = monthlyListings.reduce((sum, l) => sum + (l.price / l.sizeSqft), 0);
+    const avgPricePerSqftMonthly = monthlyListings.length > 0 ? totalMonthlyPricePerSqft / monthlyListings.length : 0;
+    
+    const totalNightlyPricePerSqft = nightlyListings.reduce((sum, l) => sum + (l.price / l.sizeSqft), 0);
+    const avgPricePerSqftNightly = nightlyListings.length > 0 ? totalNightlyPricePerSqft / nightlyListings.length : 0;
+
+    // Calculate Amenity Popularity
+    const amenityCounts = allListings.flatMap(l => l.amenities).reduce((acc, amenity) => {
+        acc[amenity] = (acc[amenity] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const amenityPopularity = Object.entries(amenityCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+    // Calculate Supply
+    const supplyCounts = allListings.reduce((acc, l) => {
+        acc[l.pricingModel] = (acc[l.pricingModel] || 0) + 1;
+        return acc;
+    }, {} as Record<PricingModel, number>);
+
+    const supplyByPricingModel = Object.entries(supplyCounts).map(([name, value]) => ({
+        name: name as PricingModel,
+        value,
+    }));
+
+    // Calculate Demand
+    const demandCounts = allConfirmedBookings.reduce((acc, b) => {
+        const listing = allListings.find(l => l.id === b.listingId);
+        if (listing) {
+            acc[listing.pricingModel] = (acc[listing.pricingModel] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<PricingModel, number>);
+    
+    const demandByPricingModel = Object.entries(demandCounts).map(([name, value]) => ({
+        name: name as PricingModel,
+        value,
+    }));
+
+    return {
+        avgPricePerSqftMonthly,
+        avgPricePerSqftNightly,
+        amenityPopularity,
+        supplyByPricingModel,
+        demandByPricingModel
+    };
+};
+
+    

@@ -11,14 +11,15 @@ import { useAuth } from "@/contexts/auth-context";
 import { useEffect, useState, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
-import type { Listing, Booking, Transaction } from '@/lib/types';
-import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser } from '@/lib/mock-data';
+import type { Listing, Booking, Transaction, MarketInsightsData } from '@/lib/types';
+import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { MarketInsights } from "@/components/dashboard/market-insights";
 
 
 const chartConfig = {
@@ -38,6 +39,8 @@ export default function DashboardPage() {
   const [isBookingCountLoading, setIsBookingCountLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
+  const [marketInsights, setMarketInsights] = useState<MarketInsightsData | null>(null);
+  const [isInsightsLoading, setIsInsightsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -91,6 +94,28 @@ export default function DashboardPage() {
     fetchData();
   }, [currentUser, toast]);
 
+  useEffect(() => {
+    async function fetchInsights() {
+        if (subscriptionStatus === 'premium') {
+            setIsInsightsLoading(true);
+            try {
+                const insightsData = await getMarketInsights();
+                setMarketInsights(insightsData);
+            } catch (error) {
+                console.error("Failed to fetch market insights:", error);
+                toast({ title: "Error", description: "Could not load market insights.", variant: "destructive" });
+            } finally {
+                setIsInsightsLoading(false);
+            }
+        } else {
+            setMarketInsights(null);
+        }
+    }
+    if (!authLoading) {
+      fetchInsights();
+    }
+  }, [subscriptionStatus, authLoading, toast]);
+
   const chartData = useMemo(() => {
     const last6Months = Array.from({ length: 6 }, (_, i) => subMonths(new Date(), i)).reverse();
     
@@ -137,7 +162,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Please <Link href="/login" className="text-primary hover:underline">log in</Link> to view your dashboard.
+            Please <Link href="/login" className="underline text-primary hover:underline">log in</Link> to view your dashboard.
           </p>
         </CardContent>
       </Card>
@@ -271,24 +296,20 @@ export default function DashboardPage() {
           </Card>
         
         {isPremiumUser && (
-          <Card className="md:col-span-2 lg:col-span-3 border-premium ring-1 ring-premium/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-premium">
-                <BarChart3 className="h-6 w-6"/> Market Insights (Premium)
-              </CardTitle>
-              <CardDescription>Exclusive data to help you optimize your listings and pricing.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Alert className="border-premium/50 bg-premium/5 text-premium">
-                <BarChart3 className="h-4 w-4 text-premium" />
-                <AlertTitle className="text-premium">Coming Soon!</AlertTitle>
-                <AlertDescription>
-                  Detailed market trends, demand forecasts, and competitive analysis will be available here for Premium subscribers.
-                  This could include AI-powered insights on optimal pricing, amenity popularity, and seasonal demand.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+            <div className="md:col-span-2 lg:col-span-3">
+              {isInsightsLoading ? (
+                <Card className="flex items-center justify-center min-h-[300px]">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2 text-muted-foreground">Loading Market Insights...</p>
+                </Card>
+              ) : marketInsights ? (
+                <MarketInsights insights={marketInsights} />
+              ) : (
+                <Card className="flex items-center justify-center min-h-[300px] bg-muted/30">
+                  <p className="text-muted-foreground">Could not load market insights data.</p>
+                </Card>
+              )}
+            </div>
         )}
 
         <Card>
@@ -399,3 +420,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
