@@ -3,12 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, DollarSign } from "lucide-react";
 import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import type { Listing } from '@/lib/types';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface MapViewProps {
   listings: Listing[];
@@ -29,7 +30,7 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
     const bounds = new google.maps.LatLngBounds();
     let validListings = 0;
     listings.forEach(listing => {
-      if (listing.lat && listing.lng) {
+      if (listing.lat != null && listing.lng != null) { // Check for null/undefined
         bounds.extend({ lat: listing.lat, lng: listing.lng });
         validListings++;
       }
@@ -38,7 +39,7 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
     if (validListings === 0) return;
 
     if (validListings === 1) {
-        const firstValidListing = listings.find(l => l.lat && l.lng);
+        const firstValidListing = listings.find(l => l.lat != null && l.lng != null);
         if (firstValidListing) {
             map.setCenter({ lat: firstValidListing.lat!, lng: firstValidListing.lng! });
             map.setZoom(12);
@@ -59,6 +60,8 @@ export function MapView({ listings }: MapViewProps) {
   // Default center of the US for when no listings are available
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   
+  const selectedListing = listings.find(l => l.id === selectedListingId);
+
   if (!apiKey) {
     return (
       <Card className="sticky top-20 shadow-md h-[calc(100vh-10rem)] flex items-center justify-center bg-muted/30 rounded-lg">
@@ -85,7 +88,7 @@ export function MapView({ listings }: MapViewProps) {
           className="w-full h-full rounded-lg"
         >
           {listings.map((listing) => {
-            if (listing.lat === undefined || listing.lng === undefined) return null;
+            if (listing.lat == null || listing.lng == null) return null; // Use == null to check for both null and undefined
             const isSelected = selectedListingId === listing.id;
             return (
               <AdvancedMarker
@@ -103,18 +106,26 @@ export function MapView({ listings }: MapViewProps) {
             )
           })}
 
-          {selectedListingId && (
+          {selectedListing && selectedListing.lat != null && selectedListing.lng != null && (
             <InfoWindow
-              position={listings.find(l => l.id === selectedListingId) ? { lat: listings.find(l => l.id === selectedListingId)!.lat!, lng: listings.find(l => l.id === selectedListingId)!.lng! } : undefined}
+              position={{ lat: selectedListing.lat, lng: selectedListing.lng }}
               onCloseClick={() => setSelectedListingId(null)}
               pixelOffset={[0, -40]}
+              headerDisabled
             >
-              <div className="p-1 max-w-xs">
-                <h4 className="font-bold text-sm text-primary mb-1">{listings.find(l => l.id === selectedListingId)?.title}</h4>
-                <p className="text-xs text-muted-foreground">${listings.find(l => l.id === selectedListingId)?.price} / {listings.find(l => l.id === selectedListingId)?.pricingModel}</p>
-                <Button asChild variant="link" size="sm" className="p-0 h-auto text-xs mt-1">
-                  <Link href={`/listings/${selectedListingId}`}>View Details</Link>
-                </Button>
+              <div className="p-0 m-0 w-48 text-foreground bg-background rounded-lg shadow-lg overflow-hidden">
+                 <div className="relative h-20 w-full">
+                    <Image src={selectedListing.images[0] || "https://placehold.co/600x400.png"} alt={selectedListing.title} fill className="object-cover" data-ai-hint="map listing" />
+                 </div>
+                 <div className="p-2">
+                    <h4 className="font-bold text-sm text-primary mb-1 truncate">{selectedListing.title}</h4>
+                    <p className="text-xs text-muted-foreground flex items-center">
+                        <DollarSign className="h-3 w-3 mr-1"/>{selectedListing.price} / {selectedListing.pricingModel}
+                    </p>
+                    <Button asChild variant="link" size="sm" className="p-0 h-auto text-xs mt-1">
+                      <Link href={`/listings/${selectedListing.id}`}>View Details</Link>
+                    </Button>
+                 </div>
               </div>
             </InfoWindow>
           )}

@@ -576,7 +576,7 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
         return snapshot.docs.map(mapDocToTransaction);
     } catch (error) {
         console.error("[Firestore Error] getTransactionsForUser:", error);
-        throw error;
+        throw error; // Re-throw for the caller to handle
     }
 };
 
@@ -840,6 +840,9 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   const newListingData: Omit<Listing, 'id'> = {
     ...data,
     isBoosted: isLandownerPremium,
+    // Add mock lat/lng if they don't exist
+    lat: data.lat ?? 39.8283 + (Math.random() - 0.5) * 10,
+    lng: data.lng ?? -98.5795 + (Math.random() - 0.5) * 20,
   };
 
   if (firebaseInitializationError || !db) {
@@ -1472,13 +1475,22 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
     let bookingsCreated = 0;
 
     // 1. Bots create listings
+    const botLocations = [
+        { name: 'Austin, TX', lat: 30.2672, lng: -97.7431 },
+        { name: 'Portland, OR', lat: 45.5051, lng: -122.6750 },
+        { name: 'Denver, CO', lat: 39.7392, lng: -104.9903 }
+    ];
+    const selectedLocation = botLocations[Math.floor(Math.random() * botLocations.length)];
     const landownerToUse = botLandownerIds[Math.floor(Math.random() * botLandownerIds.length)];
     const landownerUser = mockUsers.find(u => u.id === landownerToUse);
+
     if (landownerUser) {
         const newListingData: Omit<Listing, 'id'> = {
             title: `Bot Listing #${Math.floor(Math.random() * 1000)}`,
             description: 'This is an automatically generated listing by a bot for simulation purposes.',
-            location: ['Austin, TX', 'Portland, OR', 'Denver, CO'][Math.floor(Math.random() * 3)],
+            location: selectedLocation.name,
+            lat: selectedLocation.lat + (Math.random() - 0.5) * 0.1, // Add jitter
+            lng: selectedLocation.lng + (Math.random() - 0.5) * 0.1,
             sizeSqft: Math.floor(Math.random() * 20000) + 1000,
             amenities: ['road access', 'pet friendly'],
             pricingModel: 'monthly',
@@ -1560,9 +1572,11 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         return acc;
     }, {} as Record<PricingModel, number>);
 
+    const supplyTotal = Object.values(supplyCounts).reduce((sum, count) => sum + count, 0);
     const supplyByPricingModel = Object.entries(supplyCounts).map(([name, value]) => ({
         name: name as PricingModel,
         value,
+        percent: supplyTotal > 0 ? ((value / supplyTotal) * 100).toFixed(0) : "0",
     }));
 
     // Calculate Demand
@@ -1574,9 +1588,11 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         return acc;
     }, {} as Record<PricingModel, number>);
     
+    const demandTotal = Object.values(demandCounts).reduce((sum, count) => sum + count, 0);
     const demandByPricingModel = Object.entries(demandCounts).map(([name, value]) => ({
         name: name as PricingModel,
         value,
+        percent: demandTotal > 0 ? ((value / demandTotal) * 100).toFixed(0) : "0",
     }));
 
     return {
@@ -1587,5 +1603,3 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         demandByPricingModel
     };
 };
-
-    

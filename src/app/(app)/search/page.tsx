@@ -156,7 +156,7 @@ export default function SearchPage() {
         />
       </div>
       <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6">
-        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"><MapView listings={paginatedListings} /></div>
+        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"><MapView listings={filteredListings} /></div>
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
           <div className="relative w-full sm:max-w-xs">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -196,7 +196,7 @@ export default function SearchPage() {
           </PaginationContent></Pagination>
         )}
       </div>
-      <div className="hidden xl:block xl:w-1/3 sticky top-24 self-start"><MapView listings={paginatedListings}/></div>
+      <div className="hidden xl:block xl:w-1/3 sticky top-24 self-start"><MapView listings={filteredListings}/></div>
     </div>
   );
 }
