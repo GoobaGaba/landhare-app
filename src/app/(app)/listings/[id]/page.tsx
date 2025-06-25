@@ -4,7 +4,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useParams } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -71,9 +71,10 @@ const calculatePriceDetails = (listing: Listing, dateRange: DateRange, renterSub
   };
 };
 
-export default function ListingDetailPage({ params }: { params: { id: string } }) {
+export default function ListingDetailPage() {
   // Core State & Hooks
-  const { id } = params;
+  const params = useParams();
+  const id = params.id as string;
   const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
