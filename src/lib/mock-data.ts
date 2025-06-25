@@ -41,6 +41,7 @@ export const MOCK_USER_FOR_UI_TESTING: User = {
   createdAt: new Date('2023-01-01T10:00:00Z'),
   bio: 'I am the main mock user for testing purposes with premium status.',
   bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
+  walletBalance: 10000,
 };
 
 export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
@@ -52,6 +53,7 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   createdAt: new Date('2023-04-01T10:00:00Z'),
   bio: 'I am a mock user signed in via Google for testing purposes with premium status.',
   bookmarkedListingIds: [],
+  walletBalance: 10000,
 };
 
 
@@ -66,6 +68,7 @@ export let mockUsers: User[] = [
     createdAt: new Date('2023-02-15T11:00:00Z'),
     bio: 'Experienced landowner with several plots available.',
     bookmarkedListingIds: [],
+    walletBalance: 10000,
   },
   {
     id: 'renter-john-smith',
@@ -76,6 +79,7 @@ export let mockUsers: User[] = [
     createdAt: new Date('2023-03-20T12:00:00Z'),
     bio: 'Looking for a quiet place for my tiny home.',
     bookmarkedListingIds: ['listing-2-forest-retreat'],
+    walletBalance: 10000,
   },
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
 ];
@@ -407,6 +411,7 @@ const mapDocToUser = (docSnap: any): User => {
     createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
     bio: data.bio || '',
     bookmarkedListingIds: data.bookmarkedListingIds || [],
+    walletBalance: data.walletBalance ?? 10000,
   };
 };
 
@@ -543,9 +548,19 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
         description: 'Premium Subscription - Monthly'
     };
     if (firebaseInitializationError || !db) {
+        const userIndex = mockUsers.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
+        }
         mockTransactions.unshift({ ...newTransaction, id: `txn-sub-${Date.now()}` });
         incrementMockDataVersion('createSubscriptionTransaction_mock');
     } else {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+            const currentBalance = userSnap.data().walletBalance ?? 0;
+            await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
+        }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
     }
 };
@@ -561,9 +576,19 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
         description: 'Premium Subscription - Prorated Refund'
     };
      if (firebaseInitializationError || !db) {
+        const userIndex = mockUsers.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
+        }
         mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
         incrementMockDataVersion('createRefundTransaction_mock');
     } else {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+            const currentBalance = userSnap.data().walletBalance ?? 0;
+            await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
+        }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
     }
 };
@@ -599,6 +624,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     createdAt: new Date(),
     bio: "Welcome to LandShare!",
     bookmarkedListingIds: [],
+    walletBalance: 10000,
   };
 
   if (firebaseInitializationError || !db) {
@@ -664,7 +690,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     if (!updatedSnap.exists()) return undefined;
     return mapDocToUser(updatedSnap);
   } catch (error) {
-    console.error("[Firestore Error] updateUserProfile for user:", userId, error);
+    console.error(`[Firestore Error] updateUserProfile for user:`, userId, error);
     throw error;
   }
 };
@@ -961,12 +987,20 @@ export const addBookingRequest = async (
     // Preview Mode
     const listingInfo = mockListings.find(l => l.id === data.listingId);
     if (!listingInfo) throw new Error("Mock Listing not found for booking request.");
-    const renterInfo = mockUsers.find(u => u.id === data.renterId);
-    if (!renterInfo) throw new Error("Mock Renter profile not found.");
+    
+    const renterIndex = mockUsers.findIndex(u => u.id === data.renterId);
+    if (renterIndex === -1) throw new Error("Mock Renter profile not found.");
+    const renterInfo = mockUsers[renterIndex];
+
     const landownerInfo = mockUsers.find(u => u.id === listingInfo.landownerId);
     if (!landownerInfo) throw new Error("Mock Landowner profile not found.");
 
     const { totalPrice } = calculatePriceDetails(listingInfo, data.dateRange, renterInfo.subscriptionStatus || 'free');
+
+    if ((renterInfo.walletBalance ?? 0) < totalPrice) {
+        throw new Error(`Insufficient funds. Your balance is $${(renterInfo.walletBalance ?? 0).toFixed(2)}, but the booking costs $${totalPrice.toFixed(2)}.`);
+    }
+    mockUsers[renterIndex].walletBalance = (renterInfo.walletBalance ?? 0) - totalPrice;
 
     const newPaymentTransaction: Transaction = {
         id: `txn-pmt-${Date.now()}`,
@@ -1003,6 +1037,12 @@ export const addBookingRequest = async (
     if (!landownerInfo) throw new Error("Landowner profile not found.");
 
     const { totalPrice } = calculatePriceDetails(listingInfo, data.dateRange, renterInfo.subscriptionStatus || 'free');
+
+    if ((renterInfo.walletBalance ?? 0) < totalPrice) {
+      throw new Error(`Insufficient funds. Your balance is $${(renterInfo.walletBalance ?? 0).toFixed(2)}, but the booking costs $${totalPrice.toFixed(2)}.`);
+    }
+    const renterDocRef = doc(db, 'users', renterInfo.id);
+    await updateDoc(renterDocRef, { walletBalance: (renterInfo.walletBalance ?? 0) - totalPrice });
 
     const newBookingBase: Omit<Booking, 'id' | 'createdAt'> & {createdAt: Timestamp} = {
       ...data,
@@ -1056,9 +1096,10 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
 
     if (status === 'Confirmed') {
         const listing = mockListings.find(l => l.id === booking.listingId);
-        const landowner = mockUsers.find(u => u.id === booking.landownerId);
+        const landownerIndex = mockUsers.findIndex(u => u.id === booking.landownerId);
         const renter = mockUsers.find(u => u.id === booking.renterId);
-        if (listing && landowner && renter) {
+
+        if (listing && landownerIndex !== -1 && renter) {
             let payoutBaseAmount = 0;
             let descriptionSuffix = '';
 
@@ -1071,9 +1112,12 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 descriptionSuffix = ' - Full Stay';
             }
 
+            const landowner = mockUsers[landownerIndex];
             const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
             const serviceFee = payoutBaseAmount * serviceFeeRate;
             const payout = payoutBaseAmount - serviceFee;
+            
+            mockUsers[landownerIndex].walletBalance = (landowner.walletBalance ?? 0) + payout;
 
             mockTransactions.unshift({
                 id: `txn-payout-${booking.id}`,
@@ -1103,7 +1147,10 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     } else if (status === 'Refund Approved') {
       const paymentTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
       if (paymentTxn) {
-          // Add refund for renter
+          const renterIndex = mockUsers.findIndex(u => u.id === paymentTxn.userId);
+          if (renterIndex !== -1) {
+            mockUsers[renterIndex].walletBalance = (mockUsers[renterIndex].walletBalance ?? 0) + Math.abs(paymentTxn.amount);
+          }
           mockTransactions.unshift({
               id: `txn-refund-${booking.id}`,
               userId: paymentTxn.userId,
@@ -1117,10 +1164,13 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
               relatedListingId: booking.listingId,
           });
           
-          // Reverse payout for landowner if it exists
           const payoutTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Landowner Payout');
           if (payoutTxn) {
             payoutTxn.status = 'Reversed';
+            const landownerIndex = mockUsers.findIndex(u => u.id === payoutTxn.userId);
+            if (landownerIndex !== -1) {
+              mockUsers[landownerIndex].walletBalance = (mockUsers[landownerIndex].walletBalance ?? 0) - payoutTxn.amount;
+            }
             mockTransactions.unshift({
                 id: `txn-reversal-${booking.id}`,
                 userId: payoutTxn.userId,
@@ -1187,6 +1237,9 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
               const serviceFee = payoutBaseAmount * serviceFeeRate;
               const payout = payoutBaseAmount - serviceFee;
 
+              const landownerDocRef = doc(db, 'users', landowner.id);
+              batch.update(landownerDocRef, { walletBalance: (landowner.walletBalance ?? 0) + payout });
+
               const transCol = collection(db, 'transactions');
               batch.set(doc(transCol), {
                   userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD',
@@ -1207,22 +1260,33 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
       if (!paymentTxnSnap.empty) {
           const paymentTxnDoc = paymentTxnSnap.docs[0];
           const paymentData = paymentTxnDoc.data() as Transaction;
+          
+          const renterDocRef = doc(db, 'users', paymentData.userId);
+          const renterSnap = await getDoc(renterDocRef);
+          if (renterSnap.exists()) {
+            batch.update(renterDocRef, { walletBalance: (renterSnap.data().walletBalance ?? 0) + Math.abs(paymentData.amount) });
+          }
 
           const transCol = collection(db, 'transactions');
-          // Add refund for renter
           batch.set(doc(transCol), {
               userId: paymentData.userId, type: 'Booking Refund', status: 'Completed', amount: Math.abs(paymentData.amount), currency: 'USD',
               date: Timestamp.now(), description: `Refund for "${paymentData.description.replace('Payment for ', '')}"`,
               relatedBookingId: bookingId, relatedListingId: paymentData.relatedListingId
           });
 
-          // Reverse payout for landowner
           const payoutTxnQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Landowner Payout"));
           const payoutTxnSnap = await getDocs(payoutTxnQuery);
           if(!payoutTxnSnap.empty) {
               const payoutTxnDoc = payoutTxnSnap.docs[0];
               const payoutData = payoutTxnDoc.data() as Transaction;
               batch.update(payoutTxnDoc.ref, {status: 'Reversed'});
+              
+              const landownerDocRef = doc(db, 'users', payoutData.userId);
+              const landownerSnap = await getDoc(landownerDocRef);
+              if (landownerSnap.exists()) {
+                batch.update(landownerDocRef, { walletBalance: (landownerSnap.data().walletBalance ?? 0) - payoutData.amount });
+              }
+
               batch.set(doc(transCol), {
                   userId: payoutData.userId, type: 'Payout Reversal', status: 'Completed', amount: -payoutData.amount, currency: 'USD',
                   date: Timestamp.now(), description: `Reversal for "${payoutData.description.replace('Payout for ', '')}"`,

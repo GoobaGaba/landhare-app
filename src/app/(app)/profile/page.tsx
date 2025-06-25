@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat, ReceiptText } from "lucide-react";
+import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat, ReceiptText, Wallet } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,7 @@ interface ProfileDisplayData {
   bio: string;
   memberSince: Date;
   subscriptionTier: SubscriptionStatus;
+  walletBalance: number;
 }
 
 function ProfilePageContent() {
@@ -58,6 +59,7 @@ function ProfilePageContent() {
         bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' && currentAppProfile?.bio === '' ? "I am the main mock user." : currentAppProfile?.bio || "Welcome to my LandShare profile!"),
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
         subscriptionTier: currentSubscription,
+        walletBalance: currentAppProfile.walletBalance ?? 10000,
       };
       setProfileDisplayData(displayData);
       
@@ -343,6 +345,17 @@ function ProfilePageContent() {
               <CardDescription>Manage your payment methods, view billing history, and your subscription.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2"><Wallet className="h-5 w-5 text-primary" /> Current Wallet Balance</CardTitle>
+                  <CardDescription>This is your simulated balance for testing transactions on the platform.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-4xl font-bold text-primary">${profileDisplayData.walletBalance.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">This balance will update as you make payments or receive payouts.</p>
+                </CardContent>
+              </Card>
+
               <div className="p-4 border rounded-lg bg-muted/30">
                 <h3 className="text-md font-semibold mb-1">Current Plan: <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
                 <p className="text-sm text-muted-foreground mb-3">

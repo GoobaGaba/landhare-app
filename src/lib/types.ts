@@ -41,6 +41,7 @@ export interface User {
   subscriptionStatus?: SubscriptionStatus;
   stripeCustomerId?: string;
   bookmarkedListingIds?: string[];
+  walletBalance?: number;
 }
 
 export interface Review {

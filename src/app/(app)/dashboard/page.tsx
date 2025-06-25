@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 
 const chartConfig = {
@@ -168,21 +169,48 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+        <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className={cn("text-3xl font-bold", (currentUser.appProfile?.walletBalance ?? 0) < 0 ? 'text-destructive' : 'text-primary')}>
+                    ${(currentUser.appProfile?.walletBalance ?? 0).toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">Your current simulated balance across the platform.</p>
+                 <Button asChild variant="outline" size="sm" className="mt-4">
+                    <Link href="/transactions">View All Transactions</Link>
+                </Button>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">This Month's Earnings</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-3xl font-bold text-primary">
+                    ${currentMonthEarnings.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">From completed payouts this month.</p>
+                 <Button asChild variant="outline" size="sm" className="mt-4">
+                    <Link href="/transactions">View Payout History</Link>
+                </Button>
+            </CardContent>
+        </Card>
+        
         <Card className="md:col-span-2 lg:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="text-primary h-6 w-6" />
+                <BarChart3 className="text-primary h-6 w-6" />
                 Earnings Overview
               </CardTitle>
               <CardDescription>Your landowner payout trend over the last 6 months.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">This Month's Earnings</p>
-                <p className="text-2xl font-bold text-primary">
-                  ${currentMonthEarnings.toFixed(2)}
-                </p>
-              </div>
               <div className="h-[250px] w-full">
                 {isTransactionsLoading ? (
                     <div className="flex justify-center items-center h-full">
@@ -239,9 +267,6 @@ export default function DashboardPage() {
                   </ChartContainer>
                 )}
               </div>
-              <Button asChild variant="outline" className="w-full sm:w-auto" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
-                <Link href="/transactions">View Transaction History</Link>
-              </Button>
             </CardContent>
           </Card>
         

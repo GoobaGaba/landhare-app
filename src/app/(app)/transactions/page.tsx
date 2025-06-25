@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ReceiptText, Search, UserCircle, AlertTriangle, ArrowUpCircle, ArrowDownCircle, DollarSign } from 'lucide-react';
+import { Loader2, ReceiptText, Search, UserCircle, AlertTriangle, ArrowUpCircle, ArrowDownCircle, DollarSign, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { firebaseInitializationError } from '@/lib/firebase';
 
@@ -72,8 +72,8 @@ export default function TransactionsPage() {
   const summary = useMemo(() => {
     return transactions.reduce((acc, t) => {
         if (t.status !== 'Completed') return acc; // Only count completed transactions for summary
-        if (t.type === 'Landowner Payout' || t.type === 'Subscription Refund') acc.income += t.amount;
-        if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee') acc.expenses += Math.abs(t.amount);
+        if (t.type === 'Landowner Payout' || t.type === 'Subscription Refund' || t.type === 'Booking Refund') acc.income += t.amount;
+        if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee' || t.type === 'Payout Reversal') acc.expenses += Math.abs(t.amount);
         return acc;
     }, { income: 0, expenses: 0 });
   }, [transactions]);
@@ -108,7 +108,19 @@ export default function TransactionsPage() {
           <CardDescription>View your payments, payouts, and service fees.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={cn("text-2xl font-bold", (currentUser.appProfile?.walletBalance ?? 0) < 0 ? 'text-destructive' : 'text-primary')}>
+                  ${(currentUser.appProfile?.walletBalance ?? 0).toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">Your current simulated balance</p>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Income</CardTitle>
@@ -191,13 +203,15 @@ export default function TransactionsPage() {
                 ) : filteredTransactions.length > 0 ? (
                   filteredTransactions.map(t => {
                      const date = t.date instanceof Date ? t.date : (t.date as any).toDate();
-                     const isIncome = t.type === 'Landowner Payout' || t.type === 'Subscription Refund';
+                     const isIncome = ['Landowner Payout', 'Subscription Refund', 'Booking Refund'].includes(t.type);
                      let typeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
                      switch(t.type) {
                         case 'Landowner Payout': typeVariant = 'default'; break;
                         case 'Booking Payment': typeVariant = 'secondary'; break;
                         case 'Subscription': typeVariant = 'secondary'; break;
                         case 'Subscription Refund': typeVariant = 'default'; break;
+                        case 'Booking Refund': typeVariant = 'default'; break;
+                        case 'Payout Reversal': typeVariant = 'destructive'; break;
                         case 'Service Fee': typeVariant = 'destructive'; break;
                      }
                     return (

@@ -116,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bio: appProfileData?.bio || '',
         stripeCustomerId: appProfileData?.stripeCustomerId,
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
+        walletBalance: appProfileData?.walletBalance ?? 10000,
       };
       
       return { ...firebaseUser, appProfile: finalAppProfile } as CurrentUser;
@@ -130,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: 'free',
         createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date(),
         bookmarkedListingIds: [],
+        walletBalance: 10000,
       };
       return { ...firebaseUser, appProfile: minimalAppProfile } as CurrentUser;
     }
