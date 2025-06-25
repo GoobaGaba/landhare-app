@@ -13,54 +13,37 @@ import Image from 'next/image';
 
 interface MapViewProps {
   listings: Listing[];
+  selectedId: string | null;
+  onMarkerClick: (id: string | null) => void;
+  onMapClick: () => void;
 }
 
-// A component that uses the Map context to control its view.
 const MapController = ({ listings }: { listings: Listing[] }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || !listings) return;
-
-    if (listings.length === 0) {
-      // Don't move the map if there are no listings to show
-      return;
-    }
+    if (!map || listings.length === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
-    let validListings = 0;
     listings.forEach(listing => {
-      if (listing.lat != null && listing.lng != null) { // Check for null/undefined
-        bounds.extend({ lat: listing.lat, lng: listing.lng });
-        validListings++;
-      }
-    });
-
-    if (validListings === 0) return;
-
-    if (validListings === 1) {
-        const firstValidListing = listings.find(l => l.lat != null && l.lng != null);
-        if (firstValidListing) {
-            map.setCenter({ lat: firstValidListing.lat!, lng: firstValidListing.lng! });
-            map.setZoom(12);
+        if (listing.lat != null && listing.lng != null) {
+            bounds.extend({ lat: listing.lat, lng: listing.lng });
         }
-    } else {
-        map.fitBounds(bounds, 100); // 100px padding
+    });
+    
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 100);
     }
 
   }, [map, listings]);
 
-  return null; // This component does not render anything.
+  return null;
 };
 
-export function MapView({ listings }: MapViewProps) {
+export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
-
-  // Default center of the US for when no listings are available
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
-  
-  const selectedListing = listings.find(l => l.id === selectedListingId);
+  const selectedListing = listings.find(l => l.id === selectedId);
 
   if (!apiKey) {
     return (
@@ -69,7 +52,7 @@ export function MapView({ listings }: MapViewProps) {
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-destructive">Map Service Unavailable</h3>
           <p className="text-sm text-muted-foreground mt-2">
-            The Google Maps API key is missing. Please set <code className="text-xs bg-red-100 dark:bg-red-900 p-1 rounded">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> in your <code className="text-xs bg-red-100 dark:bg-red-900 p-1 rounded">.env.local</code> file and restart the server.
+            The Google Maps API key is missing. Please check your configuration.
           </p>
         </div>
       </Card>
@@ -77,7 +60,7 @@ export function MapView({ listings }: MapViewProps) {
   }
 
   return (
-    <Card className="sticky top-24 shadow-md h-[calc(100vh-12rem)] flex flex-col bg-muted/30 overflow-hidden rounded-lg">
+    <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
       <APIProvider apiKey={apiKey}>
         <Map
           defaultCenter={defaultPosition}
@@ -86,20 +69,22 @@ export function MapView({ listings }: MapViewProps) {
           disableDefaultUI={true}
           mapId={'landshare-map'}
           className="w-full h-full rounded-lg"
+          onClick={onMapClick}
         >
           {listings.map((listing) => {
-            if (listing.lat == null || listing.lng == null) return null; // Use == null to check for both null and undefined
-            const isSelected = selectedListingId === listing.id;
+            if (listing.lat == null || listing.lng == null) return null;
+            const isSelected = selectedId === listing.id;
             return (
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={() => setSelectedListingId(listing.id)}
+                onClick={() => onMarkerClick(listing.id)}
+                zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
-                  background={isSelected ? 'hsl(var(--accent))' : 'hsl(var(--primary))'}
-                  borderColor={isSelected ? 'hsl(var(--accent-foreground))' : 'hsl(var(--primary-foreground))'}
-                  glyphColor={isSelected ? 'hsl(var(--accent-foreground))' : 'hsl(var(--primary-foreground))'}
+                  background={isSelected ? 'hsl(var(--accent))' : (listing.isBoosted ? 'hsl(var(--premium))' : 'hsl(var(--primary))')}
+                  borderColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
+                  glyphColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
                   scale={isSelected ? 1.5 : 1}
                 />
               </AdvancedMarker>
@@ -109,16 +94,16 @@ export function MapView({ listings }: MapViewProps) {
           {selectedListing && selectedListing.lat != null && selectedListing.lng != null && (
             <InfoWindow
               position={{ lat: selectedListing.lat, lng: selectedListing.lng }}
-              onCloseClick={() => setSelectedListingId(null)}
+              onCloseClick={() => onMarkerClick(null)}
               pixelOffset={[0, -40]}
               headerDisabled
             >
-              <div className="p-0 m-0 w-48 text-foreground bg-background rounded-lg shadow-lg overflow-hidden">
-                 <div className="relative h-20 w-full">
+              <div className="p-0 m-0 w-48 text-foreground bg-background rounded-lg shadow-lg overflow-hidden font-body">
+                 <div className="relative h-24 w-full">
                     <Image src={selectedListing.images[0] || "https://placehold.co/600x400.png"} alt={selectedListing.title} fill className="object-cover" data-ai-hint="map listing" />
                  </div>
                  <div className="p-2">
-                    <h4 className="font-bold text-sm text-primary mb-1 truncate">{selectedListing.title}</h4>
+                    <h4 className="font-headline text-base text-primary mb-1 truncate">{selectedListing.title}</h4>
                     <p className="text-xs text-muted-foreground flex items-center">
                         <DollarSign className="h-3 w-3 mr-1"/>{selectedListing.price} / {selectedListing.pricingModel}
                     </p>

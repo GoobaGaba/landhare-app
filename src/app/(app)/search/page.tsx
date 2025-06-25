@@ -9,13 +9,16 @@ import type { Listing, LeaseTerm } from "@/lib/types";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
-import { SearchIcon, LayoutGrid, List, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { SearchIcon, LayoutGrid, List, Loader2, AlertTriangle, Sparkles, MapPin } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
+import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
@@ -35,6 +38,9 @@ export default function SearchPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>('rating_desc');
+  const [showMap, setShowMap] = useState(true);
+  
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (listingsError) {
@@ -53,12 +59,11 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (listingsLoading) {
-      // To prevent filtering an empty or stale list while new data is loading
-      setFilteredListings([]); // Clear out old results during load
+      setFilteredListings([]); 
       return;
     }
 
-    let listingsToFilter = [...allAvailableListings]; // allAvailableListings is already filtered by isAvailable
+    let listingsToFilter = [...allAvailableListings];
 
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -88,7 +93,6 @@ export default function SearchPage() {
       let comparison = 0;
       if (a.isBoosted && !b.isBoosted) comparison = -1;
       if (!a.isBoosted && b.isBoosted) comparison = 1;
-      // If sortBy is not rating based, boost status takes precedence earlier
       if (comparison !== 0 && !(sortBy.includes('rating'))) return comparison;
       
       const priceA = a.price ?? 0;
@@ -100,7 +104,6 @@ export default function SearchPage() {
         case 'size_asc': comparison = a.sizeSqft - b.sizeSqft; break;
         case 'size_desc': comparison = b.sizeSqft - a.sizeSqft; break;
         case 'rating_desc': 
-          // If ratings are equal, then boosted listings come first
           comparison = (b.rating || 0) - (a.rating || 0);
           if (comparison === 0) {
              if (a.isBoosted && !b.isBoosted) return -1;
@@ -109,7 +112,6 @@ export default function SearchPage() {
           break;
         default: comparison = 0;
       }
-      // For non-rating sorts, if primary criteria is equal, boosted comes first
       if (comparison === 0 && !sortBy.includes('rating')) {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -117,9 +119,9 @@ export default function SearchPage() {
       return comparison;
     });
     
-    // console.log(`[SearchPage] Filtered to ${listingsToFilter.length} listings. SearchTerm: '${searchTerm}', Price: ${priceRange}, Size: ${sizeRange}`);
     setFilteredListings(listingsToFilter);
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
+    setSelectedListingId(null); // Reset selection on filter change
   }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allAvailableListings, listingsLoading]);
 
   const paginatedListings = useMemo(() => {
@@ -132,8 +134,14 @@ export default function SearchPage() {
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
+      window.scrollTo(0, 0); // Scroll to top on page change
     }
   };
+
+  const listingsForMap = useMemo(() => {
+    return paginatedListings.filter(l => l.lat != null && l.lng != null);
+  }, [paginatedListings]);
+
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
     return (
@@ -145,8 +153,8 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
-      <div className="w-full lg:w-1/3 xl:w-1/4">
+    <div className={cn("flex flex-col lg:flex-row gap-8", showMap && "lg:h-[calc(100vh-var(--header-height)-1rem)] lg:overflow-hidden")}>
+      <aside className="w-full lg:w-1/3 xl:w-1/4 lg:overflow-y-auto lg:h-full lg:pr-4 custom-scrollbar">
         <FilterPanel
           priceRange={priceRange} setPriceRange={setPriceRange}
           sizeRange={sizeRange} setSizeRange={setSizeRange}
@@ -154,15 +162,18 @@ export default function SearchPage() {
           selectedLeaseTerm={selectedLeaseTerm} setSelectedLeaseTerm={setSelectedLeaseTerm}
           resetFilters={resetFilters}
         />
-      </div>
-      <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6">
-        <div className="lg:hidden sticky top-16 bg-background py-2 z-10"><MapView listings={filteredListings} /></div>
+      </aside>
+      <main className="w-full lg:w-2/3 xl:w-3/4 space-y-6 lg:overflow-y-auto lg:h-full custom-scrollbar">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
           <div className="relative w-full sm:max-w-xs">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input type="search" placeholder="Search by keyword..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+             <div className="flex items-center space-x-2">
+                <Switch id="show-map" checked={showMap} onCheckedChange={setShowMap} />
+                <Label htmlFor="show-map" className="flex items-center gap-1"><MapPin className="h-4 w-4"/> Show Map</Label>
+            </div>
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sort by..." /></SelectTrigger>
               <SelectContent>
@@ -184,19 +195,36 @@ export default function SearchPage() {
         {filteredListings.length === 0 && !listingsLoading ? (
           <Alert><SearchIcon className="h-4 w-4" /><AlertTitle>No Listings Found</AlertTitle><AlertDescription>Try adjusting your filters or search term.{firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}</AlertDescription></Alert>
         ) : (
-          <div className={viewMode === 'grid' ? "grid sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-4"}>
-            {paginatedListings.map((listing) => (<ListingCard key={listing.id} listing={listing} viewMode={viewMode} />))}
+          <div className={viewMode === 'grid' ? "grid sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6" : "space-y-4"}>
+            {paginatedListings.map((listing) => (
+                <ListingCard 
+                    key={listing.id} 
+                    listing={listing} 
+                    viewMode={viewMode}
+                    isSelected={listing.id === selectedListingId}
+                    onCardClick={setSelectedListingId}
+                 />
+            ))}
           </div>
         )}
         {totalPages > 1 && (
-          <Pagination className="mt-8"><PaginationContent>
+          <Pagination className="mt-8 pb-8"><PaginationContent>
               <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage - 1);}} className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}/></PaginationItem>
               {[...Array(totalPages)].map((_, i) => (<PaginationItem key={i}><PaginationLink href="#" isActive={currentPage === i + 1} onClick={(e) => { e.preventDefault(); handlePageChange(i + 1);}}>{i + 1}</PaginationLink></PaginationItem>))}
               <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1);}} className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}/></PaginationItem>
           </PaginationContent></Pagination>
         )}
-      </div>
-      <div className="hidden xl:block xl:w-1/3 sticky top-24 self-start"><MapView listings={filteredListings}/></div>
+      </main>
+      {showMap && (
+        <aside className="hidden lg:block w-1/3 xl:w-2/5 h-full">
+            <MapView 
+                listings={listingsForMap} 
+                selectedId={selectedListingId} 
+                onMarkerClick={setSelectedListingId}
+                onMapClick={() => setSelectedListingId(null)}
+            />
+        </aside>
+      )}
     </div>
   );
 }

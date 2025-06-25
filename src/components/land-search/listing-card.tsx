@@ -21,9 +21,11 @@ interface ListingCardProps {
   listing: Listing;
   viewMode?: 'grid' | 'list';
   sizeVariant?: 'default' | 'compact';
+  isSelected?: boolean;
+  onCardClick?: (id: string | null) => void;
 }
 
-export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default' }: ListingCardProps) {
+export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default', isSelected = false, onCardClick }: ListingCardProps) {
   const { currentUser, addBookmark, removeBookmark, subscriptionStatus } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -32,6 +34,14 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
   const isCompact = sizeVariant === 'compact';
   const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(listing.id) || false;
   const atBookmarkLimit = subscriptionStatus === 'free' && (currentUser?.appProfile?.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT;
+
+  const handleCardClick = () => {
+    if (onCardClick) {
+      onCardClick(listing.id === (isSelected ? listing.id : null) ? null : listing.id);
+    } else {
+      router.push(`/listings/${listing.id}`);
+    }
+  }
 
   const handleBookmarkToggle = async (e: React.MouseEvent) => {
     e.preventDefault(); 
@@ -86,12 +96,8 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
   const fallbackImageSrc = "https://placehold.co/600x400.png";
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
 
-  if (viewMode === 'list') {
-    return (
-      <Card className={cn(
-        "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl",
-        listing.isBoosted && "ring-1 ring-premium"
-      )}>
+  const cardContent = (
+    <>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
             src={listing.images[0] || fallbackImageSrc}
@@ -146,7 +152,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <CardHeader className="p-4 pb-2">
             <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-headline hover:text-primary">
-                  <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
+                  <Link href={`/listings/${listing.id}`} onClick={(e) => e.stopPropagation()}>{listing.title}</Link>
                 </CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
                     <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide">LTO</Badge>
@@ -189,21 +195,37 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
               <span className="text-xl font-bold text-primary">{displayPriceInfo.amount}</span>
               <span className="text-xs text-muted-foreground ml-1">/ {displayPriceInfo.unit}</span>
             </div>
-            <Button asChild size="sm" disabled={isMockModeNoUser}>
+            <Button asChild size="sm" disabled={isMockModeNoUser} onClick={(e) => e.stopPropagation()}>
               <Link href={`/listings/${listing.id}`}>View Details</Link>
             </Button>
           </CardFooter>
         </div>
+    </>
+  );
+
+  if (viewMode === 'list') {
+    return (
+      <Card 
+        onClick={handleCardClick}
+        className={cn(
+            "overflow-hidden transition-all duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl cursor-pointer",
+            listing.isBoosted && "ring-1 ring-premium",
+            isSelected && "ring-2 ring-primary shadow-2xl"
+        )}>
+        {cardContent}
       </Card>
     );
   }
 
   // Grid View (default or compact)
   return (
-    <Card className={cn(
-      "overflow-hidden transition-shadow duration-300 flex flex-col h-full shadow-lg hover:shadow-xl", 
+    <Card 
+      onClick={handleCardClick}
+      className={cn(
+      "overflow-hidden transition-all duration-300 flex flex-col h-full shadow-lg hover:shadow-xl cursor-pointer", 
       isCompact ? "text-sm" : "",
-      listing.isBoosted && "ring-1 ring-premium"
+      listing.isBoosted && "ring-1 ring-premium",
+      isSelected && "ring-2 ring-primary shadow-2xl"
     )}>
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
@@ -265,7 +287,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
       </CardHeader>
       <CardContent className={cn("p-3 flex-grow space-y-1", isCompact ? "py-2" : "p-4")}>
         <CardTitle className={cn("font-headline line-clamp-1 hover:text-primary", isCompact ? "text-base leading-tight" : "text-lg")}>
-          <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
+          <Link href={`/listings/${listing.id}`} onClick={(e) => e.stopPropagation()}>{listing.title}</Link>
         </CardTitle>
         <div className={cn("text-muted-foreground flex items-center", isCompact ? "text-xs" : "text-sm")}>
           <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -289,7 +311,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <span className={cn("font-bold text-primary", isCompact ? "text-base" : "text-lg")}>{displayPriceInfo.amount}</span>
           <span className={cn("text-muted-foreground ml-0.5", isCompact ? "text-[0.65rem]" : "text-xs")}>/ {displayPriceInfo.unit}</span>
         </div>
-        <Button asChild size="sm" className={cn(isCompact ? "h-7 px-2 text-xs rounded-sm" : "")} disabled={isMockModeNoUser}>
+        <Button asChild size="sm" className={cn(isCompact ? "h-7 px-2 text-xs rounded-sm" : "")} disabled={isMockModeNoUser} onClick={(e) => e.stopPropagation()}>
           <Link href={`/listings/${listing.id}`}>Details</Link>
         </Button>
       </CardFooter>
