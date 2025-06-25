@@ -63,7 +63,7 @@ export interface Booking {
   listingId: string;
   renterId: string;
   landownerId: string;
-  status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled';
+  status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled by Renter' | 'Refund Requested' | 'Refund Approved' | 'Cancelled';
   dateRange: {
     from: Date | Timestamp;
     to: Date | Timestamp;
@@ -98,8 +98,8 @@ export interface Conversation {
 export type Transaction = {
   id: string;
   userId: string; // The user this transaction record belongs to
-  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee' | 'Subscription Refund';
-  status: 'Completed' | 'Pending' | 'Failed';
+  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee' | 'Subscription Refund' | 'Booking Refund' | 'Payout Reversal';
+  status: 'Completed' | 'Pending' | 'Failed' | 'Reversed';
   amount: number; // Positive for income, negative for expense
   currency: 'USD';
   date: Date | Timestamp;

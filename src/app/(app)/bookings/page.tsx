@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download, ExternalLink } from "lucide-react";
+import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download, ExternalLink, CalendarPlus, Undo2, BadgeCheck } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
 import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById, populateBookingDetails } from '@/lib/mock-data';
@@ -38,6 +38,7 @@ export default function BookingsPage() {
   const [currentLeaseSummary, setCurrentLeaseSummary] = useState<string[] | null>(null);
   const [currentBookingForLease, setCurrentBookingForLease] = useState<Booking | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const loadBookings = useCallback(async () => {
     if (firebaseInitializationError && !currentUser?.appProfile) {
@@ -258,22 +259,22 @@ export default function BookingsPage() {
     try {
       const updatedBooking = await dbUpdateBookingStatus(booking.id, newStatus);
       if (updatedBooking) {
-        toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus}.` });
+        let toastDescription = `Booking status changed to ${newStatus}.`;
+        if (newStatus === 'Cancelled by Renter') {
+          toastDescription = "Your booking request has been cancelled. No refund is automatically issued.";
+        } else if (newStatus === 'Refund Requested') {
+          toastDescription = "A refund has been requested. The landowner will review it.";
+        } else if (newStatus === 'Refund Approved') {
+            toastDescription = "Refund approved! The transaction will be reversed.";
+        }
+        toast({ title: "Booking Updated", description: toastDescription });
         
-        // Await loadBookings to ensure UI state is up-to-date *before* trying to generate lease
         await loadBookings(); 
 
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
-            // Find the booking from the freshly loaded state
-            const freshlyLoadedBooking = userBookings.find(b => b.id === booking.id && b.status === 'Confirmed');
+            const freshlyLoadedBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id && b.status === 'Confirmed'));
             if (freshlyLoadedBooking) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
-            } else {
-                // Fallback if not found in state immediately (should be rare with await loadBookings)
-                const reloadedSpecificBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id));
-                if (reloadedSpecificBooking && reloadedSpecificBooking.status === 'Confirmed') {
-                     await handleGenerateAndShowLeaseTerms(reloadedSpecificBooking);
-                }
             }
         }
       } else {
@@ -290,6 +291,8 @@ export default function BookingsPage() {
   const getStatusColor = (status: Booking['status']) => {
     if (status.includes('Confirmed')) return 'text-primary';
     if (status.includes('Pending')) return 'text-accent';
+    if (status.includes('Refund Approved')) return 'text-blue-500';
+    if (status.includes('Refund Requested')) return 'text-amber-600';
     if (status.includes('Declined') || status.includes('Cancelled')) return 'text-destructive';
     return 'text-muted-foreground';
   };
@@ -366,23 +369,57 @@ export default function BookingsPage() {
               </CardContent>
               <CardFooter className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild> <Link href={`/listings/${booking.listingId}`}>View Listing</Link> </Button>
-                {currentUser && booking.landownerId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
-                  <>
-                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]} >
-                      {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Approve
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Declined')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id] || isLeaseTermsLoading[booking.id]} >
-                     {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> } Decline
-                    </Button>
-                  </>
+                
+                {/* Landowner Actions */}
+                {currentUser?.uid === booking.landownerId && (
+                    <>
+                        {booking.status === 'Pending Confirmation' && (
+                            <>
+                                <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => handleUpdateBookingStatus(booking, 'Confirmed')} disabled={isStatusUpdating[booking.id]} >
+                                {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />} Approve
+                                </Button>
+                                <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Declined')} disabled={isStatusUpdating[booking.id]} >
+                                {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" /> } Decline
+                                </Button>
+                            </>
+                        )}
+                        {booking.status === 'Refund Requested' && (
+                             <Button variant="secondary" className="bg-blue-600 hover:bg-blue-700 text-white" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Refund Approved')} disabled={isStatusUpdating[booking.id]} >
+                                {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-2 h-4 w-4" />} Approve Refund
+                            </Button>
+                        )}
+                    </>
                 )}
-                 {currentUser && booking.renterId === currentUser.uid && booking.status.includes('Pending Confirmation') && (
-                  <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Cancelled')} disabled={(firebaseInitializationError !== null && !currentUser.appProfile) || isStatusUpdating[booking.id]} >
-                    {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />} Cancel Request
-                  </Button>
+                
+                {/* Renter Actions */}
+                {currentUser?.uid === booking.renterId && (
+                    <>
+                        {booking.status === 'Pending Confirmation' && (
+                            <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Cancelled by Renter')} disabled={isStatusUpdating[booking.id]} >
+                                {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />} Cancel Request
+                            </Button>
+                        )}
+                        {booking.status === 'Confirmed' && (
+                            <>
+                                <Button variant="destructive" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Cancelled by Renter')} disabled={isStatusUpdating[booking.id]} >
+                                    {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />} Cancel Booking
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => {toast({title: "Simulating Extension", description: "To extend your stay, please book the additional dates on the listing page.", duration: 6000}); router.push(`/listings/${booking.listingId}`)}} >
+                                    <CalendarPlus className="mr-2 h-4 w-4"/> Extend Stay
+                                </Button>
+                            </>
+                        )}
+                        {booking.status === 'Cancelled by Renter' && (
+                             <Button variant="secondary" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Refund Requested')} disabled={isStatusUpdating[booking.id]} >
+                                {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2 className="mr-2 h-4 w-4" />} Request Refund
+                            </Button>
+                        )}
+                    </>
                 )}
-                {booking.status === 'Confirmed' && !booking.leaseContractUrl && ( // Show suggestion only if no stored lease yet
-                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id] || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
+
+                {/* Shared Actions */}
+                {booking.status === 'Confirmed' && !booking.leaseContractUrl && (
+                     <Button variant="secondary" size="sm" onClick={() => handleGenerateAndShowLeaseTerms(booking)} disabled={isLeaseTermsLoading[booking.id] || isStatusUpdating[booking.id]}>
                         {isLeaseTermsLoading[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                         Get Lease Suggestion
                     </Button>
@@ -426,7 +463,7 @@ export default function BookingsPage() {
 
       <Card className="mt-8 bg-muted/30">
         <CardHeader> <CardTitle className="text-lg">Booking Management Tip</CardTitle> </CardHeader>
-        <CardContent> <p className="text-sm text-muted-foreground"> Respond to booking requests promptly. Approved bookings show as 'Confirmed'. You can cancel 'Pending Confirmation' requests if your plans change. Landowners should check for new requests often. Confirmed bookings will have an AI-suggested lease available, which can then be downloaded and saved. Stored leases will be accessible via a direct link. </p> </CardContent>
+        <CardContent> <p className="text-sm text-muted-foreground"> Respond to booking requests promptly. Renters can now cancel confirmed bookings or pending requests. After cancelling, renters have the option to request a refund, which landowners can then approve. Approved refunds will reverse the associated transactions. </p> </CardContent>
       </Card>
     </div>
   );

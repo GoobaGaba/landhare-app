@@ -1048,10 +1048,10 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     mockBookings[bookingIndex].status = status;
     const booking = mockBookings[bookingIndex];
 
-    const paymentIndex = mockTransactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
-    if (paymentIndex !== -1) {
-        if (status === 'Confirmed') mockTransactions[paymentIndex].status = 'Completed';
-        if (status === 'Declined' || status === 'Cancelled') mockTransactions[paymentIndex].status = 'Failed';
+    const paymentTxnIndex = mockTransactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
+    if (paymentTxnIndex !== -1) {
+        if (status === 'Confirmed') mockTransactions[paymentTxnIndex].status = 'Completed';
+        if (status === 'Declined' || status === 'Cancelled by Renter') mockTransactions[paymentTxnIndex].status = 'Failed';
     }
 
     if (status === 'Confirmed') {
@@ -1100,7 +1100,43 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                 relatedListingId: listing.id
             });
         }
+    } else if (status === 'Refund Approved') {
+      const paymentTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
+      if (paymentTxn) {
+          // Add refund for renter
+          mockTransactions.unshift({
+              id: `txn-refund-${booking.id}`,
+              userId: paymentTxn.userId,
+              type: 'Booking Refund',
+              status: 'Completed',
+              amount: Math.abs(paymentTxn.amount),
+              currency: 'USD',
+              date: new Date(),
+              description: `Refund for "${booking.listingTitle}"`,
+              relatedBookingId: booking.id,
+              relatedListingId: booking.listingId,
+          });
+          
+          // Reverse payout for landowner if it exists
+          const payoutTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Landowner Payout');
+          if (payoutTxn) {
+            payoutTxn.status = 'Reversed';
+            mockTransactions.unshift({
+                id: `txn-reversal-${booking.id}`,
+                userId: payoutTxn.userId,
+                type: 'Payout Reversal',
+                status: 'Completed',
+                amount: -payoutTxn.amount,
+                currency: 'USD',
+                date: new Date(),
+                description: `Payout Reversal for "${booking.listingTitle}"`,
+                relatedBookingId: booking.id,
+                relatedListingId: booking.listingId,
+            });
+          }
+      }
     }
+
     incrementMockDataVersion('updateBookingStatus_mock');
     const listing = mockListings.find(l => l.id === booking.listingId);
     const renter = mockUsers.find(u => u.id === booking.renterId);
@@ -1123,7 +1159,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const paymentSnap = await getDocs(paymentQuery);
     paymentSnap.forEach(doc => {
       if (status === 'Confirmed') batch.update(doc.ref, { status: 'Completed' });
-      if (status === 'Declined' || status === 'Cancelled') batch.update(doc.ref, { status: 'Failed' });
+      if (status === 'Declined' || status === 'Cancelled by Renter') batch.update(doc.ref, { status: 'Failed' });
     });
 
     if (status === 'Confirmed') {
@@ -1161,6 +1197,36 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                   userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
                   date: Timestamp.now(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"${descriptionSuffix}`,
                   relatedBookingId: bookingId, relatedListingId: listing.id
+              });
+          }
+      }
+    } else if (status === 'Refund Approved') {
+      const paymentTxnQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Booking Payment"));
+      const paymentTxnSnap = await getDocs(paymentTxnQuery);
+
+      if (!paymentTxnSnap.empty) {
+          const paymentTxnDoc = paymentTxnSnap.docs[0];
+          const paymentData = paymentTxnDoc.data() as Transaction;
+
+          const transCol = collection(db, 'transactions');
+          // Add refund for renter
+          batch.set(doc(transCol), {
+              userId: paymentData.userId, type: 'Booking Refund', status: 'Completed', amount: Math.abs(paymentData.amount), currency: 'USD',
+              date: Timestamp.now(), description: `Refund for "${paymentData.description.replace('Payment for ', '')}"`,
+              relatedBookingId: bookingId, relatedListingId: paymentData.relatedListingId
+          });
+
+          // Reverse payout for landowner
+          const payoutTxnQuery = query(collection(db, "transactions"), where("relatedBookingId", "==", bookingId), where("type", "==", "Landowner Payout"));
+          const payoutTxnSnap = await getDocs(payoutTxnQuery);
+          if(!payoutTxnSnap.empty) {
+              const payoutTxnDoc = payoutTxnSnap.docs[0];
+              const payoutData = payoutTxnDoc.data() as Transaction;
+              batch.update(payoutTxnDoc.ref, {status: 'Reversed'});
+              batch.set(doc(transCol), {
+                  userId: payoutData.userId, type: 'Payout Reversal', status: 'Completed', amount: -payoutData.amount, currency: 'USD',
+                  date: Timestamp.now(), description: `Reversal for "${payoutData.description.replace('Payout for ', '')}"`,
+                  relatedBookingId: bookingId, relatedListingId: payoutData.relatedListingId,
               });
           }
       }
