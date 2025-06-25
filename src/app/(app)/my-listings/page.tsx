@@ -2,14 +2,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ListChecks, PlusCircle, Search, AlertTriangle, Loader2, UserCircle, Trash2, Edit } from "lucide-react";
+import { PlusCircle, Search, AlertTriangle, Loader2, UserCircle, Trash2, Edit } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
 import { firebaseInitializationError } from '@/lib/firebase';
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ListingCard } from '@/components/land-search/listing-card';
 import {
   AlertDialog,
@@ -32,21 +32,15 @@ export default function MyListingsPage() {
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    if (listingsError) {
-      toast({ title: "Error loading your listings", description: listingsError, variant: "destructive" });
-    }
-  }, [listingsError, toast]);
-
-  const handleDeleteConfirmation = (listing: Listing) => {
+  const handleDeleteConfirmation = useCallback((listing: Listing) => {
     if (firebaseInitializationError && !currentUser?.appProfile) {
        toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
        return;
     }
     setListingToDelete(listing);
-  };
+  }, [currentUser, toast]);
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!listingToDelete) return;
     setIsDeleting(true);
     const result = await deleteListingAction(listingToDelete.id);
@@ -55,11 +49,11 @@ export default function MyListingsPage() {
 
     if (result.success) {
       toast({ title: "Listing Deleted", description: result.message });
-      // The refreshListings call will be implicitly handled by the data hook
+      refreshListings();
     } else {
       toast({ title: "Deletion Failed", description: result.message, variant: "destructive" });
     }
-  };
+  }, [listingToDelete, toast, refreshListings]);
 
   if (authLoading || listingsLoading) {
     return (
@@ -75,22 +69,22 @@ export default function MyListingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading) {
-     return (
+  if (!currentUser) {
+    return (
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6 text-primary" />Please Log In</CardTitle></CardHeader>
         <CardContent><p className="text-muted-foreground">You need to be logged in to manage your listings.</p><Button asChild className="mt-4"><Link href="/login">Log In</Link></Button></CardContent>
       </Card>
     );
   }
-  
-  if (listingsError && !listingsLoading) {
-     return (
+
+  if (listingsError) {
+    return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-6 w-6" />Error Loading Your Listings
-          </Title>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{listingsError}</p>
@@ -109,47 +103,43 @@ export default function MyListingsPage() {
         </Button>
       </div>
 
-      {myListings.length === 0 && !listingsLoading ? (
-        <>
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                You haven't created any listings yet.
-                {firebaseInitializationError && " (Note: Firebase features may be limited if not configured. Ensure .env.local is set.)"}
-              </p>
-              <Button asChild className="mt-4">
-                  <Link href="/listings/new">Create Your First Listing</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </>
+      {myListings.length === 0 ? (
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2"><Search className="h-6 w-6 text-primary" />No Listings Yet</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              You haven't created any listings yet.
+              {firebaseInitializationError && " (Note: Firebase features may be limited if not configured. Ensure .env.local is set.)"}
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/listings/new">Create Your First Listing</Link>
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
-        <>
-          <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myListings.map((listing) => (
-              <Card key={listing.id} className="flex flex-col">
-                <ListingCard listing={listing} viewMode="grid" />
-                <CardFooter className="mt-auto pt-4 border-t flex justify-end gap-2">
-                  <Button variant="outline" size="sm" asChild title="Edit this listing" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
-                    <Link href={`/listings/edit/${listing.id}`}>
-                      <Edit className="mr-2 h-3 w-3" /> Edit
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteConfirmation(listing)}
-                    disabled={isDeleting && listingToDelete?.id === listing.id}
-                  >
-                    {isDeleting && listingToDelete?.id === listing.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Trash2 className="mr-2 h-3 w-3" />}
-                    Delete
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </>
+        <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {myListings.map((listing) => (
+            <Card key={listing.id} className="flex flex-col">
+              <ListingCard listing={listing} viewMode="grid" />
+              <CardFooter className="mt-auto pt-4 border-t flex justify-end gap-2">
+                <Button variant="outline" size="sm" asChild title="Edit this listing" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+                  <Link href={`/listings/edit/${listing.id}`}>
+                    <Edit className="mr-2 h-3 w-3" /> Edit
+                  </Link>
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteConfirmation(listing)}
+                  disabled={isDeleting && listingToDelete?.id === listing.id}
+                >
+                  {isDeleting && listingToDelete?.id === listing.id ? <Loader2 className="mr-2 h-3 w-3 animate-spin"/> : <Trash2 className="mr-2 h-3 w-3" />}
+                  Delete
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
       )}
 
       {listingToDelete && (
