@@ -1410,15 +1410,36 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
 
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-    // This function now ALWAYS returns the in-memory mock metrics.
-    // This is because the Admin dashboard is considered a "simulation control panel",
-    // and this prevents permissions errors if a mock admin (with no real DB rights)
-    // tries to view it while a live DB is configured.
-    // The simulation functions below will update this in-memory object.
+  if (firebaseInitializationError || !db) {
     platformMetrics.totalUsers = mockUsers.length;
     platformMetrics.totalListings = mockListings.length;
     platformMetrics.totalBookings = mockBookings.length;
     return platformMetrics;
+  }
+
+  try {
+    const metricsRef = doc(db, "metrics", "global_metrics");
+    const metricsSnap = await getDoc(metricsRef);
+
+    if (metricsSnap.exists()) {
+      const data = metricsSnap.data();
+      return {
+        id: metricsSnap.id,
+        totalRevenue: data.totalRevenue ?? 0,
+        totalServiceFees: data.totalServiceFees ?? 0,
+        totalSubscriptionRevenue: data.totalSubscriptionRevenue ?? 0,
+        totalUsers: data.totalUsers ?? 0,
+        totalListings: data.totalListings ?? 0,
+        totalBookings: data.totalBookings ?? 0,
+      };
+    } else {
+      // Fallback if metrics doc doesn't exist
+      return { ...platformMetrics, totalUsers: 0, totalListings: 0, totalBookings: 0 };
+    }
+  } catch (error) {
+    console.error("[Firestore Error] getPlatformMetrics:", error);
+    throw error;
+  }
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
@@ -1437,6 +1458,7 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
     const landownerToUseId = botLandownerIds[Math.floor(Math.random() * botLandownerIds.length)];
     const landownerUser = await getUserById(landownerToUseId);
 
+    // Step 1: A bot landowner creates a new listing.
     if (landownerUser) {
         const newListingData: Omit<Listing, 'id'> = {
             title: `Bot Listing #${Math.floor(Math.random() * 1000)}`,
@@ -1457,21 +1479,27 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
         listingsCreated++;
     }
 
+    // Step 2: A bot renter books an available listing.
     const allListings = await getListings();
-    for (const renterId of botRenterIds) {
-        const renter = await getUserById(renterId);
+    const renterToUseId = botRenterIds[Math.floor(Math.random() * botRenterIds.length)];
+    const renter = await getUserById(renterToUseId);
+    
+    if (renter) {
         const bookableListings = allListings.filter(l => l.isAvailable && l.landownerId !== renterId && l.pricingModel !== 'lease-to-own');
-        if (renter && bookableListings.length > 0) {
+        if (bookableListings.length > 0) {
             const listingToBook = bookableListings[Math.floor(Math.random() * bookableListings.length)];
             const bookingDurationDays = listingToBook.pricingModel === 'nightly' ? Math.floor(Math.random() * 5) + 2 : 30;
-            const dateRange = { from: addDays(new Date(), Math.floor(Math.random() * 10) + 1), to: addDays(new Date(), Math.floor(Math.random() * 10) + 1 + bookingDurationDays) };
+            const startDate = addDays(new Date(), Math.floor(Math.random() * 10) + 1);
+            const endDate = addDays(startDate, bookingDurationDays);
             
             try {
+                // The booking is requested and immediately confirmed to trigger the full economic cycle.
                 const booking = await addBookingRequest({
                     listingId: listingToBook.id,
                     renterId: renter.id,
-                    dateRange: dateRange,
+                    dateRange: { from: startDate, to: endDate },
                 }, 'Confirmed'); 
+                
                 await updateBookingStatus(booking.id, 'Confirmed');
                 bookingsCreated++;
             } catch (e: any) {
@@ -1482,6 +1510,7 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
     
     return { message: `Simulation complete. Created ${listingsCreated} new listings and ${bookingsCreated} new bookings.` };
 };
+
 
 export const getMarketInsights = async (): Promise<MarketInsightsData> => {
     let allListings: Listing[] = [];
