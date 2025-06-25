@@ -51,7 +51,7 @@ export default function MyListingsPage() {
 
     if (result.success) {
       toast({ title: "Listing Deleted", description: result.message });
-      await refreshListings();
+      // The refreshListings call will be implicitly handled by the data hook
     } else {
       toast({ title: "Deletion Failed", description: result.message, variant: "destructive" });
     }
@@ -154,7 +154,7 @@ export default function MyListingsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete the listing: "{listingToDelete.title}"? This action cannot be undone.
+                Are you sure you want to delete the listing: "{listingToDelete.title}"? This action cannot be undone. All associated data will also be removed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

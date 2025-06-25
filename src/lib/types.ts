@@ -100,8 +100,8 @@ export type Transaction = {
   currency: 'USD';
   date: Date | Timestamp;
   description: string;
-  relatedListingId?: string;
   relatedBookingId?: string;
+  relatedListingId?: string;
 };
 
 

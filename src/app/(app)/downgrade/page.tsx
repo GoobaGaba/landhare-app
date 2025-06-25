@@ -62,8 +62,7 @@ export default function DowngradePage() {
       }
       
       toast({ title: "Listings Deleted", description: deleteResult.message });
-      await refreshListings();
-
+      
       const downgradeResult = await updateCurrentAppUserProfile({ subscriptionStatus: 'free' });
       if (downgradeResult) {
         toast({ title: "Downgrade Successful", description: "Your account is now on the Free tier." });

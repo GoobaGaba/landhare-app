@@ -41,6 +41,10 @@ export default function AdminDashboardPage() {
   
   const handleRunBots = async () => {
       setIsSimulating(true);
+      toast({
+            title: "Bot Simulation Started",
+            description: "Generating new listings and booking activity... This may take a moment.",
+        });
       try {
         const result = await runBotSimulationCycle();
         toast({
@@ -156,7 +160,7 @@ export default function AdminDashboardPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/>Bot Simulation Controls</CardTitle>
           <CardDescription>
-            Generate realistic, automated activity on the platform to test its economic model and data tracking at scale.
+            Generate realistic, automated activity on the platform to test its economic model and data tracking at scale. This will create real data if Firebase is configured.
           </CardDescription>
         </CardHeader>
         <CardContent>
