@@ -17,7 +17,7 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
 
