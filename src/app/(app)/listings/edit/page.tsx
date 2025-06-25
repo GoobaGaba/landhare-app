@@ -1,3 +1,3 @@
-// This file is obsolete and likely a copy-paste error. The correct page is at /src/app/(app)/listings/edit/[id]/page.tsx
-// It has been emptied to resolve potential Next.js build errors.
+// This file is an orphaned duplicate and has been explicitly neutralized to resolve a Next.js build error.
 // This file can be safely deleted.
+export default null;
