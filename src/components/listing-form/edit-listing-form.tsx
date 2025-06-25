@@ -9,6 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type heic2any from 'heic2any'; // Import type only
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown, MapPin } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
@@ -54,6 +55,8 @@ const editListingFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   location: z.string().min(3, "Location is required."),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   sizeSqft: z.coerce.number().positive("Size must be a positive number."),
   price: z.coerce.number().positive("Price must be a positive number."),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
@@ -99,6 +102,11 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
   const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isLocationVerified, setIsLocationVerified] = useState(false);
+  const geocodingApi = useMapsLibrary('geocoding');
+  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
 
   const form = useForm<EditListingFormData>({
     resolver: zodResolver(editListingFormSchema),
@@ -110,6 +118,13 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   });
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors, isDirty } } = form;
+  
+  useEffect(() => {
+    if (geocodingApi && !geocoder) {
+      setGeocoder(new geocodingApi.Geocoder());
+    }
+  }, [geocodingApi, geocoder]);
+
 
   useEffect(() => {
     form.reset({
@@ -118,6 +133,9 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
       images: listing.images || [],
     });
     setImagePreviews((listing.images || []).map(url => ({ url, isLoading: false })));
+    if (listing.lat && listing.lng) {
+      setIsLocationVerified(true);
+    }
   }, [listing, form.reset]);
 
 
@@ -250,6 +268,33 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     setImagePreviews(newImagePreviews);
     setValue('images', newImagePreviews.filter(p => !p.isLoading).map(p => p.url), { shouldDirty: true, shouldValidate: true });
   };
+  
+  const handleGeocode = async () => {
+    if (!geocoder) {
+      toast({ title: 'Geocoding service not ready.', variant: 'destructive' });
+      return;
+    }
+    const location = getValues('location');
+    if (!location) {
+      toast({ title: 'Location Needed', description: 'Please enter a location to verify.', variant: 'destructive'});
+      return;
+    }
+    setIsGeocoding(true);
+    setIsLocationVerified(false);
+    
+    geocoder.geocode({ address: location }, (results, status) => {
+      setIsGeocoding(false);
+      if (status === 'OK' && results && results[0]) {
+        const { lat, lng } = results[0].geometry.location;
+        setValue('lat', lat(), { shouldDirty: true });
+        setValue('lng', lng(), { shouldDirty: true });
+        setIsLocationVerified(true);
+        toast({ title: 'Location Verified!', description: `Coordinates set for ${results[0].formatted_address}` });
+      } else {
+        toast({ title: 'Geocoding Failed', description: `Could not find coordinates for "${location}". Please try a more specific address.`, variant: 'destructive' });
+      }
+    });
+  };
 
 
   const onSubmit = async (data: EditListingFormData) => {
@@ -353,10 +398,23 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
           </div>
           
-          <div className="grid md:grid-cols-2 gap-6">
-            <div><Label htmlFor="location">Location</Label><Input id="location" {...register('location')} />{errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}</div>
+           <div>
+              <Label htmlFor="location">Location (City, State, or Full Address)</Label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-grow">
+                    <Input id="location" {...register('location', { onChange: () => setIsLocationVerified(false) })} />
+                    {isLocationVerified && <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500"/>}
+                </div>
+                <Button type="button" onClick={handleGeocode} disabled={!geocoder || isGeocoding}>
+                    {isGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4"/>}
+                    Verify
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Verify location to ensure it shows up correctly on the map.</p>
+              {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
+            </div>
+
             <div><Label htmlFor="sizeSqft">Size (sq ft)</Label><Input id="sizeSqft" type="number" {...register('sizeSqft')} />{errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}</div>
-          </div>
 
           <div>
             <Label>Images ({imagePreviews.length} / {imageUploadLimit})</Label>

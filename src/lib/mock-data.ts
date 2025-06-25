@@ -283,6 +283,48 @@ export let mockListings: Listing[] = [
     leaseTerm: 'long-term',
     minLeaseDurationMonths: 12,
     createdAt: new Date('2023-08-10T12:00:00Z'),
+  },
+  {
+    id: 'listing-9-miami-nightly',
+    title: 'Miami Urban Garden Plot (Nightly)',
+    description: 'A rare open plot in Miami, perfect for short-term events, urban gardening projects, or RV parking. Nightly rates available.',
+    location: 'Miami, FL',
+    lat: 25.7617,
+    lng: -80.1918,
+    sizeSqft: 2500,
+    amenities: ['power access', 'water hookup', 'fenced', 'road access'],
+    pricingModel: 'nightly',
+    price: 75,
+    images: ['https://placehold.co/800x600.png?text=Miami+Plot'],
+    landownerId: 'landowner-jane-doe',
+    isAvailable: true,
+    rating: 4.6,
+    numberOfRatings: 9,
+    isBoosted: true,
+    leaseTerm: 'short-term',
+    createdAt: new Date('2024-07-20T10:00:00Z'),
+  },
+  {
+    id: 'listing-10-orlando-lto',
+    title: 'Orlando LTO Opportunity near Attractions',
+    description: 'Lease-to-own this conveniently located lot in the greater Orlando area. A great investment for a future home base.',
+    location: 'Orlando, FL',
+    lat: 28.5383,
+    lng: -81.3792,
+    sizeSqft: 6000,
+    amenities: ['power access', 'water hookup', 'road access', 'septic system'],
+    pricingModel: 'lease-to-own',
+    price: 550,
+    leaseToOwnDetails: "3-year lease-to-own option. $3,000 down. Estimated monthly payment of $550. Final purchase price: $60,000. Close to main roads.",
+    images: ['https://placehold.co/800x600.png?text=Orlando+LTO+Lot'],
+    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    isAvailable: true,
+    rating: 4.1,
+    numberOfRatings: 3,
+    isBoosted: true,
+    leaseTerm: 'long-term',
+    minLeaseDurationMonths: 36,
+    createdAt: new Date('2024-07-18T10:00:00Z'),
   }
 ];
 
@@ -460,17 +502,13 @@ const mapDocToUser = (docSnap: any): User => {
 
 const mapDocToListing = (docSnap: any): Listing => {
   const data = docSnap.data();
-  // Generate random coordinates if they are missing, centered loosely on the US
-  const lat = data.lat ?? 39.8283 + (Math.random() - 0.5) * 20;
-  const lng = data.lng ?? -98.5795 + (Math.random() - 0.5) * 40;
-
   return {
     id: docSnap.id,
     title: data.title || 'Untitled Listing',
     description: data.description || 'No description available.',
     location: data.location || 'Unknown location',
-    lat: lat,
-    lng: lng,
+    lat: data.lat,
+    lng: data.lng,
     sizeSqft: data.sizeSqft || 0,
     amenities: data.amenities || [],
     pricingModel: data.pricingModel || 'monthly',
@@ -851,8 +889,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   const newListingData: Omit<Listing, 'id'> = {
     ...data,
     isBoosted: isLandownerPremium,
-    lat: data.lat ?? 39.8283 + (Math.random() - 0.5) * 10,
-    lng: data.lng ?? -98.5795 + (Math.random() - 0.5) * 20,
   };
 
   if (firebaseInitializationError || !db) {
@@ -1579,5 +1615,3 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         demandByPricingModel
     };
 };
-
-    
