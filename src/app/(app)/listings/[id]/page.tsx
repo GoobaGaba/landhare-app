@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, Booking } from '@/lib/types';
+import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -26,36 +26,82 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 
+// This function now only calculates the detailed breakdown for the confirmation dialog
+function calculatePriceDetails(listing: Listing, dateRange: DateRange, subscriptionStatus: 'free' | 'premium' | 'loading'): PriceDetails | null {
+  if (!dateRange.from || !dateRange.to) return null;
+
+  let baseRate = 0;
+  let durationValue = 0;
+  let durationUnitText: PriceDetails['durationUnit'] = 'days';
+  let displayRateString = "";
+
+  if (listing.pricingModel === 'nightly') {
+    durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
+    if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
+    durationUnitText = durationValue === 1 ? 'night' : 'nights';
+    baseRate = (listing.price || 0) * durationValue;
+    displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s', '')}`;
+  } else if (listing.pricingModel === 'monthly') {
+    durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
+    if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
+    baseRate = (listing.price / 30) * durationValue;
+    durationUnitText = durationValue === 1 ? 'day' : 'days';
+    displayRateString = `$${listing.price.toFixed(0)}/month (prorated for ${durationValue} ${durationUnitText})`;
+  } else {
+    // No price breakdown for lease-to-own in this simplified model
+    return null;
+  }
+
+  const taxRate = 0.05;
+  if (isNaN(baseRate)) baseRate = 0;
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && subscriptionStatus !== 'premium') ? 0.99 : 0;
+  const subtotal = baseRate + renterFee;
+  const estimatedTax = subtotal * taxRate;
+  let totalPrice = subtotal + estimatedTax;
+  if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0;
+
+  return {
+    basePrice: baseRate, renterFee, subtotal, estimatedTax, totalPrice,
+    duration: durationValue, durationUnit: durationUnitText,
+    pricingModelUsed: listing.pricingModel, displayRate: displayRateString,
+  };
+}
+
 
 export default function ListingDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
-
   const { currentUser, loading: authLoading, subscriptionStatus, addBookmark, removeBookmark } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { toast } = useToast();
+
+  // Component State
   const [listing, setListing] = useState<Listing | null>(null);
   const [landowner, setLandowner] = useState<User | null>(null);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
-  const [isBookingRequested, setIsBookingRequested] = useState(false);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [showReviewPlaceholderDialog, setShowReviewPlaceholderDialog] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
-  const pathname = usePathname();
-  
-  const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
 
+  const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
+  const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
+  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Data Fetching
   useEffect(() => {
     async function fetchData() {
       if (!id) {
         toast({ title: "Error", description: "Listing ID is missing.", variant: "destructive" });
         setIsLoading(false);
-        setListing(null); 
+        setListing(null);
         return;
       }
-      
+
       setIsLoading(true);
       try {
         const listingData = await getListingById(id);
@@ -70,23 +116,22 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       } catch (error: any) {
         console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
-        setListing(null); 
+        setListing(null);
       } finally {
         setIsLoading(false);
       }
     }
-    if (id) { 
-        fetchData();
+    if (id) {
+      fetchData();
     } else {
-        setIsLoading(false);
-        setListing(null);
+      setIsLoading(false);
+      setListing(null);
     }
   }, [id, toast]);
+  
 
-  const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
-  const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
-
-  const handleContactLandowner = () => {
+  // Event Handlers
+  const handleContactLandowner = useCallback(() => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "default" });
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
@@ -97,16 +142,16 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       return;
     }
     router.push(`/messages?contact=${listing?.landownerId}&listing=${listing?.id}`);
-  };
+  }, [currentUser, isCurrentUserLandowner, listing?.id, listing?.landownerId, pathname, router, toast]);
 
-  const handleBookmarkToggle = async () => {
+  const handleBookmarkToggle = useCallback(async () => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to bookmark listings." });
       router.push(`/login?redirect=${pathname}`);
       return;
     }
     if (!listing || listing.landownerId === currentUser.uid) {
-      toast({ title: "Action Not Allowed", description: "You cannot bookmark your own listing."});
+      toast({ title: "Action Not Allowed", description: "You cannot bookmark your own listing." });
       return;
     }
 
@@ -122,74 +167,15 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     } finally {
       setIsBookmarking(false);
     }
-  };
+  }, [currentUser, listing, isBookmarked, pathname, router, toast, addBookmark, removeBookmark]);
 
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const priceDetails: PriceDetails | null = useMemo(() => {
-    if (!listing || (listing.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from || !dateRange.to))) {
-      return null;
-    }
-
-    let baseRate = 0;
-    let durationValue = 0;
-    let durationUnitText: PriceDetails['durationUnit'] = 'days';
-    let displayRateString = "";
-    const taxRate = 0.05; 
-
-    if (listing.pricingModel === 'nightly' && dateRange?.from && dateRange?.to) {
-      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
-      if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-      durationUnitText = durationValue === 1 ? 'night' : 'nights';
-      baseRate = (listing.price || 0) * durationValue;
-      displayRateString = `$${listing.price.toFixed(0)}/${durationUnitText.replace('s','')}`; 
-    } else if (listing.pricingModel === 'monthly' && dateRange?.from && dateRange?.to) {
-      durationValue = differenceInDays(dateRange.to, dateRange.from) + 1; 
-      if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-      baseRate = (listing.price / 30) * durationValue; 
-      durationUnitText = durationValue === 1 ? 'day' : 'days';
-      displayRateString = `$${listing.price.toFixed(0)}/month (prorated for ${durationValue} ${durationUnitText})`;
-    } else if (listing.pricingModel === 'lease-to-own') {
-      durationValue = 1; 
-      durationUnitText = 'month';
-      baseRate = listing.price || 0; 
-      displayRateString = `Est. $${listing.price.toFixed(0)}/month (LTO)`;
-    } else {
-      return null;
-    }
-    
-    if (isNaN(baseRate)) baseRate = 0;
-
-    const renterFee = (listing.pricingModel !== 'lease-to-own' && subscriptionStatus !== 'premium') ? 0.99 : 0;
-    const subtotal = baseRate + renterFee;
-    const estimatedTax = subtotal * taxRate;
-    let totalPrice = subtotal + estimatedTax;
-    
-    if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0; 
-
-    return {
-      basePrice: baseRate,
-      renterFee: renterFee,
-      subtotal: subtotal,
-      estimatedTax: estimatedTax,
-      totalPrice,
-      duration: durationValue,
-      durationUnit: durationUnitText,
-      pricingModelUsed: listing.pricingModel,
-      displayRate: displayRateString,
-    };
-  }, [dateRange, listing, subscriptionStatus]);
-
-
-  const handleBookingRequestOpen = () => {
+  const handleBookingRequestOpen = useCallback(() => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to request a booking or inquire.", variant: "default" });
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
     }
-     if (isMockModeNoUser) {
+    if (isMockModeNoUser) {
       toast({ title: "Preview Mode", description: "Booking is disabled in full preview mode (no mock user).", variant: "default" });
       return;
     }
@@ -197,61 +183,58 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
       toast({ title: "Select Dates", description: "Please select a check-in and check-out date.", variant: "destructive" });
       return;
     }
-     if (listing?.pricingModel === 'monthly' && listing.minLeaseDurationMonths && dateRange?.from && dateRange?.to) {
-        const selectedDays = differenceInDays(dateRange.to, dateRange.from) + 1;
-        if (selectedDays < listing.minLeaseDurationMonths * 28) { 
-             toast({
-                title: "Minimum Lease Duration",
-                description: `This monthly listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. Your selection is ${selectedDays} days.`,
-                variant: "destructive",
-                duration: 7000,
-            });
-            return;
-        }
+    if (listing?.pricingModel === 'monthly' && listing.minLeaseDurationMonths && dateRange?.from && dateRange?.to) {
+      const selectedDays = differenceInDays(dateRange.to, dateRange.from) + 1;
+      if (selectedDays < listing.minLeaseDurationMonths * 28) {
+        toast({
+          title: "Minimum Lease Duration",
+          description: `This monthly listing requires a minimum lease of ${listing.minLeaseDurationMonths} months. Your selection is ${selectedDays} days.`,
+          variant: "destructive",
+          duration: 7000,
+        });
+        return;
+      }
     }
     setShowBookingDialog(true);
-  };
+  }, [currentUser, isMockModeNoUser, listing, dateRange, pathname, router, toast]);
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = useCallback(async () => {
     if (!currentUser || !listing) {
-      toast({ title: "Error", description: "User or listing data missing.", variant: "destructive"});
+      toast({ title: "Error", description: "User or listing data missing.", variant: "destructive" });
       return;
     }
     if (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) {
-        toast({ title: "Error", description: "Date range is missing for this booking type.", variant: "destructive"});
-        return;
+      toast({ title: "Error", description: "Date range is missing for this booking type.", variant: "destructive" });
+      return;
     }
-
-     if (isMockModeNoUser) {
+    if (isMockModeNoUser) {
       toast({ title: "Preview Mode", description: "Booking submission is disabled in full preview mode.", variant: "default" });
       setShowBookingDialog(false);
       return;
     }
-    
+
     setIsSubmittingBooking(true);
     try {
       const isLTOInquiry = listing.pricingModel === 'lease-to-own';
       const bookingStatus = isLTOInquiry ? 'Pending Confirmation' : 'Confirmed';
-      
-       const bookingDataPayload: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName' | 'leaseContractPath' | 'leaseContractUrl'> & {dateRange: {from: Date; to: Date}} = {
+
+      const bookingDataPayload = {
         listingId: listing.id,
         renterId: currentUser.uid,
-        landownerId: listing.landownerId, 
+        landownerId: listing.landownerId,
         dateRange: !isLTOInquiry && dateRange?.from && dateRange.to
-                     ? { from: dateRange.from, to: dateRange.to }
-                     : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }, 
+          ? { from: dateRange.from, to: dateRange.to }
+          : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) },
       };
-
-      // Pass the desired status to the addBookingRequest function
+      
       await addBookingRequest(bookingDataPayload, bookingStatus);
 
       setShowBookingDialog(false);
-      setIsBookingRequested(true);
       toast({
         title: isLTOInquiry ? "Inquiry Sent!" : "Booking Confirmed!",
         description: isLTOInquiry
-            ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
-            : `Your booking for "${listing.title}" is confirmed. Check 'My Bookings' for details.`,
+          ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
+          : `Your booking for "${listing.title}" is confirmed. Check 'My Bookings' for details.`,
       });
       router.push('/bookings');
     } catch (error: any) {
@@ -261,11 +244,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
         variant: "destructive",
       });
     } finally {
-        setIsSubmittingBooking(false);
+      setIsSubmittingBooking(false);
     }
-  };
+  }, [currentUser, listing, dateRange, isMockModeNoUser, router, toast]);
 
-
+  // Render Logic
   if (isLoading || authLoading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-var(--header-height,8rem)-var(--footer-height,4rem))]">
@@ -275,7 +258,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     );
   }
 
-  if (!listing) { 
+  if (!listing) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
@@ -296,21 +279,14 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
   }
 
   const mainImage = listing?.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
-  const otherImages = listing?.images ? listing.images.slice(1,3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
+  const otherImages = listing?.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
 
+  let displayAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  let displayUnit = 'month';
+  if(listing.pricingModel === 'nightly') displayUnit = 'night';
+  if(listing.pricingModel === 'lease-to-own') displayAmount = `Est. ${displayAmount}`;
 
-  const getPriceDisplay = () => {
-    if (!listing) return { amount: "0", unit: "month", model: 'monthly' as PricingModel };
-    const priceAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    switch(listing.pricingModel) {
-      case 'nightly': return { amount: priceAmount, unit: "night", model: listing.pricingModel };
-      case 'monthly': return { amount: priceAmount, unit: "month", model: listing.pricingModel };
-      case 'lease-to-own': return { amount: `Est. ${priceAmount}`, unit: "month", model: listing.pricingModel };
-      default: return { amount: priceAmount, unit: "month", model: 'monthly' as PricingModel };
-    }
-  };
-  const displayPriceInfo = getPriceDisplay();
-
+  const priceDetails = dateRange ? calculatePriceDetails(listing, dateRange, subscriptionStatus) : null;
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
@@ -365,7 +341,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 <div className="flex items-center"><Maximize className="h-5 w-5 mr-2 text-primary" /> Size: {listing.sizeSqft.toLocaleString()} sq ft</div>
                 <div className="flex items-center"><DollarSign className="h-5 w-5 mr-2 text-primary" />
-                    Price: <span className="font-bold ml-1">{displayPriceInfo.model === 'lease-to-own' ? displayPriceInfo.amount : `$${displayPriceInfo.amount}`}</span> / {displayPriceInfo.unit}
+                    Price: <span className="font-bold ml-1">{listing.pricingModel === 'lease-to-own' ? displayAmount : `$${displayAmount}`}</span> / {displayUnit}
                 </div>
                 <div className="flex items-center col-span-1 sm:col-span-2"><CalendarDays className="h-5 w-5 mr-2 text-primary" /> Availability: {listing.isAvailable ? <span className="text-green-600 font-medium">Available</span> : <span className="text-red-600 font-medium">Not Available</span>}</div>
                 {listing.leaseTerm && listing.pricingModel !== 'nightly' && (
@@ -452,10 +428,10 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
           <Card className={cn("shadow-xl", listing.isBoosted && "ring-1 ring-accent")}>
              <CardHeader className="pb-4">
                 <div className="flex items-baseline justify-start gap-1.5">
-                     <span className={cn("text-3xl font-bold font-body", displayPriceInfo.model === 'lease-to-own' ? "text-2xl" : "text-primary")}>
-                        {displayPriceInfo.model === 'lease-to-own' ? displayPriceInfo.amount : `$${displayPriceInfo.amount}`}
+                     <span className={cn("text-3xl font-bold font-body", listing.pricingModel === 'lease-to-own' ? "text-2xl" : "text-primary")}>
+                        {listing.pricingModel === 'lease-to-own' ? displayAmount : `$${displayAmount}`}
                     </span>
-                    <span className="text-sm text-muted-foreground self-end pb-0.5">/ {displayPriceInfo.unit}</span>
+                    <span className="text-sm text-muted-foreground self-end pb-0.5">/ {displayUnit}</span>
                 </div>
                 {listing.pricingModel === 'lease-to-own' && (
                     <p className="text-xs text-premium tracking-wide -mt-2">Lease-to-Own Inquiry</p>
@@ -499,11 +475,11 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                      </div>
                 )}
 
-                {priceDetails && listing.pricingModel !== 'lease-to-own' && dateRange?.from && dateRange?.to && (
+                {priceDetails && (
                   <div className="space-y-1 text-sm pt-2 border-t">
                     <div className="flex justify-between">
                         <span>{priceDetails.displayRate}</span>
-                        <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
+                        <span>${priceDetails.basePrice.toFixed(2)}</span>
                     </div>
                     {priceDetails.renterFee > 0 && (
                          <div className="flex justify-between">
@@ -519,16 +495,16 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                     )}
                     <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>${(typeof priceDetails.subtotal === 'number' && !isNaN(priceDetails.subtotal)) ? priceDetails.subtotal.toFixed(2) : '--'}</span>
+                        <span>${priceDetails.subtotal.toFixed(2)}</span>
                     </div>
                      <div className="flex justify-between">
                         <span>Est. Taxes (5%):</span>
-                        <span>${(typeof priceDetails.estimatedTax === 'number' && !isNaN(priceDetails.estimatedTax)) ? priceDetails.estimatedTax.toFixed(2) : '--'}</span>
+                        <span>${priceDetails.estimatedTax.toFixed(2)}</span>
                     </div>
                     <Separator className="my-1"/>
                     <div className="flex justify-between font-semibold text-base">
                         <span>Estimated Total:</span>
-                        <span>${(typeof priceDetails.totalPrice === 'number' && !isNaN(priceDetails.totalPrice)) ? priceDetails.totalPrice.toFixed(2) : '--'}</span>
+                        <span>${priceDetails.totalPrice.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -552,14 +528,13 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                     disabled={
                         !listing.isAvailable ||
                         (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
-                        isBookingRequested || isSubmittingBooking ||
+                        isSubmittingBooking ||
                         isMockModeNoUser
                     }
                     >
                      {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                    {isBookingRequested ? (listing.pricingModel === 'lease-to-own' ? "Inquiry Sent" : "Request Confirmed")
-                        : (listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
-                        : "Currently Unavailable")}
+                    {listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
+                        : "Currently Unavailable"}
                     </Button>
                 )}
                 {landowner && (
@@ -618,7 +593,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
                 : `Please review the details for "${listing.title}". This will send a booking request to the landowner for confirmation.`}
             </DialogDescription>
           </DialogHeader>
-          {listing.pricingModel !== 'lease-to-own' && priceDetails && dateRange?.from && dateRange?.to && (
+          {priceDetails && dateRange?.from && dateRange.to && (
             <div className="space-y-2 py-4 text-sm">
               <p><strong>Check-in:</strong> {format(dateRange.from, "PPP")}</p>
               <p><strong>Check-out:</strong> {format(dateRange.to, "PPP")}</p>
@@ -626,15 +601,15 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
               <Separator className="my-2"/>
               <div className="flex justify-between">
                 <span>{priceDetails.displayRate}</span>
-                <span>${(typeof priceDetails.basePrice === 'number' && !isNaN(priceDetails.basePrice)) ? priceDetails.basePrice.toFixed(2) : '--'}</span>
+                <span>${priceDetails.basePrice.toFixed(2)}</span>
               </div>
               {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
               {subscriptionStatus === 'premium' && <div className="flex justify-between text-premium"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
-              <div className="flex justify-between"><span>Subtotal:</span> <span>${(typeof priceDetails.subtotal === 'number' && !isNaN(priceDetails.subtotal)) ? priceDetails.subtotal.toFixed(2) : '--'}</span></div>
-              <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${(typeof priceDetails.estimatedTax === 'number' && !isNaN(priceDetails.estimatedTax)) ? priceDetails.estimatedTax.toFixed(2) : '--'}</span></div>
+              <div className="flex justify-between"><span>Subtotal:</span> <span>${priceDetails.subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${priceDetails.estimatedTax.toFixed(2)}</span></div>
               <Separator className="my-2"/>
-              <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${(typeof priceDetails.totalPrice === 'number' && !isNaN(priceDetails.totalPrice)) ? priceDetails.totalPrice.toFixed(2) : '--'}</span></p>
-              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
+              <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${priceDetails.totalPrice.toFixed(2)}</span></p>
+              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
                     <p className="text-sm text-destructive flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate. Rate may be adjusted.
                     </p>
@@ -656,7 +631,7 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
             <Button onClick={handleConfirmBooking} disabled={
                 isSubmittingBooking ||
                 !currentUser || isMockModeNoUser ||
-                (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails && (differenceInDays(dateRange?.to || new Date(), dateRange?.from || new Date()) + 1) < (listing.minLeaseDurationMonths * 28))
+                (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails?.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28))
             }>
                 {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Confirm Booking Request"}
@@ -667,3 +642,4 @@ export default function ListingDetailPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
