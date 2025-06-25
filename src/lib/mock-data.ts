@@ -840,7 +840,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   const newListingData: Omit<Listing, 'id'> = {
     ...data,
     isBoosted: isLandownerPremium,
-    // Add mock lat/lng if they don't exist
     lat: data.lat ?? 39.8283 + (Math.random() - 0.5) * 10,
     lng: data.lng ?? -98.5795 + (Math.random() - 0.5) * 20,
   };
@@ -858,7 +857,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
     const listingsCol = collection(db, "listings");
     const docRef = await addDoc(listingsCol, newListingData);
     
-    // Update metrics
     const metricsRef = doc(db, "metrics", "global_metrics");
     const listingsCountSnap = await getCountFromServer(collection(db, "listings"));
     await updateDoc(metricsRef, { totalListings: listingsCountSnap.data().count });
@@ -886,7 +884,6 @@ export const updateListing = async (listingId: string, data: Partial<Omit<Listin
     try {
         const listingDocRef = doc(db, "listings", listingId);
         const updateData: any = {...data};
-        // Ensure numeric fields are numbers
         if (updateData.price !== undefined) updateData.price = Number(updateData.price);
         if (updateData.sizeSqft !== undefined) updateData.sizeSqft = Number(updateData.sizeSqft);
         if (updateData.minLeaseDurationMonths !== undefined) updateData.minLeaseDurationMonths = updateData.minLeaseDurationMonths === null ? null : Number(updateData.minLeaseDurationMonths);
@@ -924,7 +921,6 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
 
     batch.delete(listingDocRef);
 
-    // Optional: Delete associated bookings and reviews
     const bookingsQuery = query(collection(db, "bookings"), where("listingId", "==", listingId));
     const bookingsSnapshot = await getDocs(bookingsQuery);
     bookingsSnapshot.forEach(doc => batch.delete(doc.ref));
