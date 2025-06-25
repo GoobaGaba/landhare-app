@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getPlatformMetrics } from '@/lib/mock-data';
+import { getPlatformMetrics, runBotSimulationCycle } from '@/lib/mock-data';
 import type { PlatformMetrics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle } from 'lucide-react';
@@ -17,15 +17,9 @@ export default function AdminDashboardPage() {
   const { toast } = useToast();
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (currentUser?.uid !== ADMIN_UID) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
       setIsLoading(true);
       try {
         const platformMetrics = await getPlatformMetrics();
@@ -35,19 +29,39 @@ export default function AdminDashboardPage() {
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [toast]);
 
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (currentUser?.uid !== ADMIN_UID) {
+      setIsLoading(false);
+      return;
+    }
     fetchMetrics();
-  }, [currentUser, authLoading, toast]);
+  }, [currentUser, authLoading, fetchMetrics]);
   
-  const handleRunBots = () => {
-      toast({
-          title: "Coming Soon!",
-          description: "The bot simulation feature is planned but not yet implemented. Stay tuned!",
-      });
+  const handleRunBots = async () => {
+      setIsSimulating(true);
+      try {
+        const result = await runBotSimulationCycle();
+        toast({
+            title: "Bot Simulation Complete",
+            description: result.message,
+        });
+        await fetchMetrics(); // Re-fetch metrics to update the dashboard
+      } catch (error: any) {
+            toast({
+            title: "Bot Simulation Failed",
+            description: error.message || "An unexpected error occurred.",
+            variant: "destructive",
+        });
+      } finally {
+        setIsSimulating(false);
+      }
   };
 
-  if (authLoading || isLoading) {
+  if (authLoading || (isLoading && !metrics)) {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -149,10 +163,11 @@ export default function AdminDashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Clicking the button below will trigger a set of actions from pre-defined "bot" users. This includes creating new listings and booking existing ones, which will affect all platform metrics. This is a placeholder for the next step.
+            Clicking the button below will trigger a set of actions from pre-defined "bot" users. This includes creating new listings and booking existing ones, which will affect all platform metrics.
           </p>
-          <Button onClick={handleRunBots}>
-            <PlayCircle className="mr-2 h-4 w-4"/> Run Bot Simulation Cycle
+          <Button onClick={handleRunBots} disabled={isSimulating}>
+            {isSimulating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlayCircle className="mr-2 h-4 w-4"/>}
+            Run Bot Simulation Cycle
           </Button>
         </CardContent>
       </Card>

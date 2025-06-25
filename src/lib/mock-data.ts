@@ -20,7 +20,7 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails, PlatformMetrics } from './types';
-import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth, addDays } from 'date-fns';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
@@ -68,6 +68,55 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
   walletBalance: 10000,
 };
 
+const BOT_LANDOWNER_1: User = {
+  id: 'bot-landowner-1',
+  name: 'Bot Alice',
+  email: 'bot.alice@landshare.bot',
+  avatarUrl: 'https://placehold.co/100x100.png?text=BA',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2024-01-01'),
+  bio: 'I am a bot who owns land.',
+  bookmarkedListingIds: [],
+  walletBalance: 50000,
+};
+
+const BOT_LANDOWNER_2: User = {
+  id: 'bot-landowner-2',
+  name: 'Bot Bob',
+  email: 'bot.bob@landshare.bot',
+  avatarUrl: 'https://placehold.co/100x100.png?text=BB',
+  subscriptionStatus: 'free',
+  createdAt: new Date('2024-01-01'),
+  bio: 'I am another bot who owns land.',
+  bookmarkedListingIds: [],
+  walletBalance: 25000,
+};
+
+const BOT_RENTER_1: User = {
+  id: 'bot-renter-1',
+  name: 'Bot Charlie',
+  email: 'bot.charlie@landshare.bot',
+  avatarUrl: 'https://placehold.co/100x100.png?text=BC',
+  subscriptionStatus: 'free',
+  createdAt: new Date('2024-01-01'),
+  bio: 'I am a bot who rents land.',
+  bookmarkedListingIds: [],
+  walletBalance: 8000,
+};
+
+const BOT_RENTER_2: User = {
+  id: 'bot-renter-2',
+  name: 'Bot Diana',
+  email: 'bot.diana@landshare.bot',
+  avatarUrl: 'https://placehold.co/100x100.png?text=BD',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2024-01-01'),
+  bio: 'I am a bot who rents premium land.',
+  bookmarkedListingIds: [],
+  walletBalance: 15000,
+};
+
+const BOT_USERS = [BOT_LANDOWNER_1, BOT_LANDOWNER_2, BOT_RENTER_1, BOT_RENTER_2];
 
 export let mockUsers: User[] = [
   MOCK_ADMIN_USER,
@@ -95,6 +144,7 @@ export let mockUsers: User[] = [
     walletBalance: 10000,
   },
   MOCK_GOOGLE_USER_FOR_UI_TESTING,
+  ...BOT_USERS,
 ];
 
 export let mockListings: Listing[] = [
@@ -421,6 +471,105 @@ export let mockPlatformMetrics: PlatformMetrics = {
   totalBookings: mockBookings.length,
 };
 
+// --- Bot Simulation ---
+const botListingTemplates = {
+    titles: ["Quiet Woodland Clearing", "Creekside Camping Spot", "Mountain View Acreage", "Rural Pasture Land", "Secluded Desert Getaway"],
+    descriptions: [
+        "A peaceful and private spot surrounded by trees. Perfect for a tiny home or long-term camping.",
+        "Beautiful location right next to a running creek. Features a fire pit and basic road access.",
+        "Stunning panoramic views of the mountains. A large, open space ready for your project.",
+        "Flat, open pasture land. Great for small-scale agriculture or a simple homesite.",
+        "Escape it all on this remote desert property. Ideal for stargazing and solitude."
+    ],
+    locations: ["Estes Park, CO", "Bozeman, MT", "Bend, OR", "Taos, NM", "Ithaca, NY"]
+};
+
+function getRandomElement<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+async function createBotListing(landownerBot: User) {
+    const newListingData: Omit<Listing, 'id'> = {
+        title: getRandomElement(botListingTemplates.titles),
+        description: getRandomElement(botListingTemplates.descriptions),
+        location: getRandomElement(botListingTemplates.locations),
+        lat: Math.random() * 20 + 30, // Random US-ish coordinates
+        lng: -(Math.random() * 40 + 80),
+        sizeSqft: Math.floor(Math.random() * 40000) + 5000, // 5k to 45k sqft
+        amenities: ['road access', 'pet friendly'].filter(() => Math.random() > 0.5), // some random amenities
+        pricingModel: 'monthly',
+        price: Math.floor(Math.random() * 500) + 100, // $100-$600
+        images: ['https://placehold.co/800x600.png?text=Bot+Listing'],
+        landownerId: landownerBot.id,
+        isAvailable: true,
+        isBoosted: landownerBot.subscriptionStatus === 'premium',
+        createdAt: new Date(),
+        leaseTerm: getRandomElement(['flexible', 'short-term', 'long-term'])
+    };
+    await addListing(newListingData, newListingData.isBoosted);
+}
+
+async function createBotBooking(renterBot: User) {
+    const availableListings = mockListings.filter(l => l.isAvailable && l.landownerId !== renterBot.id);
+    if (availableListings.length === 0) return null; // No listings to book
+
+    const listingToBook = getRandomElement(availableListings);
+    
+    // Check wallet balance
+    const bookingCost = listingToBook.pricingModel === 'nightly' ? listingToBook.price * 5 : listingToBook.price; // Simulate 5 nights or 1 month
+    if ((renterBot.walletBalance || 0) < bookingCost) {
+        return null; // Not enough money
+    }
+    
+    const fromDate = addDays(new Date(), Math.floor(Math.random() * 30) + 1);
+    const toDate = listingToBook.pricingModel === 'nightly' 
+        ? addDays(fromDate, Math.floor(Math.random() * 10) + 2) // 2-12 nights
+        : addDays(fromDate, Math.floor(Math.random() * 90) + 30); // 1-4 months
+
+    const bookingRequest: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}} = {
+        listingId: listingToBook.id,
+        renterId: renterBot.id,
+        landownerId: listingToBook.landownerId,
+        dateRange: { from: fromDate, to: toDate },
+    };
+    
+    const newBooking = await addBookingRequest(bookingRequest, 'Pending Confirmation');
+    // Simulate landowner confirming the booking
+    await updateBookingStatus(newBooking.id, 'Confirmed');
+    return newBooking;
+}
+
+export async function runBotSimulationCycle(): Promise<{ success: boolean, message: string }> {
+    if (firebaseInitializationError || !db) {
+        let listingsCreated = 0;
+        let bookingsCreated = 0;
+
+        // 1. Create a new listing from a bot landowner
+        const landownerBots = BOT_USERS.filter(u => u.id.includes('landowner'));
+        if (landownerBots.length > 0) {
+            await createBotListing(getRandomElement(landownerBots));
+            listingsCreated++;
+        }
+        
+        // 2. Create 1-2 new bookings from bot renters
+        const renterBots = BOT_USERS.filter(u => u.id.includes('renter'));
+        const bookingAttempts = Math.floor(Math.random() * 2) + 1; // 1 or 2 bookings
+        for (let i = 0; i < bookingAttempts; i++) {
+            if (renterBots.length > 0) {
+                const bookingResult = await createBotBooking(getRandomElement(renterBots));
+                if(bookingResult) bookingsCreated++;
+            }
+        }
+        
+        incrementMockDataVersion('runBotSimulationCycle');
+        return { success: true, message: `Simulation complete: ${listingsCreated} listing(s) and ${bookingsCreated} booking(s) created.`};
+    }
+    // In live mode, this would require a cloud function or more complex setup.
+    // For now, we only support this in mock mode.
+    return { success: false, message: "Bot simulation is only available in mock/preview mode." };
+}
+
+// --- Data Mapping Functions ---
 const mapDocToUser = (docSnap: any): User => {
   const data = docSnap.data();
   return {
@@ -580,7 +729,7 @@ export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
   }
 };
 
-export const updatePlatformMetrics = async (updates: { serviceFee?: number; subscriptionRevenue?: number }): Promise<void> => {
+export const updatePlatformMetrics = async (updates: { serviceFee?: number; subscriptionRevenue?: number, userChange?: number, listingChange?: number, bookingChange?: number }): Promise<void> => {
     if (firebaseInitializationError || !db) {
         if (updates.serviceFee) {
             mockPlatformMetrics.totalServiceFees += updates.serviceFee;
@@ -590,6 +739,10 @@ export const updatePlatformMetrics = async (updates: { serviceFee?: number; subs
             mockPlatformMetrics.totalSubscriptionRevenue += updates.subscriptionRevenue;
             mockPlatformMetrics.totalRevenue += updates.subscriptionRevenue;
         }
+        if (updates.userChange) mockPlatformMetrics.totalUsers += updates.userChange;
+        if (updates.listingChange) mockPlatformMetrics.totalListings += updates.listingChange;
+        if (updates.bookingChange) mockPlatformMetrics.totalBookings += updates.bookingChange;
+
         incrementMockDataVersion('updatePlatformMetrics_mock');
         return;
     }
@@ -599,14 +752,22 @@ export const updatePlatformMetrics = async (updates: { serviceFee?: number; subs
         const currentMetrics = await getPlatformMetrics();
 
         const dataToUpdate: Partial<PlatformMetrics> = {};
+        let revenueChange = 0;
         if (updates.serviceFee) {
-            dataToUpdate.totalServiceFees = (currentMetrics.totalServiceFees || 0) + updates.serviceFee;
-            dataToUpdate.totalRevenue = (currentMetrics.totalRevenue || 0) + updates.serviceFee;
+          dataToUpdate.totalServiceFees = (currentMetrics.totalServiceFees || 0) + updates.serviceFee;
+          revenueChange += updates.serviceFee;
         }
         if (updates.subscriptionRevenue) {
-            dataToUpdate.totalSubscriptionRevenue = (currentMetrics.totalSubscriptionRevenue || 0) + updates.subscriptionRevenue;
-            dataToUpdate.totalRevenue = (dataToUpdate.totalRevenue ?? (currentMetrics.totalRevenue || 0)) + updates.subscriptionRevenue;
+          dataToUpdate.totalSubscriptionRevenue = (currentMetrics.totalSubscriptionRevenue || 0) + updates.subscriptionRevenue;
+          revenueChange += updates.subscriptionRevenue;
         }
+        if (revenueChange !== 0) {
+            dataToUpdate.totalRevenue = (currentMetrics.totalRevenue || 0) + revenueChange;
+        }
+        if (updates.userChange) dataToUpdate.totalUsers = (currentMetrics.totalUsers || 0) + updates.userChange;
+        if (updates.listingChange) dataToUpdate.totalListings = (currentMetrics.totalListings || 0) + updates.listingChange;
+        if (updates.bookingChange) dataToUpdate.totalBookings = (currentMetrics.totalBookings || 0) + updates.bookingChange;
+
 
         if (Object.keys(dataToUpdate).length > 0) {
             await updateDoc(metricsDocRef, dataToUpdate);
@@ -738,6 +899,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
     } else {
       mockUsers.push(profileData);
+      updatePlatformMetrics({ userChange: 1 });
     }
     incrementMockDataVersion('createUserProfile_mock');
     return profileData;
@@ -753,6 +915,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     delete (firestoreProfileData as any).id; // ID is path parameter
 
     await setDoc(userDocRef, firestoreProfileData, { merge: true });
+    updatePlatformMetrics({ userChange: 1 });
     const newUserSnap = await getDoc(userDocRef);
     if (!newUserSnap.exists()) throw new Error("Failed to retrieve user profile from Firestore after creation/update.");
     return mapDocToUser(newUserSnap);
@@ -870,6 +1033,7 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
     const mockId = `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const fullMockListing = { ...newListingData, id: mockId } as Listing;
     mockListings.unshift(fullMockListing);
+    updatePlatformMetrics({ listingChange: 1 });
     incrementMockDataVersion('addListing_mock');
     return fullMockListing;
   }
@@ -877,6 +1041,7 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
   try {
     const listingsCol = collection(db, "listings");
     const docRef = await addDoc(listingsCol, newListingData);
+    updatePlatformMetrics({ listingChange: 1 });
     const newDocSnap = await getDoc(docRef);
     if (!newDocSnap.exists()) throw new Error("Failed to retrieve new listing.");
     return mapDocToListing(newDocSnap);
@@ -922,7 +1087,10 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     mockBookings = mockBookings.filter(b => b.listingId !== listingId);
     mockReviews = mockReviews.filter(r => r.listingId !== listingId);
     const deleted = mockListings.length < initialLength;
-    if (deleted) incrementMockDataVersion('deleteListing_mock');
+    if (deleted) {
+      updatePlatformMetrics({ listingChange: -1 });
+      incrementMockDataVersion('deleteListing_mock');
+    }
     return deleted;
   }
 
@@ -945,6 +1113,7 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     reviewsSnapshot.forEach(doc => batch.delete(doc.ref));
     
     await batch.commit();
+    updatePlatformMetrics({ listingChange: -1, bookingChange: -bookingsSnapshot.size });
     return true;
   } catch (error) {
     console.error(`[Firestore Error] deleteListing for ID ${listingId}:`, error);
@@ -1127,6 +1296,7 @@ export const addBookingRequest = async (
     const mockId = newPaymentTransaction.relatedBookingId!;
     const newMockBooking: Booking = { id: mockId, ...newBookingBase };
     mockBookings.unshift(newMockBooking);
+    updatePlatformMetrics({ bookingChange: 1 });
     incrementMockDataVersion('addBookingRequest_mock');
     return newMockBooking;
   }
@@ -1161,6 +1331,7 @@ export const addBookingRequest = async (
 
     const bookingsCol = collection(db, "bookings");
     const docRef = await addDoc(bookingsCol, newBookingBase);
+    updatePlatformMetrics({ bookingChange: 1 });
 
     const newPaymentTransaction: Omit<Transaction, 'id'> = {
         userId: renterInfo.id,
