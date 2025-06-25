@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock, FilterX } from 'lucide-react';
+import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock, FilterX, ListChecks } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { LeaseTerm } from '@/lib/types';
 
@@ -137,7 +137,9 @@ export function FilterPanel({
           </div>
 
           <div>
-            <Label className="mb-2 block">Amenities</Label>
+            <Label className="flex items-center mb-2">
+                <ListChecks className="h-4 w-4 mr-2 text-primary" /> Amenities
+            </Label>
             <div className="space-y-2">
               {amenitiesList.map(amenity => (
                 <div key={amenity.id} className="flex items-center space-x-2">
