@@ -27,11 +27,6 @@ export interface Listing {
   isBoosted?: boolean;
   createdAt?: Date | Timestamp;
   bookmarkedBy?: string[];
-
-  // Fields for later phases
-  ltoEligible?: boolean;
-  zoningInfo?: any; // Replace 'any' with a proper type in Phase 3
-  leaseContractPath?: string;
 }
 
 export type SubscriptionStatus = 'free' | 'premium' | 'loading';
@@ -63,7 +58,7 @@ export interface Booking {
   listingId: string;
   renterId: string;
   landownerId: string;
-  status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled by Renter' | 'Refund Requested' | 'Refund Approved' | 'Cancelled';
+  status: 'Confirmed' | 'Pending Confirmation' | 'Declined' | 'Cancelled by Renter' | 'Refund Requested' | 'Refund Approved';
   dateRange: {
     from: Date | Timestamp;
     to: Date | Timestamp;

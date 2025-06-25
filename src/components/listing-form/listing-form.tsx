@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useEffect, useState, useTransition, ChangeEvent } from 'react';
+import { useEffect, useState, useTransition, ChangeEvent, lazy, Suspense } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import heic2any from 'heic2any';
+import type heic2any from 'heic2any'; // Import type only
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -203,11 +203,13 @@ export function ListingForm() {
     }));
     setImagePreviews(prev => [...prev, ...tempPreviews]);
 
+    // Dynamically import heic2any
+    const heic2any = (await import('heic2any')).default;
+
     for (const preview of tempPreviews) {
       let fileToUpload: File | Blob = preview.file!;
       let fileName = (preview.file as File).name;
 
-      // Convert HEIC to JPEG if necessary
       if (fileToUpload.type === 'image/heic' || fileName.toLowerCase().endsWith('.heic')) {
         try {
           toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
@@ -223,11 +225,10 @@ export function ListingForm() {
         }
       }
 
-      // Upload the processed file (original or converted)
       try {
         const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
         setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
-        URL.revokeObjectURL(preview.url); // Clean up blob URL
+        URL.revokeObjectURL(preview.url);
         const currentImages = getValues('images');
         setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
       } catch (error) {
@@ -242,7 +243,6 @@ export function ListingForm() {
   const handleRemoveImage = (indexToRemove: number) => {
     const newImagePreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
     setImagePreviews(newImagePreviews);
-    // Update the form value with only the URLs of the remaining images
     setValue('images', newImagePreviews.filter(p => !p.isLoading).map(p => p.url), { shouldDirty: true, shouldValidate: true });
   };
   
@@ -267,7 +267,7 @@ export function ListingForm() {
         images: finalImageUrls,
         landownerId: currentUser.uid,
         isAvailable: true,
-        rating: undefined, // Use undefined for new listings
+        rating: undefined,
         numberOfRatings: 0,
         isBoosted: subscriptionStatus === 'premium',
         createdAt: Timestamp.fromDate(new Date()),
@@ -276,7 +276,6 @@ export function ListingForm() {
       };
       
       const firestorePayload: any = {...newListingPayload};
-      // Ensure any explicit 'undefined' values are removed for Firestore
       Object.keys(firestorePayload).forEach(key => {
         if (firestorePayload[key as keyof typeof firestorePayload] === undefined) {
           delete firestorePayload[key as keyof typeof firestorePayload];

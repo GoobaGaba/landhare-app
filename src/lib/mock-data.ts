@@ -1051,7 +1051,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const paymentTxnIndex = mockTransactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
     if (paymentTxnIndex !== -1) {
         if (status === 'Confirmed') mockTransactions[paymentTxnIndex].status = 'Completed';
-        if (status === 'Declined' || status === 'Cancelled by Renter') mockTransactions[paymentTxnIndex].status = 'Failed';
+        if (status === 'Declined') mockTransactions[paymentTxnIndex].status = 'Failed';
     }
 
     if (status === 'Confirmed') {
@@ -1159,7 +1159,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     const paymentSnap = await getDocs(paymentQuery);
     paymentSnap.forEach(doc => {
       if (status === 'Confirmed') batch.update(doc.ref, { status: 'Completed' });
-      if (status === 'Declined' || status === 'Cancelled by Renter') batch.update(doc.ref, { status: 'Failed' });
+      if (status === 'Declined') batch.update(doc.ref, { status: 'Failed' });
     });
 
     if (status === 'Confirmed') {

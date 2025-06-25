@@ -8,7 +8,7 @@ import { z } from 'zod';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import heic2any from 'heic2any';
+import type heic2any from 'heic2any'; // Import type only
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -208,11 +208,13 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     }));
     setImagePreviews(prev => [...prev, ...tempPreviews]);
 
+    // Dynamically import heic2any
+    const heic2any = (await import('heic2any')).default;
+
     for (const preview of tempPreviews) {
       let fileToUpload: File | Blob = preview.file!;
       let fileName = (preview.file as File).name;
 
-      // Convert HEIC to JPEG if necessary
       if (fileToUpload.type === 'image/heic' || fileName.toLowerCase().endsWith('.heic')) {
         try {
           toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
@@ -228,11 +230,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         }
       }
 
-      // Upload the processed file (original or converted)
       try {
         const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
         setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
-        URL.revokeObjectURL(preview.url); // Clean up blob URL
+        URL.revokeObjectURL(preview.url);
         const currentImages = getValues('images');
         setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
       } catch (error) {
@@ -247,7 +248,6 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const handleRemoveImage = (indexToRemove: number) => {
     const newImagePreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
     setImagePreviews(newImagePreviews);
-    // Update the form value with only the URLs of the remaining images
     setValue('images', newImagePreviews.filter(p => !p.isLoading).map(p => p.url), { shouldDirty: true, shouldValidate: true });
   };
 
@@ -277,7 +277,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         await updateDoc(listingDocRef, updateData);
         
         toast({ title: "Success!", description: `Listing "${data.title}" updated successfully!` });
-        refreshListings(); // Refresh data context
+        refreshListings();
         setSubmissionSuccess(true);
         router.push(`/my-listings`);
 

@@ -4,14 +4,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { CalendarCheck, Briefcase, CheckCircle, XCircle, AlertTriangle, Loader2, UserCircle, FileText, Download, ExternalLink, CalendarPlus, Undo2, BadgeCheck } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import type { Booking, GenerateLeaseTermsInput } from '@/lib/types';
 import { getBookingsForUser, updateBookingStatus as dbUpdateBookingStatus, getListingById, populateBookingDetails } from '@/lib/mock-data';
 import { format, differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
-import { firebaseInitializationError, db as firestoreDb } from '@/lib/firebase'; // Added firestoreDb
+import { firebaseInitializationError, db as firestoreDb } from '@/lib/firebase';
 import { getGeneratedLeaseTermsAction } from '@/lib/actions/ai-actions';
 import {
   AlertDialog,
@@ -24,8 +25,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import jsPDF from 'jspdf';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; // Storage imports
-import { doc, updateDoc } from 'firebase/firestore'; // Firestore update import
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, updateDoc } from 'firebase/firestore';
 
 export default function BookingsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -85,12 +86,12 @@ export default function BookingsPage() {
 
 
   const uploadLeaseToStorage = async (pdfBlob: Blob, booking: Booking) => {
-    if (!currentUser || !booking || !booking.listingId || !firestoreDb) {
+    if (!currentUser || !booking || !booking.listingId || (!firestoreDb && !firebaseInitializationError)) {
       toast({ title: "Error", description: "Cannot save lease without user, booking info, or DB connection.", variant: "destructive" });
       return;
     }
-    if (firebaseInitializationError && !currentUser.appProfile) {
-       toast({ title: "Preview Mode", description: "Lease upload is disabled in full preview mode (no mock user).", variant: "default" });
+    if (firebaseInitializationError) {
+       toast({ title: "Preview Mode", description: "Lease upload is disabled in preview mode.", variant: "default" });
        return;
     }
 
@@ -112,7 +113,7 @@ export default function BookingsPage() {
       const snapshot = await uploadBytes(sRef, pdfBlob, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
-      const bookingDocRef = doc(firestoreDb, "bookings", booking.id);
+      const bookingDocRef = doc(firestoreDb!, "bookings", booking.id);
       await updateDoc(bookingDocRef, {
         leaseContractPath: snapshot.ref.fullPath,
         leaseContractUrl: downloadURL
@@ -261,7 +262,7 @@ export default function BookingsPage() {
       if (updatedBooking) {
         let toastDescription = `Booking status changed to ${newStatus}.`;
         if (newStatus === 'Cancelled by Renter') {
-          toastDescription = "Your booking request has been cancelled. No refund is automatically issued.";
+          toastDescription = "Your booking has been cancelled. No refund is automatically issued.";
         } else if (newStatus === 'Refund Requested') {
           toastDescription = "A refund has been requested. The landowner will review it.";
         } else if (newStatus === 'Refund Approved') {
@@ -409,7 +410,7 @@ export default function BookingsPage() {
                                 </Button>
                             </>
                         )}
-                        {booking.status === 'Cancelled by Renter' && (
+                        {(booking.status === 'Cancelled by Renter' || booking.status === 'Declined') && (
                              <Button variant="secondary" size="sm" onClick={() => handleUpdateBookingStatus(booking, 'Refund Requested')} disabled={isStatusUpdating[booking.id]} >
                                 {isStatusUpdating[booking.id] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2 className="mr-2 h-4 w-4" />} Request Refund
                             </Button>
@@ -453,7 +454,7 @@ export default function BookingsPage() {
             </pre>
           </div>
           <AlertDialogFooter className="gap-2 flex-row justify-end">
-            <Button variant="outline" onClick={handleDownloadAndStoreLeasePdf} disabled={!currentLeaseTerms || !currentBookingForLease || (firebaseInitializationError !== null && !currentUser?.appProfile)}>
+            <Button variant="outline" onClick={handleDownloadAndStoreLeasePdf} disabled={!currentLeaseTerms || !currentBookingForLease || (firebaseInitializationError !== null)}>
                 <Download className="mr-2 h-4 w-4"/> Download & Save to Cloud
             </Button>
             <AlertDialogAction onClick={() => setLeaseTermsModalOpen(false)}>Close</AlertDialogAction>
