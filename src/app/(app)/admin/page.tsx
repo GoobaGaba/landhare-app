@@ -1,0 +1,161 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { getPlatformMetrics } from '@/lib/mock-data';
+import type { PlatformMetrics } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+
+const ADMIN_UID = 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3';
+
+export default function AdminDashboardPage() {
+  const { currentUser, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (currentUser?.uid !== ADMIN_UID) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchMetrics = async () => {
+      setIsLoading(true);
+      try {
+        const platformMetrics = await getPlatformMetrics();
+        setMetrics(platformMetrics);
+      } catch (error: any) {
+        toast({ title: 'Error', description: `Failed to load platform metrics: ${error.message}`, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, [currentUser, authLoading, toast]);
+  
+  const handleRunBots = () => {
+      toast({
+          title: "Coming Soon!",
+          description: "The bot simulation feature is planned but not yet implemented. Stay tuned!",
+      });
+  };
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading Admin Dashboard...</p>
+      </div>
+    );
+  }
+
+  if (currentUser?.uid !== ADMIN_UID) {
+    return (
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-destructive"><Shield className="h-6 w-6"/> Access Denied</CardTitle>
+          <CardDescription>You do not have permission to view this page.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">This area is restricted to platform administrators.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      <p className="text-muted-foreground">
+        A top-level overview of the LandShare platform's simulated economy and user activity.
+      </p>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">${(metrics?.totalRevenue || 0).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">From all fees and subscriptions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Service Fee Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${(metrics?.totalServiceFees || 0).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">From landowner payouts</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Subscription Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${(metrics?.totalSubscriptionRevenue || 0).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">From premium user plans</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.totalUsers || 0}</div>
+            <p className="text-xs text-muted-foreground">Total registered accounts</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Listings</CardTitle>
+            <Home className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.totalListings || 0}</div>
+            <p className="text-xs text-muted-foreground">Active and inactive listings</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <Book className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics?.totalBookings || 0}</div>
+            <p className="text-xs text-muted-foreground">All booking requests made</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/>Bot Simulation Controls</CardTitle>
+          <CardDescription>
+            Generate realistic, automated activity on the platform to test its economic model and data tracking at scale.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Clicking the button below will trigger a set of actions from pre-defined "bot" users. This includes creating new listings and booking existing ones, which will affect all platform metrics. This is a placeholder for the next step.
+          </p>
+          <Button onClick={handleRunBots}>
+            <PlayCircle className="mr-2 h-4 w-4"/> Run Bot Simulation Cycle
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

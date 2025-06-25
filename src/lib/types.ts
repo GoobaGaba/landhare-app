@@ -173,3 +173,13 @@ export interface PriceDetails {
   pricingModelUsed?: PricingModel;
   displayRate?: string; // e.g., "$50/night", "$100/month (prorated for X days)"
 }
+
+export interface PlatformMetrics {
+  id: string; // usually a singleton like 'global_metrics'
+  totalRevenue: number;
+  totalServiceFees: number;
+  totalSubscriptionRevenue: number;
+  totalUsers: number;
+  totalListings: number;
+  totalBookings: number;
+}

@@ -19,7 +19,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from 'firebase/firestore';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails, PlatformMetrics } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export const FREE_TIER_LISTING_LIMIT = 2;
@@ -32,14 +32,26 @@ export const incrementMockDataVersion = (source: string) => {
   // console.log(`[MockData] mockDataVersion incremented by ${source}. New version: ${mockDataVersion}`);
 };
 
+export const MOCK_ADMIN_USER: User = {
+  id: 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3',
+  name: 'Gabriel Leunda',
+  email: 'admin@landshare.app',
+  avatarUrl: 'https://placehold.co/100x100.png?text=GL',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2023-01-01T10:00:00Z'),
+  bio: 'Platform Administrator.',
+  bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
+  walletBalance: 1000000,
+};
+
 export const MOCK_USER_FOR_UI_TESTING: User = {
   id: 'mock-user-uid-12345',
   name: 'Mock UI Tester',
   email: 'mocktester@example.com',
   avatarUrl: 'https://placehold.co/100x100.png?text=MT',
-  subscriptionStatus: 'premium',
+  subscriptionStatus: 'free',
   createdAt: new Date('2023-01-01T10:00:00Z'),
-  bio: 'I am the main mock user for testing purposes with premium status.',
+  bio: 'I am a standard mock user for testing purposes.',
   bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
   walletBalance: 10000,
 };
@@ -58,6 +70,7 @@ export const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = {
 
 
 export let mockUsers: User[] = [
+  MOCK_ADMIN_USER,
   MOCK_USER_FOR_UI_TESTING,
   {
     id: 'landowner-jane-doe',
@@ -118,7 +131,7 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 200,
     images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'],
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerId: MOCK_ADMIN_USER.id,
     isAvailable: true,
     rating: 4.2,
     numberOfRatings: 8,
@@ -159,7 +172,7 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 400,
     images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'],
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerId: MOCK_ADMIN_USER.id,
     isAvailable: true,
     rating: 4.9,
     numberOfRatings: 22,
@@ -201,7 +214,7 @@ export let mockListings: Listing[] = [
     price: 650, // LTO monthly payment
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerId: MOCK_ADMIN_USER.id,
     isAvailable: true,
     rating: 4.3,
     numberOfRatings: 5,
@@ -242,7 +255,7 @@ export let mockListings: Listing[] = [
     pricingModel: 'monthly',
     price: 1200,
     images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'],
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
+    landownerId: MOCK_ADMIN_USER.id,
     isAvailable: false,
     rating: 4.9,
     numberOfRatings: 35,
@@ -272,8 +285,8 @@ export let mockBookings: Booking[] = [
     listingTitle: 'Forest Retreat Lot (Monthly)',
     renterId: 'renter-john-smith',
     renterName: 'John Smith',
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
-    landownerName: MOCK_USER_FOR_UI_TESTING.name,
+    landownerId: MOCK_ADMIN_USER.id,
+    landownerName: MOCK_ADMIN_USER.name,
     status: 'Pending Confirmation',
     dateRange: { from: new Date('2024-08-01'), to: new Date('2024-09-01') },
     createdAt: new Date('2024-07-20T11:00:00Z'),
@@ -282,8 +295,8 @@ export let mockBookings: Booking[] = [
     id: 'booking-3',
     listingId: 'listing-1-sunny-meadow',
     listingTitle: 'Sunny Meadow Plot',
-    renterId: MOCK_USER_FOR_UI_TESTING.id,
-    renterName: MOCK_USER_FOR_UI_TESTING.name,
+    renterId: MOCK_ADMIN_USER.id,
+    renterName: MOCK_ADMIN_USER.name,
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Declined',
@@ -308,8 +321,8 @@ export let mockBookings: Booking[] = [
     listingTitle: 'Mountain Homestead - Lease to Own!',
     renterId: 'renter-john-smith',
     renterName: 'John Smith',
-    landownerId: MOCK_USER_FOR_UI_TESTING.id,
-    landownerName: MOCK_USER_FOR_UI_TESTING.name,
+    landownerId: MOCK_ADMIN_USER.id,
+    landownerName: MOCK_ADMIN_USER.name,
     status: 'Pending Confirmation',
     dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') },
     createdAt: new Date('2024-07-25T10:00:00Z'),
@@ -318,8 +331,8 @@ export let mockBookings: Booking[] = [
     id: 'booking-6-mockuser-pending',
     listingId: 'listing-1-sunny-meadow',
     listingTitle: 'Sunny Meadow Plot',
-    renterId: MOCK_USER_FOR_UI_TESTING.id,
-    renterName: MOCK_USER_FOR_UI_TESTING.name,
+    renterId: MOCK_ADMIN_USER.id,
+    renterName: MOCK_ADMIN_USER.name,
     landownerId: 'landowner-jane-doe',
     landownerName: 'Jane Doe',
     status: 'Pending Confirmation',
@@ -362,7 +375,7 @@ export let mockReviews: Review[] = [
     userId: 'renter-john-smith',
     userName: 'John Smith',
     rating: 4,
-    comment: 'Interesting LTO option. Land is raw but promising. Landowner (Mock Tester) was helpful with initial info.',
+    comment: 'Interesting LTO option. Land is raw but promising. Landowner (Admin) was helpful with initial info.',
     createdAt: new Date('2024-05-01T10:00:00Z'),
   },
   {
@@ -386,10 +399,10 @@ export let mockReviews: Review[] = [
 ];
 
 export let mockTransactions: Transaction[] = [
-  // Mock User's transactions
-  { id: 'txn1', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
-  { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 199.02, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
-  { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -0.98, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (0.49%) for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  // Admin User's transactions
+  { id: 'txn1', userId: MOCK_ADMIN_USER.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' },
+  { id: 'txn2', userId: MOCK_ADMIN_USER.id, type: 'Landowner Payout', status: 'Completed', amount: 199.02, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
+  { id: 'txn3', userId: MOCK_ADMIN_USER.id, type: 'Service Fee', status: 'Completed', amount: -0.98, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (0.49%) for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
   // Jane Doe's transactions
   { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
   { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee (2%) for Sunny Meadow Plot', relatedListingId: 'listing-1-sunny-meadow', relatedBookingId: 'booking-1' },
@@ -398,6 +411,15 @@ export let mockTransactions: Transaction[] = [
   { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot', relatedListingId: 'listing-2-forest-retreat', relatedBookingId: 'booking-2' },
 ];
 
+export let mockPlatformMetrics: PlatformMetrics = {
+  id: 'global_metrics',
+  totalRevenue: 206.02,
+  totalServiceFees: 7.98,
+  totalSubscriptionRevenue: 5.00,
+  totalUsers: mockUsers.length,
+  totalListings: mockListings.length,
+  totalBookings: mockBookings.length,
+};
 
 const mapDocToUser = (docSnap: any): User => {
   const data = docSnap.data();
@@ -517,6 +539,84 @@ const calculatePriceDetails = (listing: Listing, dateRange: { from: Date, to: Da
   return { totalPrice, basePrice: baseRate, renterFee, estimatedTax } as PriceDetails;
 };
 
+// --- Platform Metrics Functions ---
+export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
+  if (firebaseInitializationError || !db) {
+    const totalServiceFees = mockTransactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((acc, t) => acc + Math.abs(t.amount), 0);
+    const totalSubscriptionRevenue = mockTransactions.filter(t => (t.type === 'Subscription' || t.type === 'Subscription Refund') && t.status === 'Completed').reduce((acc, t) => acc + t.amount, 0);
+    
+    mockPlatformMetrics.totalServiceFees = totalServiceFees;
+    mockPlatformMetrics.totalSubscriptionRevenue = totalSubscriptionRevenue;
+    mockPlatformMetrics.totalRevenue = totalServiceFees + totalSubscriptionRevenue;
+    mockPlatformMetrics.totalUsers = mockUsers.length;
+    mockPlatformMetrics.totalListings = mockListings.length;
+    mockPlatformMetrics.totalBookings = mockBookings.length;
+
+    return { ...mockPlatformMetrics };
+  }
+
+  try {
+    const metricsDocRef = doc(db, "platform", "metrics");
+    const metricsSnap = await getDoc(metricsDocRef);
+    if (metricsSnap.exists()) {
+      const data = metricsSnap.data();
+      return {
+        id: metricsSnap.id,
+        totalRevenue: data.totalRevenue || 0,
+        totalServiceFees: data.totalServiceFees || 0,
+        totalSubscriptionRevenue: data.totalSubscriptionRevenue || 0,
+        totalUsers: data.totalUsers || 0,
+        totalListings: data.totalListings || 0,
+        totalBookings: data.totalBookings || 0,
+      }
+    } else {
+      const initialMetrics = { totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
+      await setDoc(metricsDocRef, initialMetrics);
+      return { id: 'metrics', ...initialMetrics };
+    }
+  } catch (error) {
+    console.error("[Firestore Error] getPlatformMetrics:", error);
+    throw error;
+  }
+};
+
+export const updatePlatformMetrics = async (updates: { serviceFee?: number; subscriptionRevenue?: number }): Promise<void> => {
+    if (firebaseInitializationError || !db) {
+        if (updates.serviceFee) {
+            mockPlatformMetrics.totalServiceFees += updates.serviceFee;
+            mockPlatformMetrics.totalRevenue += updates.serviceFee;
+        }
+        if (updates.subscriptionRevenue) {
+            mockPlatformMetrics.totalSubscriptionRevenue += updates.subscriptionRevenue;
+            mockPlatformMetrics.totalRevenue += updates.subscriptionRevenue;
+        }
+        incrementMockDataVersion('updatePlatformMetrics_mock');
+        return;
+    }
+    
+    try {
+        const metricsDocRef = doc(db, "platform", "metrics");
+        const currentMetrics = await getPlatformMetrics();
+
+        const dataToUpdate: Partial<PlatformMetrics> = {};
+        if (updates.serviceFee) {
+            dataToUpdate.totalServiceFees = (currentMetrics.totalServiceFees || 0) + updates.serviceFee;
+            dataToUpdate.totalRevenue = (currentMetrics.totalRevenue || 0) + updates.serviceFee;
+        }
+        if (updates.subscriptionRevenue) {
+            dataToUpdate.totalSubscriptionRevenue = (currentMetrics.totalSubscriptionRevenue || 0) + updates.subscriptionRevenue;
+            dataToUpdate.totalRevenue = (dataToUpdate.totalRevenue ?? (currentMetrics.totalRevenue || 0)) + updates.subscriptionRevenue;
+        }
+
+        if (Object.keys(dataToUpdate).length > 0) {
+            await updateDoc(metricsDocRef, dataToUpdate);
+        }
+    } catch (error) {
+        console.error("[Firestore Error] updatePlatformMetrics:", error);
+        throw error;
+    }
+};
+
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
     if (firebaseInitializationError || !db) {
@@ -553,6 +653,7 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-sub-${Date.now()}` });
+        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
         incrementMockDataVersion('createSubscriptionTransaction_mock');
     } else {
         const userDocRef = doc(db, "users", userId);
@@ -562,6 +663,7 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
             await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
     }
 };
 
@@ -581,6 +683,7 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
             mockUsers[userIndex].walletBalance = (mockUsers[userIndex].walletBalance ?? 0) + newTransaction.amount;
         }
         mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
+        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
         incrementMockDataVersion('createRefundTransaction_mock');
     } else {
         const userDocRef = doc(db, "users", userId);
@@ -590,6 +693,7 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
             await updateDoc(userDocRef, { walletBalance: currentBalance + newTransaction.amount });
         }
         await addDoc(collection(db, "transactions"), { ...newTransaction, date: Timestamp.fromDate(newTransaction.date as Date) });
+        await updatePlatformMetrics({ subscriptionRevenue: newTransaction.amount });
     }
 };
 
@@ -1118,6 +1222,8 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
             const payout = payoutBaseAmount - serviceFee;
             
             mockUsers[landownerIndex].walletBalance = (landowner.walletBalance ?? 0) + payout;
+            
+            updatePlatformMetrics({ serviceFee: serviceFee });
 
             mockTransactions.unshift({
                 id: `txn-payout-${booking.id}`,
@@ -1239,6 +1345,8 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
 
               const landownerDocRef = doc(db, 'users', landowner.id);
               batch.update(landownerDocRef, { walletBalance: (landowner.walletBalance ?? 0) + payout });
+              
+              await updatePlatformMetrics({ serviceFee: serviceFee });
 
               const transCol = collection(db, 'transactions');
               batch.set(doc(transCol), {

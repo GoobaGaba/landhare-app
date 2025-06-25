@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,7 @@ export default function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { currentUser, logoutUser, loading } = useAuth();
   const { toast } = useToast();
+  const ADMIN_UID = 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3';
 
   const handleLogout = async () => {
     try {
@@ -113,6 +114,17 @@ export default function AppHeader() {
                       <DropdownMenuLabel>
                         {currentUser.appProfile?.name || currentUser.displayName || currentUser.email}
                       </DropdownMenuLabel>
+                      {currentUser.uid === ADMIN_UID && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin" className={cn("flex items-center gap-2", pathname === "/admin" && "bg-muted")}>
+                              <BarChart3 className="h-4 w-4" />
+                              <span>Admin Dashboard</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       {userNavLinks.map((link) => (
                         <DropdownMenuItem key={link.href} asChild>
@@ -194,6 +206,21 @@ export default function AppHeader() {
                       <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
+
+                  {!loading && currentUser && currentUser.uid === ADMIN_UID && (
+                      <SheetClose asChild>
+                          <Button
+                          variant={pathname === '/admin' ? 'secondary' : 'ghost'}
+                          asChild
+                          className="w-full justify-start text-base py-3"
+                          >
+                          <Link href="/admin">
+                              <BarChart3 className="mr-2 h-4 w-4" />
+                              Admin Dashboard
+                          </Link>
+                          </Button>
+                      </SheetClose>
+                  )}
 
                   {!loading && currentUser && userNavLinks.map((link) => (
                     <SheetClose asChild key={`mobile-user-${link.href}`}>
