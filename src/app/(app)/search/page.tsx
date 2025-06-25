@@ -141,8 +141,8 @@ function SearchPageContent() {
   };
 
   const listingsForMap = useMemo(() => {
-    return paginatedListings.filter(l => l.lat != null && l.lng != null);
-  }, [paginatedListings]);
+    return filteredListings.filter(l => l.lat != null && l.lng != null);
+  }, [filteredListings]);
 
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {

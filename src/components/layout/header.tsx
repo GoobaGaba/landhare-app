@@ -45,13 +45,14 @@ export default function AppHeader() {
   };
 
   const userNavLinks: NavLink[] = [
-    { href: '/profile', label: 'Profile', icon: UserCircle },
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/messages', label: 'Messages', icon: MessageSquare },
-    { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon-DEFAULT hover:text-neon-DEFAULT focus:text-neon-DEFAULT focus:bg-neon-DEFAULT/10 hover:bg-neon-DEFAULT/10" },
+    { href: '/my-listings', label: 'My Listings', icon: ListChecks },
+    { href: '/bookmarks', label: 'My Bookmarks', icon: Bookmark },
+    { href: '/bookings', label: 'My Bookings', icon: ReceiptText },
+    { href: '/profile', label: 'Profile & Settings', icon: UserCircle },
+    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-premium hover:text-premium focus:text-premium focus:bg-premium/10 hover:bg-premium/10" },
   ];
-
+  
   const guestNavLinks: NavLink[] = [
      { href: '/login', label: 'Log In', icon: LogIn },
      { href: '/signup', label: 'Sign Up', icon: UserPlus },
@@ -129,7 +130,7 @@ export default function AppHeader() {
                       {userNavLinks.map((link) => (
                         <DropdownMenuItem key={link.href} asChild>
                           <Link href={link.href} className={cn("flex items-center gap-2", pathname === link.href && "bg-muted", link.className)}>
-                            <link.icon className={cn("h-4 w-4", link.className?.includes('text-neon') ? 'text-neon-DEFAULT' : '')} />
+                            <link.icon className={cn("h-4 w-4", link.className?.includes('text-premium') ? 'text-premium' : '')} />
                             <span>{link.label}</span>
                           </Link>
                         </DropdownMenuItem>
@@ -227,10 +228,10 @@ export default function AppHeader() {
                       <Button
                         variant={pathname === link.href ? 'secondary' : 'ghost'}
                         asChild
-                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon-DEFAULT hover:text-neon-DEFAULT focus:text-neon-DEFAULT hover:bg-neon-DEFAULT/10')}
+                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-premium') && 'text-premium hover:text-premium focus:text-premium hover:bg-premium/10')}
                       >
                         <Link href={link.href}>
-                          <link.icon className={cn("mr-2 h-4 w-4", link.className?.includes('text-neon') ? 'text-neon-DEFAULT' : '')} />
+                          <link.icon className={cn("mr-2 h-4 w-4", link.className?.includes('text-premium') ? 'text-premium' : '')} />
                           {link.label}
                         </Link>
                       </Button>

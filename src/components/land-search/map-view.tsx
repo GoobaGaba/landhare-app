@@ -63,7 +63,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
         <Map
           defaultCenter={defaultPosition}
-          defaultZoom={7}
+          defaultZoom={5}
           gestureHandling={'greedy'}
           disableDefaultUI={true}
           mapId={'landshare-map'}
@@ -77,12 +77,12 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={(e) => { e.stop(); onMarkerClick(listing.id); }}
+                onClick={(e: any) => { e.stop(); onMarkerClick(listing.id); }}
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
                   background={isSelected ? 'hsl(var(--accent))' : (listing.isBoosted ? 'hsl(var(--premium))' : 'hsl(var(--primary))')}
-                  borderColor={'hsl(var(--background))'}
+                  borderColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--border))'}
                   glyphColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
                   scale={isSelected ? 1.5 : 1}
                 />

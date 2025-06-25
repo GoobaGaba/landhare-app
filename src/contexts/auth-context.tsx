@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: appProfileData?.createdAt || (firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date()),
         bio: appProfileData?.bio || '',
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
-        walletBalance: appProfileData.walletBalance ?? 10000,
+        walletBalance: appProfileData?.walletBalance ?? 10000,
       };
       
       return { ...firebaseUser, appProfile: finalAppProfile } as CurrentUser;
