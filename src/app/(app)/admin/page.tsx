@@ -3,14 +3,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getPlatformMetrics, runBotSimulationCycle } from '@/lib/mock-data';
+import { getPlatformMetrics, runBotSimulationCycle, ADMIN_UIDS } from '@/lib/mock-data';
 import type { PlatformMetrics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-
-const ADMIN_UID = 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3';
 
 export default function AdminDashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -34,7 +32,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (currentUser?.uid !== ADMIN_UID) {
+    if (!currentUser || !ADMIN_UIDS.includes(currentUser.uid)) {
       setIsLoading(false);
       return;
     }
@@ -70,7 +68,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (currentUser?.uid !== ADMIN_UID) {
+  if (!currentUser || !ADMIN_UIDS.includes(currentUser.uid)) {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>

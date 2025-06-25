@@ -16,6 +16,7 @@ import { MobileThemeToggleButton } from './theme-toggle-button';
 import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { ADMIN_UIDS } from '@/lib/mock-data';
 
 
 interface NavLink {
@@ -32,7 +33,6 @@ export default function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { currentUser, logoutUser, loading } = useAuth();
   const { toast } = useToast();
-  const ADMIN_UID = 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3';
 
   const handleLogout = async () => {
     try {
@@ -114,7 +114,7 @@ export default function AppHeader() {
                       <DropdownMenuLabel>
                         {currentUser.appProfile?.name || currentUser.displayName || currentUser.email}
                       </DropdownMenuLabel>
-                      {currentUser.uid === ADMIN_UID && (
+                      {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
@@ -207,7 +207,7 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
 
-                  {!loading && currentUser && currentUser.uid === ADMIN_UID && (
+                  {!loading && currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
                       <SheetClose asChild>
                           <Button
                           variant={pathname === '/admin' ? 'secondary' : 'ghost'}

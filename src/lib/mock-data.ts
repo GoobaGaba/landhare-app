@@ -24,6 +24,8 @@ import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth,
 
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
+export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3', 'AdminGNL6965'];
+
 
 export let mockDataVersion = 0;
 
@@ -42,6 +44,18 @@ export const MOCK_ADMIN_USER: User = {
   bio: 'Platform Administrator.',
   bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'],
   walletBalance: 1000000,
+};
+
+export const MOCK_ADMIN_USER_2: User = {
+  id: 'AdminGNL6965',
+  name: 'Gabeh',
+  email: 'gabeh@landshare.app',
+  avatarUrl: 'https://placehold.co/100x100.png?text=GB',
+  subscriptionStatus: 'premium',
+  createdAt: new Date('2023-01-02T10:00:00Z'),
+  bio: 'Platform Co-Administrator.',
+  bookmarkedListingIds: ['listing-2-forest-retreat'],
+  walletBalance: 2000000,
 };
 
 export const MOCK_USER_FOR_UI_TESTING: User = {
@@ -120,6 +134,7 @@ const BOT_USERS = [BOT_LANDOWNER_1, BOT_LANDOWNER_2, BOT_RENTER_1, BOT_RENTER_2]
 
 export let mockUsers: User[] = [
   MOCK_ADMIN_USER,
+  MOCK_ADMIN_USER_2,
   MOCK_USER_FOR_UI_TESTING,
   {
     id: 'landowner-jane-doe',
