@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet, Shield } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -12,7 +12,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
 import type { Listing, Booking, Transaction, MarketInsightsData } from '@/lib/types';
-import { FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
+import { ADMIN_UIDS, FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -193,6 +193,25 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
+      {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <Shield className="h-6 w-6"/>
+              Administrator Tools
+            </CardTitle>
+            <CardDescription>
+              Access platform-wide metrics, user data, and simulation controls. This panel is only visible to you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/admin">Go to Admin Dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
         <Card className="lg:col-span-2">
@@ -420,5 +439,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
