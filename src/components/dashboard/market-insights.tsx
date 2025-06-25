@@ -148,5 +148,3 @@ export function MarketInsights({ insights }: MarketInsightsProps) {
     </Card>
   );
 }
-
-    

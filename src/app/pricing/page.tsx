@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; 
+import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
 
 const pricingPlans = [
   {
@@ -18,17 +19,18 @@ const pricingPlans = [
     title: "Standard Account",
     price: "Free",
     period: "to Join",
-    description: "Great for getting started, browsing, and listing a couple of properties.",
+    description: "Great for getting started, browsing, and listing your properties.",
     renterFeatures: [
-      { text: "$0.99 Per-Booking Fee (when you rent)", icon: DollarSign },
+      { text: "$0.99 Per-Booking Fee", icon: DollarSign },
       { text: "Standard search filters", icon: SearchIcon},
       { text: "Direct messaging with landowners", icon: MessageSquare},
+      { text: `Save up to ${FREE_TIER_LISTING_LIMIT} bookmarks`, icon: CheckCircle },
     ],
     landownerFeatures: [
-      { text: "List up to 2 properties", icon: Home },
-      { text: "2% Service Fee (on your lease earnings)", icon: Percent },
+      { text: `List up to ${FREE_TIER_LISTING_LIMIT} properties`, icon: Home },
+      { text: "2% Service Fee on payouts", icon: Percent },
       { text: "Standard listing visibility", icon: CheckCircle },
-      { text: "Basic support", icon: Users },
+      { text: "Basic email support", icon: Users },
     ],
     cta: "Sign Up for Standard",
     href: "/signup",
@@ -40,18 +42,19 @@ const pricingPlans = [
     period: "/month",
     description: "Maximize your earnings and savings. Best for active landowners and frequent renters.",
     renterFeatures: [
-      { text: "$0 Per-Booking Fee (when you rent - save $0.99 each time!)", icon: Tag, isBenefit: true, premiumIconColor: true },
+      { text: "$0 Per-Booking Fee (save $0.99 each time!)", icon: Tag, isBenefit: true, premiumIconColor: true },
+      { text: "Unlimited bookmarks", icon: InfinityIcon, isBenefit: true, premiumIconColor: true },
       { text: "Advanced search filters (coming soon)", icon: SearchIcon, isBenefit: true, premiumIconColor: true},
       { text: "Early access to new listings (coming soon)", icon: Sparkles, isBenefit: true, premiumIconColor: true },
     ],
     landownerFeatures: [
       { text: "List unlimited properties", icon: InfinityIcon, isBenefit: true, premiumIconColor: true },
       { text: "Add more photos to listings (up to 10)", icon: ImagePlus, isBenefit: true, premiumIconColor: true},
-      { text: "Only 0.49% Service Fee (on your lease earnings - save over 75%!)", icon: Percent, isBenefit: true, premiumIconColor: true },
+      { text: "Only 0.49% Service Fee on payouts (save >75%!)", icon: Percent, isBenefit: true, premiumIconColor: true },
       { text: "Boosted exposure for your listings", icon: TrendingUp, isBenefit: true, premiumIconColor: true },
     ],
     generalFeatures: [ 
-      { text: "Access to exclusive Market Insights (AI-powered)", icon: BarChart3, isBenefit: true, premiumIconColor: true },
+      { text: "Access to exclusive AI-powered Market Insights", icon: BarChart3, isBenefit: true, premiumIconColor: true },
       { text: "Priority support", icon: Crown, isBenefit: true, premiumIconColor: true },
     ],
     cta: "Upgrade to Premium",
@@ -106,10 +109,10 @@ export default function PricingPage() {
     <div className="container mx-auto px-4 py-12 md:py-20">
       <header className="text-center mb-12 md:mb-16">
         <h1 className="text-4xl md:text-5xl font-bold text-title mb-4">
-          Industry Low Fees
+          Fair & Transparent Pricing
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Choose the plan that works for you. Transparent pricing designed to help you save and earn more.
+          Choose the plan that works for you. Designed to help you save and earn more.
         </p>
       </header>
 
