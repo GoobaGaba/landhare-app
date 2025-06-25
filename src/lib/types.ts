@@ -98,7 +98,7 @@ export interface Conversation {
 export type Transaction = {
   id: string;
   userId: string; // The user this transaction record belongs to
-  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee';
+  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee' | 'Subscription Refund';
   status: 'Completed' | 'Pending' | 'Failed';
   amount: number; // Positive for income, negative for expense
   currency: 'USD';
@@ -177,7 +177,3 @@ export interface PriceDetails {
   pricingModelUsed?: PricingModel;
   displayRate?: string; // e.g., "$50/night", "$100/month (prorated for X days)"
 }
-
-    
-
-    

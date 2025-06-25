@@ -18,7 +18,7 @@ import { Loader2, ReceiptText, Search, UserCircle, AlertTriangle, ArrowUpCircle,
 import { cn } from '@/lib/utils';
 import { firebaseInitializationError } from '@/lib/firebase';
 
-type FilterType = 'all' | 'payouts' | 'payments' | 'fees';
+type FilterType = 'all' | 'payouts' | 'payments' | 'fees' | 'subscriptions';
 
 export default function TransactionsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -55,10 +55,13 @@ export default function TransactionsPage() {
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(t => {
-        if (filterType === 'payouts') return t.type === 'Landowner Payout';
-        if (filterType === 'payments') return t.type === 'Booking Payment' || t.type === 'Subscription';
-        if (filterType === 'fees') return t.type === 'Service Fee';
-        return true; // 'all'
+        switch (filterType) {
+          case 'payouts': return t.type === 'Landowner Payout';
+          case 'payments': return t.type === 'Booking Payment';
+          case 'fees': return t.type === 'Service Fee';
+          case 'subscriptions': return t.type === 'Subscription' || t.type === 'Subscription Refund';
+          default: return true; // 'all'
+        }
       })
       .filter(t => {
         if (!searchTerm.trim()) return true;
@@ -69,7 +72,7 @@ export default function TransactionsPage() {
   const summary = useMemo(() => {
     return transactions.reduce((acc, t) => {
         if (t.status !== 'Completed') return acc; // Only count completed transactions for summary
-        if (t.type === 'Landowner Payout') acc.income += t.amount;
+        if (t.type === 'Landowner Payout' || t.type === 'Subscription Refund') acc.income += t.amount;
         if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee') acc.expenses += Math.abs(t.amount);
         return acc;
     }, { income: 0, expenses: 0 });
@@ -113,7 +116,7 @@ export default function TransactionsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">${summary.income.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">From completed payouts</p>
+                <p className="text-xs text-muted-foreground">From completed payouts & refunds</p>
               </CardContent>
             </Card>
             <Card>
@@ -159,6 +162,7 @@ export default function TransactionsPage() {
                 <SelectItem value="payouts">Payouts</SelectItem>
                 <SelectItem value="payments">Payments</SelectItem>
                 <SelectItem value="fees">Service Fees</SelectItem>
+                <SelectItem value="subscriptions">Subscriptions</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -187,12 +191,13 @@ export default function TransactionsPage() {
                 ) : filteredTransactions.length > 0 ? (
                   filteredTransactions.map(t => {
                      const date = t.date instanceof Date ? t.date : (t.date as any).toDate();
-                     const isIncome = t.type === 'Landowner Payout' || (t.type === 'Subscription' && t.amount > 0);
+                     const isIncome = t.type === 'Landowner Payout' || t.type === 'Subscription Refund';
                      let typeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
                      switch(t.type) {
                         case 'Landowner Payout': typeVariant = 'default'; break;
                         case 'Booking Payment': typeVariant = 'secondary'; break;
-                        case 'Subscription': typeVariant = t.amount < 0 ? 'secondary' : 'default'; break;
+                        case 'Subscription': typeVariant = 'secondary'; break;
+                        case 'Subscription Refund': typeVariant = 'default'; break;
                         case 'Service Fee': typeVariant = 'destructive'; break;
                      }
                     return (

@@ -495,11 +495,10 @@ const calculatePriceDetails = (listing: Listing, dateRange: { from: Date, to: Da
 
   if (listing.pricingModel === 'nightly') {
     baseRate = (listing.price || 0) * durationValue;
-  } else if (listing.pricingModel === 'monthly') {
+  } else if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
+    // For monthly/LTO, the price is per month. Calculation for a specific range can be prorated.
+    // For simplicity in this function, we'll prorate daily.
     baseRate = (listing.price / 30) * durationValue;
-  } else { // lease-to-own
-    const months = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-    baseRate = (listing.price || 0) * months;
   }
   
   if (isNaN(baseRate)) baseRate = 0;
@@ -552,17 +551,14 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
 };
 
 export const createRefundTransaction = async (userId: string): Promise<void> => {
-    const lastSubPayment = mockTransactions.find(t => t.userId === userId && t.type === 'Subscription' && t.amount < 0);
-    const refundAmount = lastSubPayment ? Math.abs(lastSubPayment.amount) : 5.00;
-
     const newTransaction: Omit<Transaction, 'id'> = {
         userId,
-        type: 'Subscription',
+        type: 'Subscription Refund',
         status: 'Completed',
-        amount: refundAmount,
+        amount: 5.00,
         currency: 'USD',
         date: new Date(),
-        description: 'Premium Subscription - Refund'
+        description: 'Premium Subscription - Prorated Refund'
     };
      if (firebaseInitializationError || !db) {
         mockTransactions.unshift({ ...newTransaction, id: `txn-refund-${Date.now()}` });
