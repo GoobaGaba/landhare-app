@@ -1,4 +1,5 @@
 
+'use client';
 import { db, firebaseInitializationError } from './firebase';
 import {
   collection,
@@ -31,7 +32,6 @@ export let mockDataVersion = 0;
 
 export const incrementMockDataVersion = (source: string) => {
   mockDataVersion++;
-  // console.log(`[MockData] mockDataVersion incremented by ${source}. New version: ${mockDataVersion}`);
 };
 
 export const MOCK_ADMIN_USER: User = {
@@ -670,20 +670,18 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode: Use mock data
     return mockUsers.find(user => user.id === id);
   }
-  // Live Mode: Use Firestore
   try {
     const userDocRef = doc(db, "users", id);
     const userSnap = await getDoc(userDocRef);
     if (userSnap.exists()) {
       return mapDocToUser(userSnap);
     }
-    return undefined; // User not found in Firestore
+    return undefined;
   } catch (error) {
     console.error("[Firestore Error] getUserById:", error);
-    throw error; // Re-throw for the caller to handle
+    throw error;
   }
 };
 
@@ -701,7 +699,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
   };
 
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const existingUserIndex = mockUsers.findIndex(u => u.id === userId);
     if (existingUserIndex !== -1) {
       mockUsers[existingUserIndex] = { ...mockUsers[existingUserIndex], ...profileData };
@@ -713,18 +710,16 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     return profileData;
   }
 
-  // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
     const firestoreProfileData = {
         ...profileData,
         createdAt: Timestamp.fromDate(profileData.createdAt as Date)
     };
-    delete (firestoreProfileData as any).id; // ID is path parameter
+    delete (firestoreProfileData as any).id;
 
     await setDoc(userDocRef, firestoreProfileData, { merge: true });
     
-    // Update platform metrics
     const metricsRef = doc(db, "metrics", "global_metrics");
     const usersCountSnap = await getCountFromServer(collection(db, "users"));
     await updateDoc(metricsRef, { totalUsers: usersCountSnap.data().count });
@@ -740,7 +735,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
         const wasFree = mockUsers[userIndex].subscriptionStatus === 'free';
@@ -754,7 +748,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
     return undefined;
   }
 
-  // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
 
@@ -778,7 +771,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 // --- Listing Functions ---
 export const getListings = async (): Promise<Listing[]> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const sortedMockListings = [...mockListings].sort((a, b) => {
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
@@ -788,7 +780,6 @@ export const getListings = async (): Promise<Listing[]> => {
     });
     return [...sortedMockListings];
   }
-  // Live Mode
   try {
     const listingsCol = collection(db, "listings");
     const q = query(listingsCol, orderBy("isBoosted", "desc"), orderBy("createdAt", "desc"));
@@ -802,10 +793,8 @@ export const getListings = async (): Promise<Listing[]> => {
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     return mockListings.filter(l => l.landownerId === landownerId).length;
   }
-  // Live Mode
   try {
     const listingsCol = collection(db, "listings");
     const q = query(listingsCol, where("landownerId", "==", landownerId));
@@ -819,10 +808,8 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     return mockListings.find(listing => listing.id === id);
   }
-  // Live Mode
   try {
     const listingDocRef = doc(db, "listings", id);
     const listingSnap = await getDoc(listingDocRef);
@@ -899,7 +886,6 @@ export const updateListing = async (listingId: string, data: Partial<Omit<Listin
 
 export const deleteListing = async (listingId: string): Promise<boolean> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const initialLength = mockListings.length;
     mockListings = mockListings.filter(l => l.id !== listingId);
     mockBookings = mockBookings.filter(b => b.listingId !== listingId);
@@ -912,12 +898,11 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
     return deleted;
   }
 
-  // Live Mode
   try {
     const batch = writeBatch(db);
     const listingDocRef = doc(db, "listings", listingId);
     const listingSnap = await getDoc(listingDocRef);
-    if (!listingSnap.exists()) return false; // Listing doesn't exist
+    if (!listingSnap.exists()) return false;
 
     batch.delete(listingDocRef);
 
@@ -945,7 +930,6 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
 // --- Review Functions ---
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const listingReviews = mockReviews.filter(review => review.listingId === listingId)
         .sort((a, b) => {
           const timeA = (a.createdAt instanceof Date ? a.createdAt : (a.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
@@ -953,18 +937,17 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
           return timeB - timeA;
         });
     return Promise.all(listingReviews.map(async (review) => {
-        const user = mockUsers.find(u => u.id === review.userId); // Use mock users for names in preview
+        const user = mockUsers.find(u => u.id === review.userId);
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}` };
     }));
   }
-  // Live Mode
   try {
     const reviewsCol = collection(db, "reviews");
     const q = query(reviewsCol, where("listingId", "==", listingId), orderBy("createdAt", "desc"));
     const reviewSnapshot = await getDocs(q);
     return Promise.all(reviewSnapshot.docs.map(async (docSnap) => {
         const review = mapDocToReview(docSnap);
-        const user = await getUserById(review.userId); // Fetch user for name
+        const user = await getUserById(review.userId);
         return {...review, userName: user?.name || `User...${review.userId.slice(-4)}`};
     }));
   } catch (error) {
@@ -983,7 +966,6 @@ export const addReview = async (
   let userName = `User...${userId.slice(-4)}`;
 
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const userAddingReview = mockUsers.find(u => u.id === userId);
     userName = userAddingReview?.name || userName;
     const newReview: Review = { id: `mock-review-${Date.now()}`, listingId, userId, userName, rating, comment, createdAt: creationTimestamp };
@@ -998,7 +980,6 @@ export const addReview = async (
     return newReview;
   }
 
-  // Live Mode
   try {
     const userAddingReview = await getUserById(userId);
     userName = userAddingReview?.name || userName;
@@ -1010,7 +991,6 @@ export const addReview = async (
     };
     const docRef = await addDoc(reviewsCol, firestoreReviewData);
 
-    // Update listing's average rating and count
     const listingRef = doc(db, "listings", listingId);
     const listingSnap = await getDoc(listingRef);
     if (listingSnap.exists()) {
@@ -1034,14 +1014,13 @@ export const addReview = async (
 // --- Booking Functions ---
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const userBookings = mockBookings.filter(b => b.renterId === userId || b.landownerId === userId)
         .sort((a,b) => {
           const timeA = (a.createdAt instanceof Date ? a.createdAt : (a.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
           const timeB = (b.createdAt instanceof Date ? b.createdAt : (b.createdAt as Timestamp)?.toDate() || new Date(0)).getTime();
           return timeB - timeA;
         });
-    return Promise.all(userBookings.map(async (booking) => { // Populate names for mock
+    return Promise.all(userBookings.map(async (booking) => {
         const listing = mockListings.find(l => l.id === booking.listingId);
         const renter = mockUsers.find(u => u.id === booking.renterId);
         const landowner = mockUsers.find(u => u.id === booking.landownerId);
@@ -1054,7 +1033,6 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
     }));
   }
 
-  // Live Mode
   try {
     const bookingsCol = collection(db, "bookings");
     const q = query(
@@ -1063,7 +1041,6 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
       orderBy("createdAt", "desc")
     );
     const bookingSnapshot = await getDocs(q);
-    // mapDocToBooking now includes denormalized names, so direct map is fine
     return bookingSnapshot.docs.map(mapDocToBooking);
   } catch (error) {
     console.error("[Firestore Error] getBookingsForUser:", error);
@@ -1073,12 +1050,11 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
 
 export const addBookingRequest = async (
   data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}},
-  status: Booking['status'] = 'Pending Confirmation' // Default status
+  status: Booking['status'] = 'Pending Confirmation'
 ): Promise<Booking> => {
   const creationTimestamp = new Date();
   
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const listingInfo = mockListings.find(l => l.id === data.listingId);
     if (!listingInfo) throw new Error("Mock Listing not found for booking request.");
     
@@ -1124,7 +1100,6 @@ export const addBookingRequest = async (
     return newMockBooking;
   }
 
-  // Live Mode
   try {
     const listingInfo = await getListingById(data.listingId);
     if (!listingInfo) throw new Error("Listing not found for booking request.");
@@ -1156,7 +1131,7 @@ export const addBookingRequest = async (
     };
 
     const bookingsCol = collection(db, "bookings");
-    const docRef = doc(bookingsCol); // Create a reference with a new ID
+    const docRef = doc(bookingsCol);
     batch.set(docRef, newBookingBase);
 
     const newPaymentTransaction: Omit<Transaction, 'id'> = {
@@ -1172,7 +1147,6 @@ export const addBookingRequest = async (
     };
     batch.set(doc(collection(db, "transactions")), newPaymentTransaction);
     
-    // Update metrics
     const metricsRef = doc(db, "metrics", "global_metrics");
     const bookingsCountSnap = await getCountFromServer(collection(db, "bookings"));
     batch.update(metricsRef, { totalBookings: bookingsCountSnap.data().count + 1 });
@@ -1246,7 +1220,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
             platformMetrics.totalRevenue += serviceFee;
         }
     } else if (status === 'Refund Approved') {
-      // Find original payment to refund
       const paymentTxn = mockTransactions.find(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
       if (paymentTxn) {
           const renterIndex = mockUsers.findIndex(u => u.id === booking.renterId);
@@ -1273,7 +1246,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
     };
   }
 
-  // Live Mode
   try {
     const bookingDocRef = doc(db, "bookings", bookingId);
     const batch = writeBatch(db);
@@ -1316,7 +1288,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
                   relatedBookingId: bookingId, relatedListingId: listing.id
               });
 
-              // Update metrics
               const metricsRef = doc(db, "metrics", "global_metrics");
               const metricsSnap = await getDoc(metricsRef);
               if (metricsSnap.exists()) {
@@ -1363,7 +1334,6 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
 // --- Bookmark Functions ---
 export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
   if (firebaseInitializationError || !db) {
-    // Preview Mode
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       const user = mockUsers[userIndex];
@@ -1378,7 +1348,6 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
     }
     return undefined;
   }
-  // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
     const userSnap = await getDoc(userDocRef);
@@ -1388,10 +1357,10 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
     if (user.subscriptionStatus === 'free' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
       throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached for free accounts. Upgrade to Premium for unlimited bookmarks.`);
     }
-    if (user.bookmarkedListingIds?.includes(listingId)) return user; // Already bookmarked
+    if (user.bookmarkedListingIds?.includes(listingId)) return user;
 
     await updateDoc(userDocRef, { bookmarkedListingIds: arrayUnion(listingId) });
-    const updatedUserSnap = await getDoc(userDocRef); // Re-fetch to get the updated array
+    const updatedUserSnap = await getDoc(userDocRef);
     return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
   } catch (error) {
     console.error("[Firestore Error] addBookmarkToList for user:", userId, error);
@@ -1401,7 +1370,6 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
 
 export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
    if (firebaseInitializationError || !db) {
-    // Preview Mode
     const userIndex = mockUsers.findIndex(u => u.id === userId);
     if (userIndex !== -1) {
       const user = mockUsers[userIndex];
@@ -1413,15 +1381,13 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
     }
     return undefined;
   }
-  // Live Mode
   try {
     const userDocRef = doc(db, "users", userId);
-    // Check if user exists before trying to remove, though arrayRemove is safe if field/value doesn't exist
     const userSnap = await getDoc(userDocRef);
     if (!userSnap.exists()) throw new Error("User not found to remove bookmark.");
     
     await updateDoc(userDocRef, { bookmarkedListingIds: arrayRemove(listingId) });
-    const updatedUserSnap = await getDoc(userDocRef); // Re-fetch
+    const updatedUserSnap = await getDoc(userDocRef);
     return updatedUserSnap.exists() ? mapDocToUser(updatedUserSnap) : undefined;
   } catch (error) {
     console.error("[Firestore Error] removeBookmarkFromList for user:", userId, error);
@@ -1444,45 +1410,24 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
 
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-    if (firebaseInitializationError || !db) {
-        // Mock Mode: Use the in-memory object, ensuring counts are up-to-date
-        platformMetrics.totalUsers = mockUsers.length;
-        platformMetrics.totalListings = mockListings.length;
-        platformMetrics.totalBookings = mockBookings.length;
-        return platformMetrics;
-    }
-    // Live Mode: Fetch from Firestore
-    try {
-        const metricsRef = doc(db, "metrics", "global_metrics");
-        const metricsSnap = await getDoc(metricsRef);
-        if (metricsSnap.exists()) {
-            return metricsSnap.data() as PlatformMetrics;
-        }
-        // If no metrics doc exists, calculate and create it
-        const usersSnap = await getCountFromServer(collection(db, "users"));
-        const listingsSnap = await getCountFromServer(collection(db, "listings"));
-        const bookingsSnap = await getCountFromServer(collection(db, "bookings"));
-        const initialMetrics: PlatformMetrics = {
-            id: 'global_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0,
-            totalUsers: usersSnap.data().count, totalListings: listingsSnap.data().count, totalBookings: bookingsSnap.data().count,
-        };
-        await setDoc(metricsRef, initialMetrics);
-        return initialMetrics;
-    } catch(error) {
-        console.error("[Firestore Error] getPlatformMetrics:", error);
-        throw error;
-    }
+    // This function now ALWAYS returns the in-memory mock metrics.
+    // This is because the Admin dashboard is considered a "simulation control panel",
+    // and this prevents permissions errors if a mock admin (with no real DB rights)
+    // tries to view it while a live DB is configured.
+    // The simulation functions below will update this in-memory object.
+    platformMetrics.totalUsers = mockUsers.length;
+    platformMetrics.totalListings = mockListings.length;
+    platformMetrics.totalBookings = mockBookings.length;
+    return platformMetrics;
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
-    // This function now uses the hybrid data functions, so it works in both modes.
     const botLandownerIds = mockUsers.filter(u => u.id.startsWith('bot-landowner')).map(u => u.id);
     const botRenterIds = mockUsers.filter(u => u.id.startsWith('bot-renter')).map(u => u.id);
 
     let listingsCreated = 0;
     let bookingsCreated = 0;
 
-    // 1. Bots create listings
     const botLocations = [
         { name: 'Austin, TX', lat: 30.2672, lng: -97.7431 },
         { name: 'Portland, OR', lat: 45.5051, lng: -122.6750 },
@@ -1497,7 +1442,7 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
             title: `Bot Listing #${Math.floor(Math.random() * 1000)}`,
             description: 'This is an automatically generated listing by a bot for simulation purposes.',
             location: selectedLocation.name,
-            lat: selectedLocation.lat + (Math.random() - 0.5) * 0.1, // Add jitter
+            lat: selectedLocation.lat + (Math.random() - 0.5) * 0.1,
             lng: selectedLocation.lng + (Math.random() - 0.5) * 0.1,
             sizeSqft: Math.floor(Math.random() * 20000) + 1000,
             amenities: ['road access', 'pet friendly'],
@@ -1512,7 +1457,6 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
         listingsCreated++;
     }
 
-    // 2. Bots create bookings
     const allListings = await getListings();
     for (const renterId of botRenterIds) {
         const renter = await getUserById(renterId);
@@ -1527,11 +1471,11 @@ export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
                     listingId: listingToBook.id,
                     renterId: renter.id,
                     dateRange: dateRange,
-                }, 'Confirmed'); // Bots auto-confirm
+                }, 'Confirmed'); 
                 await updateBookingStatus(booking.id, 'Confirmed');
                 bookingsCreated++;
             } catch (e: any) {
-                console.log(`Bot ${renter.name} could not book "${listingToBook.title}": ${e.message}`);
+                console.warn(`Bot ${renter.name} could not book "${listingToBook.title}": ${e.message}`);
             }
         }
     }
@@ -1553,7 +1497,6 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         allConfirmedBookings = bookingSnapshot.docs.map(mapDocToBooking);
     }
 
-    // Calculate Avg Prices
     const monthlyListings = allListings.filter(l => l.pricingModel === 'monthly' && l.price > 0 && l.sizeSqft > 0);
     const nightlyListings = allListings.filter(l => l.pricingModel === 'nightly' && l.price > 0 && l.sizeSqft > 0);
 
@@ -1563,7 +1506,6 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
     const totalNightlyPricePerSqft = nightlyListings.reduce((sum, l) => sum + (l.price / l.sizeSqft), 0);
     const avgPricePerSqftNightly = nightlyListings.length > 0 ? totalNightlyPricePerSqft / nightlyListings.length : 0;
 
-    // Calculate Amenity Popularity
     const amenityCounts = allListings.flatMap(l => l.amenities).reduce((acc, amenity) => {
         acc[amenity] = (acc[amenity] || 0) + 1;
         return acc;
@@ -1574,7 +1516,6 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-    // Calculate Supply
     const supplyCounts = allListings.reduce((acc, l) => {
         acc[l.pricingModel] = (acc[l.pricingModel] || 0) + 1;
         return acc;
@@ -1587,7 +1528,6 @@ export const getMarketInsights = async (): Promise<MarketInsightsData> => {
         percent: supplyTotal > 0 ? ((value / supplyTotal) * 100).toFixed(0) : "0",
     }));
 
-    // Calculate Demand
     const demandCounts = allConfirmedBookings.reduce((acc, b) => {
         const listing = allListings.find(l => l.id === b.listingId);
         if (listing) {
