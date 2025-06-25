@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock, FilterX, ListChecks, Wifi, Waves, Flame, Dog, Road, SquareDashedBottom } from 'lucide-react';
+import { DollarSign, Maximize, UtilityPole, Droplets, Trash2, CalendarClock, FilterX, ListChecks, Wifi, Waves, Flame, Dog, Map, SquareDashedBottom } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { LeaseTerm } from '@/lib/types';
 
@@ -16,7 +16,7 @@ const amenitiesList = [
   { id: 'water hookup', label: 'Water Hookup', icon: Droplets },
   { id: 'power access', label: 'Power Access', icon: UtilityPole },
   { id: 'septic system', label: 'Septic System', icon: Trash2 },
-  { id: 'road access', label: 'Road Access', icon: Road },
+  { id: 'road access', label: 'Road Access', icon: Map },
   { id: 'fenced', label: 'Fenced', icon: SquareDashedBottom },
   { id: 'pet friendly', label: 'Pet Friendly', icon: Dog },
   { id: 'wifi available', label: 'Wi-Fi Available', icon: Wifi },

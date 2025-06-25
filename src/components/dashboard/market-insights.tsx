@@ -5,7 +5,7 @@ import { BarChart, Bar, Rectangle, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MarketInsightsData, PricingModel } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Maximize, TrendingUp, BarChart3 as BarChartIcon } from 'lucide-react';
+import { DollarSign, Maximize, TrendingUp, BarChart3 as BarChartIcon, Map } from 'lucide-react';
 
 interface MarketInsightsProps {
   insights: MarketInsightsData;
