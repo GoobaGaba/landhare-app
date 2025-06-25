@@ -10,7 +10,7 @@ export default function AboutPage() {
     <div className="container mx-auto px-4 py-8 md:py-12">
       <header className="text-center mb-12 md:mb-16">
         <Info className="h-16 w-16 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl md:text-5xl font-bold text-title mb-3">About LandShare</h1>
+        <h1 className="text-4xl md:text-5xl font-headline text-title mb-3">About LandShare Connect</h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
           Connecting landowners with those seeking affordable and flexible land options, fostering a new approach to housing and land use.
         </p>
@@ -30,7 +30,7 @@ export default function AboutPage() {
               />
             </div>
             <div className="md:w-1/2 p-6 md:p-8">
-              <h2 className="text-2xl md:text-3xl font-semibold text-primary mb-4">Our Mission</h2>
+              <h2 className="text-2xl md:text-3xl font-headline text-primary mb-4">Our Mission</h2>
               <p className="text-foreground/90 leading-relaxed mb-4">
                 At LandShare, our mission is to bridge the gap between unused land and the growing need for affordable, flexible living spaces. We believe that by connecting landowners with individuals and families seeking plots for tiny homes, RVs, manufactured housing, or other innovative uses, we can create a more sustainable and accessible housing market.
               </p>
@@ -43,25 +43,25 @@ export default function AboutPage() {
       </section>
 
       <section className="mb-12 md:mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-center text-primary mb-8">What We Do</h2>
+        <h2 className="text-3xl md:text-4xl font-headline text-center text-primary mb-8">What We Do</h2>
         <div className="grid md:grid-cols-3 gap-6 md:gap-8">
           <Card className="text-center p-6 shadow-md hover:shadow-lg transition-shadow">
             <Users className="h-12 w-12 text-accent mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Connect People</h3>
+            <h3 className="text-xl font-headline mb-2">Connect People</h3>
             <p className="text-sm text-muted-foreground">
               We provide a user-friendly platform for landowners to list their property and for renters to discover available land.
             </p>
           </Card>
           <Card className="text-center p-6 shadow-md hover:shadow-lg transition-shadow">
             <MapPin className="h-12 w-12 text-accent mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Unlock Land Potential</h3>
+            <h3 className="text-xl font-headline mb-2">Unlock Land Potential</h3>
             <p className="text-sm text-muted-foreground">
               We help turn underutilized land into valuable assets for owners and opportunities for those seeking space.
             </p>
           </Card>
           <Card className="text-center p-6 shadow-md hover:shadow-lg transition-shadow">
             <DollarSign className="h-12 w-12 text-accent mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Facilitate Agreements</h3>
+            <h3 className="text-xl font-headline mb-2">Facilitate Agreements</h3>
             <p className="text-sm text-muted-foreground">
               Our platform supports secure communication and aims to make the process of leasing land simpler and more transparent.
             </p>
@@ -72,7 +72,7 @@ export default function AboutPage() {
       <section className="py-12 bg-secondary/30 rounded-lg">
         <div className="container mx-auto px-4 text-center">
             <Sparkles className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Join the Movement</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-primary mb-4">Join the Movement</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Whether you have land to share or are looking for a place to call your own, LandShare is here to help you make meaningful connections.
           </p>
@@ -95,5 +95,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
-    

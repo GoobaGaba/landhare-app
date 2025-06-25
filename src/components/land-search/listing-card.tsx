@@ -4,7 +4,7 @@ import Link from 'next/link';
 import type { Listing } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2, Crown, Sparkles } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, Star, Home, Plus, Bookmark, Loader2, Crown, Sparkles, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
@@ -90,7 +90,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     return (
       <Card className={cn(
         "overflow-hidden transition-shadow duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl",
-        listing.isBoosted && "ring-1 ring-accent" // Keep orange ring for boosted
+        listing.isBoosted && "ring-1 ring-premium"
       )}>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
@@ -102,14 +102,19 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
            {listing.isBoosted && (
-            <Plus
-              className={cn(
-                "absolute top-2 left-2 z-10 text-premium", // Changed to premium purple
-                isCompact ? "h-4 w-4" : "h-5 w-5"
-              )}
-              strokeWidth={3}
-              title="Boosted Listing (Premium Feature)"
-            />
+            <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md">
+                            <TrendingUp
+                                className={cn("text-premium-foreground", isCompact ? "h-3 w-3" : "h-4 w-4")}
+                                strokeWidth={3}
+                            />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right"><p>Boosted Listing (Premium Feature)</p></TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
           )}
            {currentUser && listing.landownerId !== currentUser.uid && (
             <TooltipProvider delayDuration={100}>
@@ -140,7 +145,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
         <div className="flex flex-col flex-grow">
           <CardHeader className="p-4 pb-2">
             <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold hover:text-primary">
+                <CardTitle className="text-lg font-headline hover:text-primary">
                   <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
                 </CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
@@ -198,7 +203,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     <Card className={cn(
       "overflow-hidden transition-shadow duration-300 flex flex-col h-full shadow-lg hover:shadow-xl", 
       isCompact ? "text-sm" : "",
-      listing.isBoosted && "ring-1 ring-accent" // Keep orange ring for boosted
+      listing.isBoosted && "ring-1 ring-premium"
     )}>
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
@@ -211,14 +216,19 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             className="object-cover"
           />
           {listing.isBoosted && (
-            <Plus
-              className={cn(
-                "absolute top-2 left-2 z-10 text-premium", // Changed to premium purple
-                isCompact ? "h-4 w-4" : "h-5 w-5"
-              )}
-              strokeWidth={3}
-              title="Boosted Listing (Premium Feature)"
-            />
+            <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md">
+                            <TrendingUp
+                                className={cn("text-premium-foreground", isCompact ? "h-3 w-3" : "h-4 w-4")}
+                                strokeWidth={3}
+                            />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right"><p>Boosted Listing (Premium Feature)</p></TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
           )}
           {listing.pricingModel === 'lease-to-own' && (
             <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
@@ -254,7 +264,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
         </div>
       </CardHeader>
       <CardContent className={cn("p-3 flex-grow space-y-1", isCompact ? "py-2" : "p-4")}>
-        <CardTitle className={cn("font-semibold line-clamp-1 hover:text-primary", isCompact ? "text-base leading-tight" : "text-lg")}>
+        <CardTitle className={cn("font-headline line-clamp-1 hover:text-primary", isCompact ? "text-base leading-tight" : "text-lg")}>
           <Link href={`/listings/${listing.id}`}>{listing.title}</Link>
         </CardTitle>
         <div className={cn("text-muted-foreground flex items-center", isCompact ? "text-xs" : "text-sm")}>

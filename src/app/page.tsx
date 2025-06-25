@@ -48,12 +48,12 @@ export default function HomePage() {
           {!authLoading && currentUser && (
             <p className="mb-4 text-lg text-muted-foreground">Welcome back, {getFirstName()}!</p>
           )}
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 text-title">Unlock Your Land. Own Your Future.</h1>
+          <h1 className="text-4xl md:text-6xl font-headline tracking-tight mb-6 text-title">Unlock Your Land. Own Your Future.</h1>
           {!authLoading && !currentUser && (
              <>
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" asChild><Link href="/search"><SearchIcon className="mr-2 h-5 w-5" /> Find Land</Link></Button>
-                <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild><Link href="/login?redirect=%2Flistings%2Fnew"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
+                <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild><Link href="/login?redirect=%2Flistings%2Fnew"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
               </div>
             </>
           )}
@@ -66,7 +66,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-16 text-center">
-            <h2 className="text-2xl font-semibold mb-6 text-primary text-center">Recently added</h2>
+            <h2 className="text-2xl font-headline mb-6 text-primary text-center">Recently added</h2>
             {listingsLoading ? (
               <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2 text-muted-foreground">Loading listings...</p></div>
             ) : recentListings.length > 0 ? (
@@ -86,14 +86,14 @@ export default function HomePage() {
       
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-title">How LandShare Works</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-title">How LandShare Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <SearchIcon className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-xl font-semibold">Find Land</CardTitle>
+                <CardTitle className="text-xl font-headline">Find Land</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-sm">Browse diverse listings with our interactive map and powerful filters. Find the perfect spot for your needs.</p>
@@ -104,7 +104,7 @@ export default function HomePage() {
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <ShieldCheck className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-xl font-semibold">Book Securely</CardTitle>
+                <CardTitle className="text-xl font-headline">Book Securely</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing. Our platform helps manage bookings and agreements.</p>
@@ -115,7 +115,7 @@ export default function HomePage() {
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <ClipboardList className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-xl font-semibold">List Your Land</CardTitle>
+                <CardTitle className="text-xl font-headline">List Your Land</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground text-sm">Turn your unused land into income. Create listings easily and reach a wide audience of potential renters.</p>
@@ -130,7 +130,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 text-primary">What Makes Us Special</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-6 text-primary">What Makes Us Special</h2>
           <p className="text-lg text-muted-foreground text-center max-w-3xl mx-auto mb-12">
             We're more than just a listing site. We're a community empowering new ways of living and land use.
           </p>
@@ -148,21 +148,21 @@ export default function HomePage() {
             <div className="space-y-8">
               <div>
                 <Users className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-semibold text-primary mb-3">Empowerment for Landowners</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3">Empowerment for Landowners</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Unlock the potential of your idle land. Generate income, support alternative lifestyles, and contribute to a growing community focused on sustainable and flexible land use.
                 </p>
               </div>
               <div>
                 <Feather className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-semibold text-primary mb-3">Freedom for Land-Seekers</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3">Freedom for Land-Seekers</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Find flexible, affordable land options for your tiny home, RV, or unique project. Our "Bring Your Own Home" (BYOH) model offers unparalleled freedom to live life on your terms.
                 </p>
               </div>
               <div>
                 <TrendingUp className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-semibold text-primary mb-3">Pathways to Ownership</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3">Pathways to Ownership</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Discover unique Lease-to-Own (LTO) opportunities. Take incremental steps towards owning your piece of land and building your future, with clear terms and community support.
                 </p>
@@ -177,7 +177,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-primary">Key Features</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary">Key Features</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
@@ -192,7 +192,7 @@ export default function HomePage() {
                   <div className="mx-auto bg-accent/20 p-3 rounded-full w-fit mb-4">
                     <feature.icon className="h-8 w-8 text-accent" />
                   </div>
-                  <CardTitle>{feature.title}</CardTitle>
+                  <CardTitle className="font-headline">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription>{feature.description}</CardDescription>
@@ -208,10 +208,10 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-title">The platform built to make affordable housing Great again</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-title">The platform built to make affordable housing Great again</h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
-            <Card className="shadow-lg"><CardHeader><CardTitle className="flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
+            <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
+            <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
           </div>
           <div className="mt-16 animate-bounce text-center">
             <ChevronDown className="h-6 w-6 text-primary/70 mx-auto" />
@@ -221,7 +221,7 @@ export default function HomePage() {
 
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Change the Game?</h2>
+          <h2 className="text-3xl md:text-4xl font-headline mb-6">Ready to Change the Game?</h2>
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
             Join LandShare today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
@@ -229,7 +229,7 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
+            <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild>
                <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
           </div>

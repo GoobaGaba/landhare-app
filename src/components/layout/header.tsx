@@ -49,7 +49,7 @@ export default function AppHeader() {
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/messages', label: 'Messages', icon: MessageSquare },
     { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon hover:text-neon focus:text-neon focus:bg-neon/10 hover:bg-neon/10" },
+    { href: '/pricing', label: 'Premium', icon: Crown, className: "text-neon-DEFAULT hover:text-neon-DEFAULT focus:text-neon-DEFAULT focus:bg-neon-DEFAULT/10 hover:bg-neon-DEFAULT/10" },
   ];
 
   const guestNavLinks: NavLink[] = [
@@ -87,7 +87,7 @@ export default function AppHeader() {
                 <Search className="mr-2 h-4 w-4 hidden lg:inline-block" /> Browse Land
             </Link>
           </Button>
-          <Button variant="outline" className="h-10 px-4 border-neon text-neon hover:bg-neon/10 hover:text-neon" asChild>
+          <Button variant="outline" className="h-10 px-4 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild>
             <Link href={listYourLandHref}>
                 <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
             </Link>
@@ -129,7 +129,7 @@ export default function AppHeader() {
                       {userNavLinks.map((link) => (
                         <DropdownMenuItem key={link.href} asChild>
                           <Link href={link.href} className={cn("flex items-center gap-2", pathname === link.href && "bg-muted", link.className)}>
-                            <link.icon className={cn("h-4 w-4", link.className?.includes('text-neon') ? 'text-neon' : '')} />
+                            <link.icon className={cn("h-4 w-4", link.className?.includes('text-neon') ? 'text-neon-DEFAULT' : '')} />
                             <span>{link.label}</span>
                           </Link>
                         </DropdownMenuItem>
@@ -202,7 +202,7 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
                   <SheetClose asChild>
-                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon text-neon hover:bg-neon/10 hover:text-neon">
+                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT">
                       <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
@@ -227,10 +227,10 @@ export default function AppHeader() {
                       <Button
                         variant={pathname === link.href ? 'secondary' : 'ghost'}
                         asChild
-                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon hover:text-neon focus:text-neon hover:bg-neon/10')}
+                        className={cn("w-full justify-start text-base py-3", link.className?.includes('text-neon') && 'text-neon-DEFAULT hover:text-neon-DEFAULT focus:text-neon-DEFAULT hover:bg-neon-DEFAULT/10')}
                       >
                         <Link href={link.href}>
-                          <link.icon className={cn("mr-2 h-4 w-4", link.className?.includes('text-neon') ? 'text-neon' : '')} />
+                          <link.icon className={cn("mr-2 h-4 w-4", link.className?.includes('text-neon') ? 'text-neon-DEFAULT' : '')} />
                           {link.label}
                         </Link>
                       </Button>
