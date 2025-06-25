@@ -1,19 +1,21 @@
-
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
+import { APIProvider } from '@vis.gl/react-google-maps';
+import { EditListingForm } from '@/components/listing-form/edit-listing-form';
 import { useAuth } from '@/contexts/auth-context';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { getListingById } from '@/lib/mock-data';
 import type { Listing } from '@/lib/types';
-import { EditListingForm } from '@/components/listing-form/edit-listing-form';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AlertTriangle, UserCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Loader2, UserCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { firebaseInitializationError } from '@/lib/firebase';
 
-export default function EditListingPage() {
+function EditListingPageContent() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
@@ -130,10 +132,40 @@ export default function EditListingPage() {
     );
   }
 
-  // If authorized and listing is available
+  return <EditListingForm listing={listing} currentUserId={currentUser.uid} />;
+}
+
+
+export default function EditListingPage() {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    if (!apiKey) {
+        return (
+             <Card className="max-w-2xl mx-auto my-8">
+                <CardHeader>
+                    <CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle/> Maps API Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>The Google Maps API key is missing. This form requires geocoding services to function.</p>
+                    <p className="text-xs text-muted-foreground mt-2">Please set <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file.</p>
+                    <Button asChild variant="outline" className="mt-4"><Link href="/my-listings">Go Back</Link></Button>
+                </CardContent>
+            </Card>
+        );
+    }
   return (
-    <div>
-      <EditListingForm listing={listing} currentUserId={currentUser.uid} />
-    </div>
+    <APIProvider apiKey={apiKey}>
+        <Suspense fallback={
+            <Card className="w-full max-w-2xl mx-auto">
+                <CardHeader><CardTitle>Edit Land Listing</CardTitle></CardHeader>
+                <CardContent className="flex justify-center items-center min-h-[300px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2">Loading form...</p>
+                </CardContent>
+            </Card>
+        }>
+            <EditListingPageContent />
+        </Suspense>
+    </APIProvider>
   );
 }
