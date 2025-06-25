@@ -1,4 +1,6 @@
 
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Listing } from '@/lib/types';
@@ -37,9 +39,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
 
   const handleCardClick = () => {
     if (onCardClick) {
-      onCardClick(listing.id === (isSelected ? listing.id : null) ? null : listing.id);
-    } else {
-      router.push(`/listings/${listing.id}`);
+      onCardClick(isSelected ? null : listing.id);
     }
   }
 

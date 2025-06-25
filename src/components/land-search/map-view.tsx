@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { AlertTriangle, DollarSign } from "lucide-react";
-import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
+import { Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import type { Listing } from '@/lib/types';
 import { Button } from '../ui/button';
 import Link from 'next/link';
@@ -18,11 +18,19 @@ interface MapViewProps {
   onMapClick: () => void;
 }
 
-const MapController = ({ listings }: { listings: Listing[] }) => {
+const MapController = ({ listings, selectedId }: { listings: Listing[], selectedId: string | null }) => {
   const map = useMap();
 
   useEffect(() => {
     if (!map || listings.length === 0) return;
+
+    if (selectedId) {
+      const selectedListing = listings.find(l => l.id === selectedId);
+      if (selectedListing && selectedListing.lat != null && selectedListing.lng != null) {
+        map.panTo({ lat: selectedListing.lat, lng: selectedListing.lng });
+        return;
+      }
+    }
 
     const bounds = new google.maps.LatLngBounds();
     listings.forEach(listing => {
@@ -35,33 +43,17 @@ const MapController = ({ listings }: { listings: Listing[] }) => {
       map.fitBounds(bounds, 100);
     }
 
-  }, [map, listings]);
+  }, [map, listings, selectedId]);
 
   return null;
 };
 
 export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
 
-  if (!apiKey) {
-    return (
-      <Card className="sticky top-20 shadow-md h-[calc(100vh-10rem)] flex items-center justify-center bg-muted/30 rounded-lg">
-        <div className="text-center p-4">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-destructive">Map Service Unavailable</h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            The Google Maps API key is missing. Please check your configuration.
-          </p>
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
-      <APIProvider apiKey={apiKey}>
         <Map
           defaultCenter={defaultPosition}
           defaultZoom={4}
@@ -78,12 +70,12 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={() => onMarkerClick(listing.id)}
+                onClick={(e) => { e.stopPropagation(); onMarkerClick(listing.id) }}
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
                   background={isSelected ? 'hsl(var(--accent))' : (listing.isBoosted ? 'hsl(var(--premium))' : 'hsl(var(--primary))')}
-                  borderColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
+                  borderColor={'hsl(var(--background))'}
                   glyphColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
                   scale={isSelected ? 1.5 : 1}
                 />
@@ -115,10 +107,9 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
             </InfoWindow>
           )}
 
-          <MapController listings={listings} />
+          <MapController listings={listings} selectedId={selectedId} />
 
         </Map>
-      </APIProvider>
     </Card>
   );
 }

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
 import { MapView } from "@/components/land-search/map-view";
@@ -24,7 +25,7 @@ const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
 
-export default function SearchPage() {
+function SearchPageContent() {
   const { allAvailableListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
   const { toast } = useToast();
   const { subscriptionStatus, loading: authLoading } = useAuth();
@@ -121,7 +122,7 @@ export default function SearchPage() {
     
     setFilteredListings(listingsToFilter);
     setCurrentPage(1);
-    setSelectedListingId(null); // Reset selection on filter change
+    setSelectedListingId(null);
   }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allAvailableListings, listingsLoading]);
 
   const paginatedListings = useMemo(() => {
@@ -134,7 +135,8 @@ export default function SearchPage() {
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      window.scrollTo(0, 0); // Scroll to top on page change
+      setSelectedListingId(null);
+      window.scrollTo(0, 0);
     }
   };
 
@@ -153,7 +155,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className={cn("flex flex-col lg:flex-row gap-8", showMap && "lg:h-[calc(100vh-var(--header-height)-1rem)] lg:overflow-hidden")}>
+    <div className={cn("flex flex-col lg:flex-row gap-8", showMap && "lg:h-[calc(100vh-var(--header-height,8rem)-1rem)] lg:overflow-hidden")}>
       <aside className="w-full lg:w-1/3 xl:w-1/4 lg:overflow-y-auto lg:h-full lg:pr-4 custom-scrollbar">
         <FilterPanel
           priceRange={priceRange} setPriceRange={setPriceRange}
@@ -163,7 +165,7 @@ export default function SearchPage() {
           resetFilters={resetFilters}
         />
       </aside>
-      <main className="w-full lg:w-2/3 xl:w-3/4 space-y-6 lg:overflow-y-auto lg:h-full custom-scrollbar">
+      <main className="w-full lg:w-2/3 xl:w-3/4 space-y-6 lg:overflow-y-auto lg:h-full lg:pr-4 custom-scrollbar">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4">
           <div className="relative w-full sm:max-w-xs">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -227,4 +229,28 @@ export default function SearchPage() {
       )}
     </div>
   );
+}
+
+export default function SearchPage() {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    if (!apiKey) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Map Service Error</AlertTitle>
+                    <AlertDescription>
+                        The Google Maps API key is missing. The map cannot be displayed. Please set the <code className="font-mono bg-muted p-1 rounded">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )
+    }
+
+    return (
+        <APIProvider apiKey={apiKey}>
+            <SearchPageContent />
+        </APIProvider>
+    )
 }
