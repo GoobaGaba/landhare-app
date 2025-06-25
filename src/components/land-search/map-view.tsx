@@ -22,7 +22,7 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
   const map = useMap();
 
   useEffect(() => {
-    if (!map || listings.length === 0) return;
+    if (!map) return;
 
     if (selectedId) {
       const selectedListing = listings.find(l => l.id === selectedId);
@@ -30,6 +30,13 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
         map.panTo({ lat: selectedListing.lat, lng: selectedListing.lng });
         return;
       }
+    }
+    
+    if (listings.length === 0) {
+        // Optionally reset to a default view if no listings are present
+        map.panTo({ lat: 39.8283, lng: -98.5795 });
+        map.setZoom(5);
+        return;
     }
 
     const bounds = new google.maps.LatLngBounds();
@@ -70,7 +77,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={(e) => { e.stopPropagation(); onMarkerClick(listing.id) }}
+                onClick={(e) => { e.stop(); onMarkerClick(listing.id); }}
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
