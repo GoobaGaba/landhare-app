@@ -33,12 +33,10 @@ export default function MyListingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteConfirmation = useCallback((listing: Listing) => {
-    if (firebaseInitializationError && !currentUser?.appProfile) {
-       toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
-       return;
-    }
+    // The check for `!currentUser.appProfile` was too strict and buggy in mock mode.
+    // The server action and edit page handle the real authorization.
     setListingToDelete(listing);
-  }, [currentUser, toast]);
+  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!listingToDelete) return;
@@ -122,7 +120,7 @@ export default function MyListingsPage() {
             <Card key={listing.id} className="flex flex-col">
               <ListingCard listing={listing} viewMode="grid" />
               <CardFooter className="mt-auto pt-4 border-t flex justify-end gap-2">
-                <Button variant="outline" size="sm" asChild title="Edit this listing" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+                <Button variant="outline" size="sm" asChild title="Edit this listing">
                   <Link href={`/listings/edit/${listing.id}`}>
                     <Edit className="mr-2 h-3 w-3" /> Edit
                   </Link>
