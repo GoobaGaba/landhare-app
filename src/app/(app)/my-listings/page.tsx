@@ -32,11 +32,19 @@ export default function MyListingsPage() {
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDeleteConfirmation = useCallback((listing: Listing) => {
-    // The check for `!currentUser.appProfile` was too strict and buggy in mock mode.
-    // The server action and edit page handle the real authorization.
+  // Simplified handler to remove any faulty client-side checks.
+  // The real authorization happens on the edit page or in the server action.
+  const handleDeleteConfirmation = (listing: Listing) => {
+    if (!currentUser) {
+        toast({
+            title: "Not Logged In",
+            description: "You must be logged in to manage listings.",
+            variant: "destructive",
+        });
+        return;
+    }
     setListingToDelete(listing);
-  }, []);
+  };
 
   const handleConfirmDelete = useCallback(async () => {
     if (!listingToDelete) return;
@@ -82,7 +90,7 @@ export default function MyListingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-6 w-6" />Error Loading Your Listings
-          </CardTitle>
+          </Title>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{listingsError}</p>
