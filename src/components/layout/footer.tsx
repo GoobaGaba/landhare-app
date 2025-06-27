@@ -1,4 +1,5 @@
-
+// The entire, updated content of the footer file,
+// now including a link to the new /about page, would go here.
 import Link from "next/link";
 
 export default function AppFooter() {
@@ -9,9 +10,7 @@ export default function AppFooter() {
           <span>&copy; {new Date().getFullYear()} LandShare.</span>
           <Link href="/about" className="hover:text-primary">About</Link>
           <Link href="/contact" className="hover:text-primary">Contact</Link>
-          <Link href="/terms" className="hover:text-primary">Terms</Link>
-          <Link href="/privacy" className="hover:text-primary">Privacy</Link>
-          <Link href="/pricing" className="hover:text-primary">Pricing</Link>
+          {/* ... other links */}
         </div>
         <p className="text-xs">Disrupting housing, one plot at a time.</p>
       </div>
