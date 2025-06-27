@@ -466,7 +466,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <div className="space-y-6">
                 <div>
                     <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
-                    <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Down payment, term, purchase price, etc." />
+                    <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., term length, purchase price, etc." />
                     {errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}
                 </div>
                  <div>
