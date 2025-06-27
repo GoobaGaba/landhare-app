@@ -90,7 +90,7 @@ export default function MyListingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
             <AlertTriangle className="h-6 w-6" />Error Loading Your Listings
-          </Title>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">{listingsError}</p>
