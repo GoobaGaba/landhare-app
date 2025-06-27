@@ -254,3 +254,5 @@ export default function SearchPage() {
         </APIProvider>
     )
 }
+
+    

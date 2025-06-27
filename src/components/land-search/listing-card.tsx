@@ -318,3 +318,5 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     </Card>
   );
 }
+
+    

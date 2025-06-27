@@ -120,3 +120,5 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
     </Card>
   );
 }
+
+    
