@@ -17,6 +17,7 @@ export interface Listing {
   suggestedPrice?: number; // AI suggested price
   pricingModel: PricingModel;
   leaseToOwnDetails?: string;
+  downPayment?: number;
   images: string[];
   landownerId: string;
   isAvailable: boolean;

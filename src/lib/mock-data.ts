@@ -232,6 +232,7 @@ export let mockListings: Listing[] = [
     amenities: ['road access', 'septic system' ],
     pricingModel: 'lease-to-own',
     price: 650, // LTO monthly payment
+    downPayment: 5000,
     leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.",
     images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
@@ -315,6 +316,7 @@ export let mockListings: Listing[] = [
     amenities: ['power access', 'water hookup', 'road access', 'septic system'],
     pricingModel: 'lease-to-own',
     price: 550,
+    downPayment: 3000,
     leaseToOwnDetails: "3-year lease-to-own option. $3,000 down. Estimated monthly payment of $550. Final purchase price: $60,000. Close to main roads.",
     images: ['https://placehold.co/800x600.png?text=Orlando+LTO+Lot'],
     landownerId: MOCK_USER_FOR_UI_TESTING.id,
@@ -513,6 +515,7 @@ const mapDocToListing = (docSnap: any): Listing => {
     pricingModel: data.pricingModel || 'monthly',
     price: data.price || 0,
     leaseToOwnDetails: data.leaseToOwnDetails || undefined,
+    downPayment: data.downPayment || undefined,
     images: data.images && data.images.length > 0 ? data.images : [`https://placehold.co/800x600.png?text=${encodeURIComponent((data.title || 'Listing').substring(0,15))}`,"https://placehold.co/400x300.png?text=View+1", "https://placehold.co/400x300.png?text=View+2"],
     landownerId: data.landownerId || 'unknown_owner',
     isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
@@ -943,6 +946,7 @@ export const updateListing = async (listingId: string, data: Partial<Omit<Listin
         const updateData: any = {...data};
         if (updateData.price !== undefined) updateData.price = Number(updateData.price);
         if (updateData.sizeSqft !== undefined) updateData.sizeSqft = Number(updateData.sizeSqft);
+        if (updateData.downPayment !== undefined) updateData.downPayment = Number(updateData.downPayment);
         if (updateData.minLeaseDurationMonths !== undefined) updateData.minLeaseDurationMonths = updateData.minLeaseDurationMonths === null ? null : Number(updateData.minLeaseDurationMonths);
         
         await updateDoc(listingDocRef, updateData);

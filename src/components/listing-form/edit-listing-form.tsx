@@ -61,6 +61,7 @@ const editListingFormSchema = z.object({
   price: z.coerce.number().positive("Price must be a positive number."),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
   leaseToOwnDetails: z.string().optional(),
+  downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Image URL invalid or missing.")).min(1, "Please upload at least one image."),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
@@ -112,6 +113,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     resolver: zodResolver(editListingFormSchema),
     defaultValues: {
       ...listing,
+      downPayment: listing.downPayment ?? undefined,
       minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
       images: listing.images || [],
     },
@@ -129,6 +131,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   useEffect(() => {
     form.reset({
       ...listing,
+      downPayment: listing.downPayment ?? undefined,
       minLeaseDurationMonths: listing.minLeaseDurationMonths ?? null,
       images: listing.images || [],
     });
@@ -315,6 +318,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         const updateData: Partial<Listing> = {
             ...data,
             images: finalImageUrls,
+            downPayment: data.downPayment || undefined,
             minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
         };
 
@@ -451,7 +455,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
             <Controller name="pricingModel" control={control} render={({ field }) => (
-                <RadioGroup onValueChange={(value) => { field.onChange(value); if (value !== 'lease-to-own') setValue('leaseToOwnDetails', '', {shouldDirty: isDirty});}} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+                <RadioGroup onValueChange={(value) => { field.onChange(value); if (value !== 'lease-to-own') { setValue('leaseToOwnDetails', '', {shouldDirty: isDirty}); setValue('downPayment', undefined, {shouldDirty: isDirty}); } }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
                     {(['nightly', 'monthly', 'lease-to-own'] as PricingModel[]).map(model => (
                          <Label key={model} htmlFor={`pricing-${model}-edit`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}-edit`} /><span>{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
@@ -459,7 +463,18 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           </div>
           
           {watchedPricingModel === 'lease-to-own' && (
-            <div><Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label><Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Down payment, term, purchase price, etc." />{errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}</div>
+            <div className="space-y-6">
+                <div>
+                    <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
+                    <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Down payment, term, purchase price, etc." />
+                    {errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}
+                </div>
+                 <div>
+                    <Label htmlFor="downPayment">Down Payment ($)</Label>
+                    <Input id="downPayment" type="number" {...register('downPayment')} placeholder="e.g., 5000" />
+                    {errors.downPayment && <p className="text-sm text-destructive mt-1">{errors.downPayment.message}</p>}
+                </div>
+            </div>
           )}
 
           <div>

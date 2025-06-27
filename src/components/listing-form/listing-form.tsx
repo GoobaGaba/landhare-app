@@ -60,6 +60,7 @@ const listingFormSchema = z.object({
   price: z.coerce.number({ required_error: "Price is required.", invalid_type_error: "Price must be a number." }).positive({ message: "Price must be a positive number." }),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own'], { required_error: "Please select a pricing model."}),
   leaseToOwnDetails: z.string().optional(),
+  downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
   images: z.array(z.string().url("Each image must be a valid URL.")).min(1, "Please upload at least one image."),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
@@ -316,6 +317,7 @@ export function ListingForm() {
         isBoosted: subscriptionStatus === 'premium',
         createdAt: new Date(),
         leaseToOwnDetails: data.pricingModel === 'lease-to-own' ? data.leaseToOwnDetails : undefined,
+        downPayment: data.pricingModel === 'lease-to-own' ? data.downPayment : undefined,
         minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
       };
       
@@ -465,13 +467,26 @@ export function ListingForm() {
 
           <div>
             <Label className="mb-2 block">Pricing Model</Label>
-            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if(value !== 'lease-to-own') setValue('leaseToOwnDetails', '', {shouldDirty: true }); }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
+            <Controller name="pricingModel" control={control} render={({ field }) => (<RadioGroup onValueChange={(value) => { field.onChange(value); if(value !== 'lease-to-own') setValue('leaseToOwnDetails', '', {shouldDirty: true }); if(value !== 'lease-to-own') setValue('downPayment', undefined, {shouldDirty: true }); }} value={field.value} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2 border rounded-md">
                     {(['nightly', 'monthly', 'lease-to-own'] as PricingModel[]).map(model => (<Label key={model} htmlFor={`pricing-${model}`} className={cn("flex items-center space-x-2 p-2 rounded-md border cursor-pointer hover:bg-accent/10 transition-colors", field.value === model && "bg-accent/20 border-accent ring-1 ring-accent")}><RadioGroupItem value={model} id={`pricing-${model}`} /><span className="capitalize">{model.replace('-', ' ')}</span></Label>))}
                 </RadioGroup>)} />
             {errors.pricingModel && <p className="text-sm text-destructive mt-1">{errors.pricingModel.message}</p>}
           </div>
           
-          {watchedPricingModel === 'lease-to-own' && (<div><Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label><Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., down payment, term length, purchase price, etc." aria-invalid={errors.leaseToOwnDetails ? "true" : "false"} />{errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}</div>)}
+          {watchedPricingModel === 'lease-to-own' && (
+            <div className="space-y-6">
+                <div>
+                    <Label htmlFor="leaseToOwnDetails">Lease-to-Own Details</Label>
+                    <Textarea id="leaseToOwnDetails" {...register('leaseToOwnDetails')} rows={3} placeholder="Describe key terms, e.g., term length, purchase price, etc." aria-invalid={errors.leaseToOwnDetails ? "true" : "false"} />
+                    {errors.leaseToOwnDetails && <p className="text-sm text-destructive mt-1">{errors.leaseToOwnDetails.message}</p>}
+                </div>
+                 <div>
+                    <Label htmlFor="downPayment">Down Payment ($)</Label>
+                    <Input id="downPayment" type="number" {...register('downPayment')} placeholder="e.g., 5000" />
+                    {errors.downPayment && <p className="text-sm text-destructive mt-1">{errors.downPayment.message}</p>}
+                </div>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="price">{priceLabel}</Label>
