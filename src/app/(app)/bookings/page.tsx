@@ -29,7 +29,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import { doc, updateDoc } from 'firebase/firestore';
 
 export default function BookingsPage() {
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser, loading: authLoading, refreshUserProfile } = useAuth();
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState<Record<string, boolean>>({});
@@ -120,7 +120,7 @@ export default function BookingsPage() {
       });
 
       toast({ title: "Lease Saved!", description: "The lease agreement has been securely saved to the cloud." });
-      loadBookings(); // Refresh bookings to show the new link
+      await refreshUserProfile(); // Refresh data to show new link and any other state changes
     } catch (error: any) {
       console.error("Error uploading lease:", error);
       toast({ title: "Save Failed", description: `Could not save lease: ${error.message}`, variant: "destructive" });
@@ -270,7 +270,8 @@ export default function BookingsPage() {
         }
         toast({ title: "Booking Updated", description: toastDescription });
         
-        await loadBookings(); 
+        // This is the key change: refreshing the global user profile triggers updates everywhere
+        await refreshUserProfile(); 
 
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
             const freshlyLoadedBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id && b.status === 'Confirmed'));
@@ -283,7 +284,7 @@ export default function BookingsPage() {
       }
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message || "Could not update booking status.", variant: "destructive" });
-      await loadBookings(); // Ensure UI consistency even on failure
+      await refreshUserProfile(); // Ensure UI consistency even on failure
     } finally {
         setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }
