@@ -32,8 +32,6 @@ export default function MyListingsPage() {
   const [listingToDelete, setListingToDelete] = useState<Listing | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Simplified handler to remove any faulty client-side checks.
-  // The real authorization happens on the edit page or in the server action.
   const handleDeleteConfirmation = (listing: Listing) => {
     if (!currentUser) {
         toast({
@@ -89,7 +87,8 @@ export default function MyListingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive">
-            <AlertTriangle className="h-6 w-6" />Error Loading Your Listings
+            <AlertTriangle className="h-6 w-6" />
+            <span>Error Loading Your Listings</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
