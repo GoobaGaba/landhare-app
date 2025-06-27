@@ -243,26 +243,24 @@ export default function ListingDetailPage() {
 
     setIsSubmittingBooking(true);
     try {
-      const isLTOInquiry = listing.pricingModel === 'lease-to-own';
-      const bookingStatus = isLTOInquiry ? 'Pending Confirmation' : 'Confirmed';
+      // Standardize all new bookings/inquiries to 'Pending Confirmation'
+      const bookingStatus = 'Pending Confirmation';
 
       const bookingDataPayload = {
         listingId: listing.id,
         renterId: currentUser.uid,
         landownerId: listing.landownerId,
-        dateRange: !isLTOInquiry && dateRange?.from && dateRange.to
-          ? { from: dateRange.from, to: dateRange.to }
-          : { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) },
+        dateRange: !dateRange?.from || !dateRange.to
+          ? { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }
+          : { from: dateRange.from, to: dateRange.to },
       };
       
       await addBookingRequest(bookingDataPayload, bookingStatus);
 
       setShowBookingDialog(false);
       toast({
-        title: isLTOInquiry ? "Inquiry Sent!" : "Booking Confirmed!",
-        description: isLTOInquiry
-          ? `Your inquiry for "${listing.title}" has been sent to the landowner.`
-          : `Your booking for "${listing.title}" is confirmed. Check 'My Bookings' for details.`,
+        title: "Request Sent!",
+        description: `Your request for "${listing.title}" has been sent. The landowner will review it shortly.`,
       });
       router.push('/bookings');
     } catch (error: any) {
@@ -611,12 +609,10 @@ export default function ListingDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking"}
+                {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking Request"}
             </DialogTitle>
             <DialogDescription>
-               {listing.pricingModel === 'lease-to-own'
-                ? `You are about to send an inquiry for "${listing.title}". The landowner will contact you.`
-                : `Please review the details for "${listing.title}". This will send a booking request to the landowner for confirmation.`}
+               Please review the details for "{listing.title}". This will send a request to the landowner for confirmation.
             </DialogDescription>
           </DialogHeader>
           {priceDetails && dateRange?.from && dateRange.to && (
@@ -660,7 +656,7 @@ export default function ListingDetailPage() {
                 (listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails?.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28))
             }>
                 {isSubmittingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Confirm Booking Request"}
+                {listing.pricingModel === 'lease-to-own' ? "Send Inquiry" : "Send Booking Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
