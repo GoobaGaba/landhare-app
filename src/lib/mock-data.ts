@@ -2,12 +2,21 @@
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PriceDetails, PlatformMetrics, MarketInsightsData } from './types';
 import { differenceInDays, addDays } from 'date-fns';
-import { Timestamp } from 'firebase/firestore'; // Keep for type compatibility even if not used in mock writes
+
+/**
+ * @fileOverview
+ * This file serves as a mock database using localStorage. It's the single source of truth for all
+ * application data when Firebase is not configured (i.e., when running in a local or preview environment
+ * without a `.env.local` file). It manages users, listings, bookings, and transactions, and dispatches
+ * a custom 'mockDataChanged' event whenever data is saved, allowing UI components to refresh.
+ */
+
 
 // --- CONFIGURATION ---
 const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
+// The ADMIN_UIDS array allows easy assignment of admin privileges to specific mock users.
 export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3', 'AdminGNL6965'];
 
 // --- DATABASE STRUCTURE ---
@@ -30,6 +39,7 @@ const BOT_RENTER_1: User = { id: 'bot-renter-1', name: 'Bot Renter Bob', email: 
 const BOT_RENTER_2: User = { id: 'bot-renter-2', name: 'Bot Renter Charlie', email: 'bot.charlie@landshare.app', subscriptionStatus: 'premium', walletBalance: 8000, createdAt: new Date() };
 
 // --- INITIAL DEFAULT DATA ---
+// This function defines the default state of the mock database. It's used on first load or if localStorage is cleared.
 const getInitialData = (): MockDatabase => {
     const users = [MOCK_ADMIN_USER, MOCK_GABE_ADMIN_USER, MOCK_USER_FOR_UI_TESTING, { id: 'landowner-jane-doe', name: 'Jane Doe', email: 'jane@example.com', avatarUrl: 'https://placehold.co/100x100.png?text=JD', subscriptionStatus: 'free', createdAt: new Date('2023-02-15T11:00:00Z'), bio: 'Experienced landowner with several plots available.', bookmarkedListingIds: [], walletBalance: 10000 }, { id: 'renter-john-smith', name: 'John Smith', email: 'john@example.com', avatarUrl: 'https://placehold.co/100x100.png?text=JS', subscriptionStatus: 'free', createdAt: new Date('2023-03-20T12:00:00Z'), bio: 'Looking for a quiet place for my tiny home.', bookmarkedListingIds: ['listing-2-forest-retreat'], walletBalance: 10000 }, MOCK_GOOGLE_USER_FOR_UI_TESTING, BOT_LANDOWNER_1, BOT_RENTER_1, BOT_RENTER_2];
     const listings = [ { id: 'listing-1-sunny-meadow', title: 'Sunny Meadow Plot', description: 'A beautiful sunny meadow, perfect for sustainable living. Flat land, easy access. Great for gardens.', location: 'Boulder, CO', lat: 40.0150, lng: -105.2705, sizeSqft: 5000, amenities: ['water hookup', 'road access', 'pet friendly', 'fenced'], pricingModel: 'monthly', price: 350, images: ['https://placehold.co/800x600.png?text=Sunny+Meadow', 'https://placehold.co/400x300.png?text=Meadow+View+1', 'https://placehold.co/400x300.png?text=Meadow+View+2'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.8, numberOfRatings: 15, leaseTerm: 'long-term', minLeaseDurationMonths: 6, isBoosted: false, createdAt: new Date('2024-07-01T10:00:00Z'), }, { id: 'listing-2-forest-retreat', title: 'Forest Retreat Lot (Monthly)', description: 'Secluded lot in a dense forest. Ideal for off-grid enthusiasts. Some clearing needed. Very private.', location: 'Asheville, NC', lat: 35.5951, lng: -82.5515, sizeSqft: 12000, amenities: ['septic system', 'fenced', 'fire pit'], pricingModel: 'monthly', price: 200, images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.2, numberOfRatings: 8, leaseTerm: 'flexible', isBoosted: false, createdAt: new Date('2024-06-15T14:30:00Z'), }, { id: 'listing-3-desert-oasis', title: 'Desert Oasis Spot (Short-term Monthly)', description: 'Expansive desert views with stunning sunsets. Requires water hauling. Power access nearby. Stargazing paradise.', location: 'Sedona, AZ', lat: 34.8700, lng: -111.7610, sizeSqft: 25000, amenities: ['power access', 'road access'], pricingModel: 'monthly', price: 150, images: ['https://placehold.co/800x600.png?text=Desert+Oasis'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.5, numberOfRatings: 10, leaseTerm: 'short-term', minLeaseDurationMonths: 1, isBoosted: false, createdAt: new Date('2024-05-01T10:00:00Z'), }, { id: 'listing-4-riverside-haven', title: 'Riverside Haven - Monthly Lease', description: 'Peaceful plot by a gentle river. Great for nature lovers. Seasonal access. Monthly lease available for fishing cabin.', location: 'Missoula, MT', lat: 46.8721, lng: -113.9940, sizeSqft: 7500, amenities: ['water hookup', 'fire pit', 'lake access', 'pet friendly'], pricingModel: 'monthly', price: 400, images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.9, numberOfRatings: 22, leaseTerm: 'long-term', minLeaseDurationMonths: 12, isBoosted: false, createdAt: new Date('2024-07-10T10:00:00Z'), }, { id: 'listing-5-cozy-rv-spot', title: 'Cozy RV Spot by the Lake (Nightly)', description: 'Perfect nightly getaway for your RV. Includes full hookups and stunning lake views. Min 2 nights. Book your escape!', location: 'Lake Tahoe, CA', lat: 39.0968, lng: -120.0324, sizeSqft: 1500, amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access', 'septic system'], pricingModel: 'nightly', price: 45, images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.7, numberOfRatings: 12, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-06-01T09:00:00Z'), }, { id: 'listing-6-mountain-homestead-lto', title: 'Mountain Homestead - Lease to Own!', description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm. Terms negotiable.', location: 'Boone, NC', lat: 36.2168, lng: -81.6746, sizeSqft: 45000, amenities: ['road access', 'septic system' ], pricingModel: 'lease-to-own', price: 650, downPayment: 5000, leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.", images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.3, numberOfRatings: 5, isBoosted: false, leaseTerm: 'long-term', minLeaseDurationMonths: 60, createdAt: new Date('2024-05-15T11:00:00Z'), }, { id: 'listing-7-basic-rural-plot', title: 'Basic Rural Plot - Affordable Monthly!', description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping (check local ordinances) or a very simple, self-contained setup.', location: 'Rural Plains, KS', lat: 37.7749, lng: -97.3308, sizeSqft: 22000, amenities: [], pricingModel: 'monthly', price: 75, images: ['https://placehold.co/800x600.png?text=Basic+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 2.5, numberOfRatings: 2, isBoosted: false, leaseTerm: 'flexible', createdAt: new Date('2024-04-01T16:00:00Z'), }, { id: 'listing-8-premium-view-lot-rented', title: 'Premium View Lot (Currently Rented)', description: 'Unobstructed ocean views from this premium lot. Currently under a long-term lease. Not available for new bookings.', location: 'Big Sur, CA', lat: 36.2704, lng: -121.8081, sizeSqft: 10000, amenities: ['power access', 'water hookup', 'fenced', 'wifi available', 'septic system'], pricingModel: 'monthly', price: 1200, images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: false, rating: 4.9, numberOfRatings: 35, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 12, createdAt: new Date('2023-08-10T12:00:00Z'), }, { id: 'listing-9-miami-nightly', title: 'Miami Urban Garden Plot (Nightly)', description: 'A rare open plot in Miami, perfect for short-term events, urban gardening projects, or RV parking. Nightly rates available.', location: 'Miami, FL', lat: 25.7617, lng: -80.1918, sizeSqft: 2500, amenities: ['power access', 'water hookup', 'fenced', 'road access'], pricingModel: 'nightly', price: 75, images: ['https://placehold.co/800x600.png?text=Miami+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.6, numberOfRatings: 9, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-07-20T10:00:00Z'), }, { id: 'listing-10-orlando-lto', title: 'Orlando LTO Opportunity near Attractions', description: 'Lease-to-own this conveniently located lot in the greater Orlando area. A great investment for a future home base.', location: 'Orlando, FL', lat: 28.5383, lng: -81.3792, sizeSqft: 6000, amenities: ['power access', 'water hookup', 'road access', 'septic system'], pricingModel: 'lease-to-own', price: 550, downPayment: 3000, leaseToOwnDetails: "3-year lease-to-own option. $3,000 down. Estimated monthly payment of $550. Final purchase price: $60,000. Close to main roads.", images: ['https://placehold.co/800x600.png?text=Orlando+LTO+Lot'], landownerId: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.1, numberOfRatings: 3, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 36, createdAt: new Date('2024-07-18T10:00:00Z'), } ];
@@ -42,8 +52,15 @@ const getInitialData = (): MockDatabase => {
 
 // --- CORE DATABASE FUNCTIONS ---
 
+// This variable holds the database in memory for server-side rendering environments where localStorage is not available.
 let db: MockDatabase | null = null;
 
+/**
+ * Loads the mock database.
+ * In the browser, it attempts to load from localStorage. If that fails or is not present, it loads the initial default data.
+ * On the server, it uses an in-memory variable.
+ * @returns The mock database object.
+ */
 function loadDb(): MockDatabase {
     if (typeof window === 'undefined') {
         if (!db) {
@@ -72,12 +89,38 @@ function loadDb(): MockDatabase {
     return initialData;
 }
 
+/**
+ * Centralized function to recalculate all platform-wide metrics.
+ * This ensures consistency and predictability. It is called every time the database is saved.
+ * @param db The database object to calculate metrics from.
+ */
+const recalculateMetrics = (db: MockDatabase): void => {
+    db.metrics.totalUsers = db.users.length;
+    db.metrics.totalListings = db.listings.length;
+    db.metrics.totalBookings = db.bookings.length;
+
+    const completedServiceFees = db.transactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const subscriptionRevenue = db.transactions.filter(t => t.type === 'Subscription' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const subscriptionRefunds = db.transactions.filter(t => t.type === 'Subscription Refund' && t.status === 'Completed').reduce((sum, t) => sum + t.amount, 0);
+
+    db.metrics.totalServiceFees = completedServiceFees;
+    db.metrics.totalSubscriptionRevenue = subscriptionRevenue - subscriptionRefunds;
+    db.metrics.totalRevenue = db.metrics.totalServiceFees + db.metrics.totalSubscriptionRevenue;
+};
+
+/**
+ * Saves the current state of the database to localStorage and dispatches an event to notify the app of changes.
+ * @param newDb The new database state to save.
+ */
 function saveDb(newDb: MockDatabase) {
     if (typeof window === 'undefined') {
         db = newDb;
         return;
     }
+    // Always recalculate metrics before saving to ensure data is consistent.
+    recalculateMetrics(newDb);
     localStorage.setItem(DB_KEY, JSON.stringify(newDb));
+    // This custom event allows other parts of the app (like hooks) to react to data changes.
     window.dispatchEvent(new CustomEvent('mockDataChanged'));
 }
 
@@ -133,7 +176,6 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     walletBalance: 10000,
   };
   currentDb.users.push(newUser);
-  currentDb.metrics.totalUsers = currentDb.users.length;
   saveDb(currentDb);
   return newUser;
 };
@@ -154,8 +196,10 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 export const getListings = async (): Promise<Listing[]> => {
   const currentDb = loadDb();
   return [...currentDb.listings].sort((a, b) => {
+    // Prioritize boosted listings
     if (a.isBoosted && !b.isBoosted) return -1;
     if (!a.isBoosted && b.isBoosted) return 1;
+    // Then sort by creation date
     const timeA = (a.createdAt instanceof Date ? a.createdAt : new Date(0)).getTime();
     const timeB = (b.createdAt instanceof Date ? b.createdAt : new Date(0)).getTime();
     return timeB - timeA;
@@ -175,7 +219,6 @@ export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: 
     isBoosted: isLandownerPremium,
   };
   currentDb.listings.unshift(newListing);
-  currentDb.metrics.totalListings = currentDb.listings.length;
   saveDb(currentDb);
   return newListing;
 };
@@ -196,11 +239,11 @@ export const deleteListing = async (listingId: string): Promise<boolean> => {
   const currentDb = loadDb();
   const initialLength = currentDb.listings.length;
   currentDb.listings = currentDb.listings.filter(l => l.id !== listingId);
+  // Also remove related data for consistency
   currentDb.bookings = currentDb.bookings.filter(b => b.listingId !== listingId);
   currentDb.reviews = currentDb.reviews.filter(r => r.listingId !== listingId);
   const deleted = currentDb.listings.length < initialLength;
   if (deleted) {
-    currentDb.metrics.totalListings = currentDb.listings.length;
     saveDb(currentDb);
   }
   return deleted;
@@ -216,9 +259,11 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
 // --- Booking Functions ---
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
   const currentDb = loadDb();
+  // Find bookings where the user is either the renter or the landowner
   return currentDb.bookings
     .filter(b => b.renterId === userId || b.landownerId === userId)
     .map(booking => {
+        // Populate with names for easier display in the UI
         const listing = currentDb.listings.find(l => l.id === booking.listingId);
         const renter = currentDb.users.find(u => u.id === booking.renterId);
         const landowner = currentDb.users.find(u => u.id === booking.landownerId);
@@ -227,6 +272,13 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
     .sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
 };
 
+/**
+ * Creates a new booking request. This simulates a payment by debiting the renter's wallet
+ * and creating a 'Pending' transaction record.
+ * @param data The booking data payload.
+ * @param status The initial status of the booking.
+ * @returns The newly created booking object.
+ */
 export const addBookingRequest = async (
   data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'> & {dateRange: {from: Date; to: Date}},
   status: Booking['status'] = 'Pending Confirmation'
@@ -242,15 +294,19 @@ export const addBookingRequest = async (
   const landownerInfo = currentDb.users.find(u => u.id === listingInfo.landownerId);
   if (!landownerInfo) throw new Error("Landowner profile not found.");
 
+  // Calculate the total price for the booking
   const { totalPrice } = calculatePriceDetails(listingInfo, data.dateRange, renterInfo.subscriptionStatus || 'free');
 
+  // Check if the renter can afford the booking
   if ((renterInfo.walletBalance ?? 0) < totalPrice) {
       throw new Error(`Insufficient funds. Your balance is $${(renterInfo.walletBalance ?? 0).toFixed(2)}, but the booking costs $${totalPrice.toFixed(2)}.`);
   }
+  // Debit the renter's wallet immediately
   currentDb.users[renterIndex].walletBalance = (renterInfo.walletBalance ?? 0) - totalPrice;
 
   const mockId = `booking-${Date.now()}`;
   
+  // Create a pending payment transaction
   currentDb.transactions.unshift({
       id: `txn-pmt-${mockId}`, userId: renterInfo.id, type: 'Booking Payment',
       status: status === 'Confirmed' ? 'Completed' : 'Pending', amount: -totalPrice, currency: 'USD',
@@ -263,12 +319,15 @@ export const addBookingRequest = async (
     listingTitle: listingInfo.title, renterName: renterInfo.name, landownerName: landownerInfo.name,
   };
   currentDb.bookings.unshift(newBooking);
-  currentDb.metrics.totalBookings = currentDb.bookings.length;
   
   saveDb(currentDb);
   return newBooking;
 };
 
+/**
+ * Updates the status of a booking and handles the corresponding financial transactions.
+ * This is the core of the simulated economy.
+ */
 export const updateBookingStatus = async (bookingId: string, status: Booking['status']): Promise<Booking | undefined> => {
   const currentDb = loadDb();
   const bookingIndex = currentDb.bookings.findIndex(b => b.id === bookingId);
@@ -279,6 +338,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
 
   const paymentTxnIndex = currentDb.transactions.findIndex(t => t.relatedBookingId === booking.id && t.type === 'Booking Payment');
   
+  // If a booking is confirmed, complete the payment and pay the landowner
   if (status === 'Confirmed') {
       if (paymentTxnIndex !== -1) currentDb.transactions[paymentTxnIndex].status = 'Completed';
 
@@ -297,27 +357,28 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
           
           currentDb.transactions.unshift({ id: `txn-payout-${booking.id}`, userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payout, currency: 'USD', date: new Date(), description: `Payout for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
           currentDb.transactions.unshift({ id: `txn-fee-${booking.id}`, userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD', date: new Date(), description: `Service Fee (${(serviceFeeRate * 100).toFixed(2)}%) for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-          
-          currentDb.metrics.totalServiceFees += serviceFee;
-          currentDb.metrics.totalRevenue += serviceFee;
       }
   } else if (status === 'Declined' || status === 'Cancelled by Renter') {
+     // If a PENDING booking is cancelled, reverse the charge
      if (paymentTxnIndex !== -1) {
         const paymentTxn = currentDb.transactions[paymentTxnIndex];
-        if (paymentTxn.status === 'Pending') { // Only reverse pending transactions
-            paymentTxn.status = 'Failed';
+        if (paymentTxn.status === 'Pending') {
+            paymentTxn.status = 'Failed'; // Mark the original transaction as failed
             const renterIndex = currentDb.users.findIndex(u => u.id === booking.renterId);
             if (renterIndex !== -1) {
+                // Refund the renter's wallet
                 currentDb.users[renterIndex].walletBalance = (currentDb.users[renterIndex].walletBalance ?? 0) + Math.abs(paymentTxn.amount);
                 currentDb.transactions.unshift({ id: `txn-reversal-${booking.id}`, userId: booking.renterId, type: 'Payout Reversal', status: 'Completed', amount: Math.abs(paymentTxn.amount), currency: 'USD', date: new Date(), description: `Reversal for cancelled/declined booking: "${booking.listingTitle}"`, relatedBookingId: booking.id });
             }
         }
     }
   } else if (status === 'Refund Approved') {
+    // If a COMPLETED booking is refunded
     if (paymentTxnIndex !== -1) {
         const paymentTxn = currentDb.transactions[paymentTxnIndex];
         const renterIndex = currentDb.users.findIndex(u => u.id === booking.renterId);
         if (renterIndex !== -1) {
+            // Refund the renter's wallet
             currentDb.users[renterIndex].walletBalance = (currentDb.users[renterIndex].walletBalance ?? 0) + Math.abs(paymentTxn.amount);
             currentDb.transactions.unshift({ id: `txn-refund-${booking.id}`, userId: booking.renterId, type: 'Booking Refund', status: 'Completed', amount: Math.abs(paymentTxn.amount), currency: 'USD', date: new Date(), description: `Refund for "${booking.listingTitle}"`, relatedBookingId: booking.id, relatedListingId: booking.listingId });
         }
@@ -346,8 +407,6 @@ export const createSubscriptionTransaction = async (userId: string): Promise<voi
     };
     currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) + newTransaction.amount;
     currentDb.transactions.unshift(newTransaction);
-    currentDb.metrics.totalSubscriptionRevenue += Math.abs(newTransaction.amount);
-    currentDb.metrics.totalRevenue += Math.abs(newTransaction.amount);
     saveDb(currentDb);
 };
 
@@ -362,8 +421,6 @@ export const createRefundTransaction = async (userId: string): Promise<void> => 
     };
     currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) + newTransaction.amount;
     currentDb.transactions.unshift(newTransaction);
-    currentDb.metrics.totalSubscriptionRevenue -= newTransaction.amount;
-    currentDb.metrics.totalRevenue -= newTransaction.amount;
     saveDb(currentDb);
 };
 
@@ -402,9 +459,6 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
   const currentDb = loadDb();
-  currentDb.metrics.totalUsers = currentDb.users.length;
-  currentDb.metrics.totalListings = currentDb.listings.length;
-  currentDb.metrics.totalBookings = currentDb.bookings.length;
   return currentDb.metrics;
 };
 
