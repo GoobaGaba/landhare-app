@@ -208,27 +208,41 @@ export function ListingForm() {
     }
     setImageUploadError(null);
     const files = Array.from(event.target.files || []);
+    let processedFiles: (File | Blob)[] = [];
 
+    // --- Validation Step ---
     if (imagePreviews.length + files.length > imageUploadLimit) {
       setImageUploadError(`Cannot exceed ${imageUploadLimit} images.`);
       return;
     }
 
-    const tempPreviews: ImagePreview[] = files.map(file => ({
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setImageUploadError(`File "${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`);
+        toast({ title: "File Too Large", description: `"${file.name}" is too large. Please upload files smaller than ${MAX_FILE_SIZE_MB}MB.`, variant: "destructive" });
+        continue; // Skip this file
+      }
+      processedFiles.push(file);
+    }
+    
+    if (processedFiles.length === 0) return;
+
+    const tempPreviews: ImagePreview[] = processedFiles.map(file => ({
       url: URL.createObjectURL(file),
       isLoading: true,
       file: file
     }));
     setImagePreviews(prev => [...prev, ...tempPreviews]);
 
-    // Dynamically import heic2any
+    // --- Conversion and Upload Step ---
     const heic2any = (await import('heic2any')).default;
 
     for (const preview of tempPreviews) {
       let fileToUpload: File | Blob = preview.file!;
       let fileName = (preview.file as File).name;
 
-      if (fileToUpload.type === 'image/heic' || fileName.toLowerCase().endsWith('.heic')) {
+      // Convert HEIC/HEIF files
+      if (fileToUpload.type === 'image/heic' || fileToUpload.type === 'image/heif' || fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif')) {
         try {
           toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
           const convertedBlob = await heic2any({ blob: fileToUpload, toType: 'image/jpeg', quality: 0.9 }) as Blob;
@@ -239,14 +253,16 @@ export function ListingForm() {
           toast({ title: "Conversion Failed", description: `Could not convert ${fileName}. Please try a different image format.`, variant: "destructive" });
           setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
           URL.revokeObjectURL(preview.url);
-          continue;
+          continue; // Skip to next file
         }
       }
 
+      // Upload the processed file
       try {
         const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
+        // Replace temporary blob URL with final Firebase URL
         setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
-        URL.revokeObjectURL(preview.url);
+        URL.revokeObjectURL(preview.url); // Clean up blob URL
         const currentImages = getValues('images');
         setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
       } catch (error) {
@@ -442,7 +458,7 @@ export function ListingForm() {
                 <UploadCloud className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</span>
                 <p className="text-xs text-muted-foreground">PNG, JPG, HEIC up to {MAX_FILE_SIZE_MB}MB each</p>
-                <Input id="image-upload" type="file" multiple accept="image/*,.heic" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
+                <Input id="image-upload" type="file" multiple accept="image/*,.heic,.heif" className="sr-only" onChange={handleFileChange} disabled={imagePreviews.length >= imageUploadLimit || isMockModeNoUser} />
               </label>
             </div>
             {imageUploadError && <p className="text-sm text-destructive mt-1">{imageUploadError}</p>}
