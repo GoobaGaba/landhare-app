@@ -46,9 +46,8 @@ export default function AppHeader() {
 
   const userNavLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/my-listings', label: 'My Listings', icon: ListChecks },
     { href: '/bookmarks', label: 'My Bookmarks', icon: Bookmark },
-    { href: '/bookings', label: 'My Bookings', icon: ReceiptText },
+    { href: '/messages', label: 'Messages', icon: MessageSquare },
     { href: '/profile', label: 'Profile & Settings', icon: UserCircle },
     { href: '/pricing', label: 'Premium', icon: Crown, className: "text-premium hover:text-premium focus:text-premium focus:bg-premium/10 hover:bg-premium/10" },
   ];
