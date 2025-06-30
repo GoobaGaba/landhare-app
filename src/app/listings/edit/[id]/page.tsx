@@ -1,4 +1,3 @@
-
-// This file is obsolete and has been explicitly neutralized to resolve a Next.js build error.
-// The correct page is at /src/app/(app)/listings/edit/[id]/page.tsx
+// This file creates a route conflict and has been explicitly neutralized to allow the app to build.
+// The active page is located at /src/app/(app)/listings/edit/[id]/page.tsx
 export default null;
