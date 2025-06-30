@@ -2,7 +2,8 @@
 import { MetadataRoute } from 'next'
  
 export default function sitemap(): MetadataRoute.Sitemap {
-  // IMPORTANT: Replace 'https://landshare.example.com' with your actual production domain.
+  // Use the NEXT_PUBLIC_SITE_URL environment variable if it exists, otherwise fallback.
+  // This variable is set by the App Hosting build process.
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://landshare.example.com';
   
   return [
