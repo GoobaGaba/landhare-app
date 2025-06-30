@@ -141,8 +141,8 @@ function SearchPageContent() {
   };
 
   const listingsForMap = useMemo(() => {
-    return filteredListings.filter(l => l.lat != null && l.lng != null);
-  }, [filteredListings]);
+    return paginatedListings.filter(l => l.lat != null && l.lng != null);
+  }, [paginatedListings]);
 
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
@@ -254,5 +254,3 @@ export default function SearchPage() {
         </APIProvider>
     )
 }
-
-    
