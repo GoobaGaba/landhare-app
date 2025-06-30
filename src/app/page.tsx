@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from 'next/image';
@@ -87,7 +86,7 @@ export default function HomePage() {
       
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary">How LandShare Works</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandShare Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
@@ -131,7 +130,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-6 text-primary">What Makes Us Special</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-6 text-primary font-extrabold">What Makes Us Special</h2>
           <p className="text-lg text-muted-foreground text-center max-w-3xl mx-auto mb-12">
             We're more than just a listing site. We're a community empowering new ways of living and land use.
           </p>
@@ -178,15 +177,15 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary">Key Features</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">Key Features</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
               { icon: Home, title: 'Flexible Terms', description: 'Daily, monthly, or lease-to-own options with transparent pricing.' },
               { icon: Users, title: 'Direct Communication', description: 'Connect directly with landowners or renters through our secure messaging.' },
               { icon: DollarSign, title: 'Dynamic Pricing', description: 'AI-powered suggestions to help landowners price competitively.' },
-              { icon: MapPin, title: 'Lease-to-Own Pathway', description: 'Opportunities for renters to convert leases into property ownership.' },
               { icon: CheckCircle, title: 'Secure Payments & Reviews', description: 'In-app payments, ratings, and 24/7 support.' },
+              { icon: MapPin, title: 'Lease-to-Own Pathway', description: 'Opportunities for renters to convert leases into property ownership.' },
             ].map((feature) => (
               <Card key={feature.title} className="text-center shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
@@ -209,7 +208,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary">The platform built to make affordable housing Great again</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">Make U.S. Housing Great Again</h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
             <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandShare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
