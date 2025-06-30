@@ -1,2 +1,3 @@
-// This file creates a route conflict and has been explicitly neutralized to allow the app to build.
-export default null;
+// This route is invalid and conflicts with the dynamic [id] route.
+// It has been intentionally neutralized to fix the build.
+export {};

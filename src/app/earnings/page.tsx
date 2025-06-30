@@ -1,10 +1,3 @@
-
-import { redirect } from 'next/navigation';
-
-// This page is obsolete and has been replaced by /transactions.
-// This component permanently redirects any traffic from the old URL.
-export default function DeprecatedEarningsPage() {
-  redirect('/transactions');
-}
-
-    
+// This file is intentionally left blank to resolve a build conflict.
+// The active page is now located at /src/app/(app)/transactions/page.tsx
+export {};
