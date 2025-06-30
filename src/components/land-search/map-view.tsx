@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -64,7 +65,7 @@ const getPinColors = (listing: Listing, isSelected: boolean) => {
     }
     if (listing.isBoosted) {
         return {
-            background: '#8A2BE2', // Purple for Premium/Boosted
+            background: '#9333ea', // Premium Purple
             glyphColor: darkDotColor,
             borderColor: '#FFFFFF'
         };
