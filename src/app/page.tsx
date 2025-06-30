@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -228,7 +229,7 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild>
+            <Button size="lg" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
                <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
           </div>
@@ -237,3 +238,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
