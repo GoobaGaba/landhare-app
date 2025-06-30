@@ -30,7 +30,7 @@ export interface Listing {
   bookmarkedBy?: string[];
 }
 
-export type SubscriptionStatus = 'free' | 'premium' | 'loading';
+export type SubscriptionStatus = 'standard' | 'premium' | 'loading';
 
 export interface User {
   id: string;
@@ -191,5 +191,3 @@ export interface MarketInsightsData {
     supplyByPricingModel: { name: string; value: number, percent: string }[];
     demandByPricingModel: { name: string; value: number, percent: string }[];
 }
-
-    
