@@ -2,13 +2,17 @@
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { firebaseInitializationError, db as firestoreDb } from './firebase';
+import { 
+    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp 
+} from 'firebase/firestore';
+
 
 /**
  * @fileOverview
- * This file serves as a mock database using localStorage. It's the single source of truth for all
- * application data when Firebase is not configured (i.e., when running in a local or preview environment
- * without a `.env.local` file). It manages users, listings, bookings, and transactions, and dispatches
- * a custom 'mockDataChanged' event whenever data is saved, allowing UI components to refresh.
+ * This file serves as the primary data access layer for the application.
+ * It intelligently switches between a live Firestore backend and a mock in-memory database
+ * based on whether Firebase is properly configured.
  */
 
 
@@ -16,10 +20,9 @@ import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth 
 const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-// The ADMIN_UIDS array allows easy assignment of admin privileges to the designated mock user.
 export const ADMIN_UIDS = ['AdminGNL6965'];
 
-// --- DATABASE STRUCTURE ---
+// --- DATABASE STRUCTURE (for mock mode) ---
 interface MockDatabase {
   users: User[];
   listings: Listing[];
@@ -36,7 +39,6 @@ const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock 
 const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = { id: 'mock-google-user-uid-67890', name: 'Mock Google User', email: 'mock.google.user@example.com', avatarUrl: 'https://placehold.co/100x100.png?text=GU', subscriptionStatus: 'standard', createdAt: new Date('2023-04-01T10:00:00Z'), bio: 'I am a mock user signed in via Google for testing purposes.', bookmarkedListingIds: [], walletBalance: 10000 };
 
 // --- INITIAL DEFAULT DATA ---
-// This function defines the default state of the mock database. It's used on first load or if localStorage is cleared.
 const getInitialData = (): MockDatabase => {
     const users = [MOCK_FORMER_ADMIN_USER, MOCK_GABE_ADMIN_USER, MOCK_USER_FOR_UI_TESTING, { id: 'landowner-jane-doe', name: 'Jane Doe', email: 'jane@example.com', avatarUrl: 'https://placehold.co/100x100.png?text=JD', subscriptionStatus: 'standard', createdAt: new Date('2023-02-15T11:00:00Z'), bio: 'Experienced landowner with several plots available.', bookmarkedListingIds: [], walletBalance: 10000 }, { id: 'renter-john-smith', name: 'John Smith', email: 'john@example.com', avatarUrl: 'https://placehold.co/100x100.png?text=JS', subscriptionStatus: 'standard', createdAt: new Date('2023-03-20T12:00:00Z'), bio: 'Looking for a quiet place for my tiny home.', bookmarkedListingIds: ['listing-2-forest-retreat'], walletBalance: 10000 }, MOCK_GOOGLE_USER_FOR_UI_TESTING];
     const listings = [ { id: 'listing-1-sunny-meadow', title: 'Sunny Meadow Plot', description: 'A beautiful sunny meadow, perfect for sustainable living. Flat land, easy access. Great for gardens.', location: 'Boulder, CO', lat: 40.0150, lng: -105.2705, sizeSqft: 5000, amenities: ['water hookup', 'road access', 'pet friendly', 'fenced'], pricingModel: 'monthly', price: 350, images: ['https://placehold.co/800x600.png?text=Sunny+Meadow', 'https://placehold.co/400x300.png?text=Meadow+View+1', 'https://placehold.co/400x300.png?text=Meadow+View+2'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.8, numberOfRatings: 15, leaseTerm: 'long-term', minLeaseDurationMonths: 6, isBoosted: false, createdAt: new Date('2024-07-01T10:00:00Z'), }, { id: 'listing-2-forest-retreat', title: 'Forest Retreat Lot (Monthly)', description: 'Secluded lot in a dense forest. Ideal for off-grid enthusiasts. Some clearing needed. Very private.', location: 'Asheville, NC', lat: 35.5951, lng: -82.5515, sizeSqft: 12000, amenities: ['septic system', 'fenced', 'fire pit'], pricingModel: 'monthly', price: 200, images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.2, numberOfRatings: 8, leaseTerm: 'flexible', isBoosted: false, createdAt: new Date('2024-06-15T14:30:00Z'), }, { id: 'listing-3-desert-oasis', title: 'Desert Oasis Spot (Short-term Monthly)', description: 'Expansive desert views with stunning sunsets. Requires water hauling. Power access nearby. Stargazing paradise.', location: 'Sedona, AZ', lat: 34.8700, lng: -111.7610, sizeSqft: 25000, amenities: ['power access', 'road access'], pricingModel: 'monthly', price: 150, images: ['https://placehold.co/800x600.png?text=Desert+Oasis'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.5, numberOfRatings: 10, leaseTerm: 'short-term', minLeaseDurationMonths: 1, isBoosted: false, createdAt: new Date('2024-05-01T10:00:00Z'), }, { id: 'listing-4-riverside-haven', title: 'Riverside Haven - Monthly Lease', description: 'Peaceful plot by a gentle river. Great for nature lovers. Seasonal access. Monthly lease available for fishing cabin.', location: 'Missoula, MT', lat: 46.8721, lng: -113.9940, sizeSqft: 7500, amenities: ['water hookup', 'fire pit', 'lake access', 'pet friendly'], pricingModel: 'monthly', price: 400, images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.9, numberOfRatings: 22, leaseTerm: 'long-term', minLeaseDurationMonths: 12, isBoosted: false, createdAt: new Date('2024-07-10T10:00:00Z'), }, { id: 'listing-5-cozy-rv-spot', title: 'Cozy RV Spot by the Lake (Nightly)', description: 'Perfect nightly getaway for your RV. Includes full hookups and stunning lake views. Min 2 nights. Book your escape!', location: 'Lake Tahoe, CA', lat: 39.0968, lng: -120.0324, sizeSqft: 1500, amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access', 'septic system'], pricingModel: 'nightly', price: 45, images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.7, numberOfRatings: 12, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-06-01T09:00:00Z'), }, { id: 'listing-6-mountain-homestead-lto', title: 'Mountain Homestead - Lease to Own!', description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm. Terms negotiable.', location: 'Boone, NC', lat: 36.2168, lng: -81.6746, sizeSqft: 45000, amenities: ['road access', 'septic system' ], pricingModel: 'lease-to-own', price: 650, downPayment: 5000, leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.", images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.3, numberOfRatings: 5, isBoosted: false, leaseTerm: 'long-term', minLeaseDurationMonths: 60, createdAt: new Date('2024-05-15T11:00:00Z'), }, { id: 'listing-7-basic-rural-plot', title: 'Basic Rural Plot - Affordable Monthly!', description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping (check local ordinances) or a very simple, self-contained setup.', location: 'Rural Plains, KS', lat: 37.7749, lng: -97.3308, sizeSqft: 22000, amenities: [], pricingModel: 'monthly', price: 75, images: ['https://placehold.co/800x600.png?text=Basic+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 2.5, numberOfRatings: 2, isBoosted: false, leaseTerm: 'flexible', createdAt: new Date('2024-04-01T16:00:00Z'), }, { id: 'listing-8-premium-view-lot-rented', title: 'Premium View Lot (Currently Rented)', description: 'Unobstructed ocean views from this premium lot. Currently under a long-term lease. Not available for new bookings.', location: 'Big Sur, CA', lat: 36.2704, lng: -121.8081, sizeSqft: 10000, amenities: ['power access', 'water hookup', 'fenced', 'wifi available', 'septic system'], pricingModel: 'monthly', price: 1200, images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: false, rating: 4.9, numberOfRatings: 35, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 12, createdAt: new Date('2023-08-10T12:00:00Z'), }, { id: 'listing-9-miami-nightly', title: 'Miami Urban Garden Plot (Nightly)', description: 'A rare open plot in Miami, perfect for short-term events, urban gardening projects, or RV parking. Nightly rates available.', location: 'Miami, FL', lat: 25.7617, lng: -80.1918, sizeSqft: 2500, amenities: ['power access', 'water hookup', 'fenced', 'road access'], pricingModel: 'nightly', price: 75, images: ['https://placehold.co/800x600.png?text=Miami+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.6, numberOfRatings: 9, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-07-20T10:00:00Z'), }, { id: 'listing-10-orlando-lto', title: 'Orlando LTO Opportunity near Attractions', description: 'Lease-to-own this conveniently located lot in the greater Orlando area. A great investment for a future home base.', location: 'Orlando, FL', lat: 28.5383, lng: -81.3792, sizeSqft: 6000, amenities: ['power access', 'water hookup', 'road access', 'septic system'], pricingModel: 'lease-to-own', price: 550, downPayment: 3000, leaseToOwnDetails: "3-year lease-to-own option. $3,000 down. Estimated monthly payment of $550. Final purchase price: $60,000. Close to main roads.", images: ['https://placehold.co/800x600.png?text=Orlando+LTO+Lot'], landownerId: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.1, numberOfRatings: 3, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 36, createdAt: new Date('2024-07-18T10:00:00Z'), } ];
@@ -47,353 +49,247 @@ const getInitialData = (): MockDatabase => {
     return { users, listings, bookings, reviews, transactions, metrics };
 };
 
-// --- CORE DATABASE FUNCTIONS ---
-
-// This variable holds the database in memory for server-side rendering environments where localStorage is not available.
-let db: MockDatabase | null = null;
-
-/**
- * Loads the mock database.
- * In the browser, it attempts to load from localStorage. If that fails or is not present, it loads the initial default data.
- * On the server, it uses an in-memory variable.
- * @returns The mock database object.
- */
-function loadDb(): MockDatabase {
+// --- MOCK MODE CORE DATABASE FUNCTIONS ---
+let localDb: MockDatabase | null = null;
+function loadMockDb(): MockDatabase {
     if (typeof window === 'undefined') {
-        if (!db) {
-            db = getInitialData();
-        }
-        return db;
+        if (!localDb) { localDb = getInitialData(); }
+        return localDb;
     }
-
     try {
         const storedDb = localStorage.getItem(DB_KEY);
         if (storedDb) {
             const parsed = JSON.parse(storedDb, (key, value) => {
                 if (key === 'createdAt' || key === 'from' || key === 'to' || key === 'date') {
                     if (value) return new Date(value);
-                }
-                return value;
+                } return value;
             });
             return parsed;
         }
-    } catch (error) {
-        console.error("Failed to load or parse mock DB from localStorage, resetting.", error);
-    }
-    
+    } catch (error) { console.error("Failed to load or parse mock DB from localStorage, resetting.", error); }
     const initialData = getInitialData();
-    saveDb(initialData);
+    saveMockDb(initialData);
     return initialData;
 }
-
-/**
- * Saves the current state of the database to localStorage and dispatches an event to notify the app of changes.
- * This is the single point of truth for updating the mock database.
- * It also centralizes the recalculation of platform metrics to ensure consistency.
- * @param newDb The new database state to save.
- */
-function saveDb(newDb: MockDatabase) {
-    // Before saving, always recalculate platform-wide metrics to ensure they are up-to-date.
-    // This centralized approach prevents inconsistent metric states.
-    const users = newDb.users.filter(u => !u.id.startsWith('bot-'));
-    const transactions = newDb.transactions;
-    const totalServiceFees = transactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const totalSubscriptionRevenue = transactions.filter(t => t.type === 'Subscription' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    
-    newDb.metrics = {
-      id: 'global_metrics',
-      totalUsers: users.length,
-      totalListings: newDb.listings.length,
-      totalBookings: newDb.bookings.length,
-      totalServiceFees,
-      totalSubscriptionRevenue,
-      totalRevenue: totalServiceFees + totalSubscriptionRevenue
-    };
-
-
-    if (typeof window === 'undefined') {
-        db = newDb;
-        return;
-    }
+function saveMockDb(newDb: MockDatabase) {
+    if (typeof window === 'undefined') { localDb = newDb; return; }
     localStorage.setItem(DB_KEY, JSON.stringify(newDb));
-    // This custom event allows other parts of the app (like hooks) to react to data changes.
     window.dispatchEvent(new CustomEvent('mockDataChanged'));
 }
 
-// Ensure DB is loaded on module initialization
-db = loadDb();
-
 // --- DATA ACCESS & MUTATION FUNCTIONS ---
+
+/**
+ * Converts a Firestore document snapshot into a usable object,
+ * handling Timestamps and ensuring the document ID is included.
+ * @param docSnap The document snapshot from Firestore.
+ * @returns The structured data object.
+ */
+function docToObj<T>(docSnap: any): T {
+    if (!docSnap.exists()) {
+        return undefined as any;
+    }
+    const data = docSnap.data();
+    // Convert Firestore Timestamps to JS Dates
+    for (const key in data) {
+        if (data[key]?.toDate instanceof Function) {
+            data[key] = data[key].toDate();
+        }
+        if(key === 'dateRange' && data[key]?.from?.toDate instanceof Function) {
+            data.dateRange.from = data.dateRange.from.toDate();
+        }
+        if(key === 'dateRange' && data[key]?.to?.toDate instanceof Function) {
+            data.dateRange.to = data.dateRange.to.toDate();
+        }
+    }
+    return { ...data, id: docSnap.id } as T;
+}
 
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
-  const currentDb = loadDb();
-  return currentDb.users.find(user => user.id === id);
+    if (firebaseInitializationError) {
+        return loadMockDb().users.find(user => user.id === id);
+    }
+    const userRef = doc(firestoreDb, "users", id);
+    const userSnap = await getDoc(userRef);
+    return docToObj<User>(userSnap);
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
-  const currentDb = loadDb();
-  const existingUser = currentDb.users.find(u => u.id === userId);
-  if (existingUser) return existingUser;
-
-  const newUser: User = {
-    id: userId,
-    email: email,
-    name: name || email.split('@')[0] || 'Anonymous User',
-    avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`,
-    subscriptionStatus: 'standard',
-    createdAt: new Date(),
-    bio: "Welcome to LandShare!",
-    bookmarkedListingIds: [],
-    walletBalance: 10000,
-  };
-  currentDb.users.push(newUser);
-  saveDb(currentDb);
-  return newUser;
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const existingUser = db.users.find(u => u.id === userId);
+        if (existingUser) return existingUser;
+        const newUser: User = { id: userId, email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: new Date(), bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: 10000 };
+        db.users.push(newUser);
+        saveMockDb(db);
+        return newUser;
+    }
+    const userRef = doc(firestoreDb, "users", userId);
+    const existingUserSnap = await getDoc(userRef);
+    if (existingUserSnap.exists()) {
+        return docToObj<User>(existingUserSnap);
+    }
+    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: 10000 };
+    await setDoc(userRef, newUser);
+    return { ...newUser, id: userId, createdAt: new Date() };
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
-  const currentDb = loadDb();
-  const userIndex = currentDb.users.findIndex(u => u.id === userId);
-  if (userIndex !== -1) {
-    // If subscription status changes, create a transaction record.
-    const oldStatus = currentDb.users[userIndex].subscriptionStatus;
-    const newStatus = data.subscriptionStatus;
-    if (newStatus && oldStatus !== newStatus) {
-        if (newStatus === 'premium') {
-             currentDb.transactions.unshift({ id: `txn-${Date.now()}`, userId, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date(), description: 'Upgrade to Premium Subscription' });
-             currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) - 5.00;
-        } else if (newStatus === 'standard') {
-            currentDb.transactions.unshift({ id: `txn-${Date.now()}`, userId, type: 'Subscription Refund', status: 'Completed', amount: 5.00, currency: 'USD', date: new Date(), description: 'Refund for Premium Subscription Downgrade' });
-            currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) + 5.00;
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const userIndex = db.users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            db.users[userIndex] = { ...db.users[userIndex], ...data };
+            saveMockDb(db);
+            return db.users[userIndex];
         }
+        return undefined;
     }
-    
-    currentDb.users[userIndex] = { ...currentDb.users[userIndex], ...data };
-    saveDb(currentDb);
-    return currentDb.users[userIndex];
-  }
-  return undefined;
+    const userRef = doc(firestoreDb, "users", userId);
+    await updateDoc(userRef, data);
+    const updatedUserSnap = await getDoc(userRef);
+    return docToObj<User>(updatedUserSnap);
 };
 
 
 // --- Listing Functions ---
 export const getListings = async (): Promise<Listing[]> => {
-  const currentDb = loadDb();
-  return [...currentDb.listings].sort((a, b) => {
-    // Prioritize boosted listings
-    if (a.isBoosted && !b.isBoosted) return -1;
-    if (!a.isBoosted && b.isBoosted) return 1;
-    // Then sort by creation date
-    const timeA = (a.createdAt instanceof Date ? a.createdAt : new Date(0)).getTime();
-    const timeB = (b.createdAt instanceof Date ? b.createdAt : new Date(0)).getTime();
-    return timeB - timeA;
-  });
+    if (firebaseInitializationError) {
+        return loadMockDb().listings.filter(l => l.isAvailable).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+    }
+    const q = query(collection(firestoreDb, "listings"), where("isAvailable", "==", true), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => docToObj<Listing>(doc));
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
-  const currentDb = loadDb();
-  return currentDb.listings.find(listing => listing.id === id);
+    if (firebaseInitializationError) {
+        return loadMockDb().listings.find(listing => listing.id === id);
+    }
+    const listingRef = doc(firestoreDb, "listings", id);
+    const listingSnap = await getDoc(listingRef);
+    return docToObj<Listing>(listingSnap);
 };
 
-export const addListing = async (data: Omit<Listing, 'id'>, isLandownerPremium: boolean = false): Promise<Listing> => {
-  const currentDb = loadDb();
-  const newListing: Listing = {
-    ...data,
-    id: `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    isBoosted: isLandownerPremium,
-  };
-  currentDb.listings.unshift(newListing);
-  saveDb(currentDb);
-  return newListing;
+export const addListing = async (data: Omit<Listing, 'id'>): Promise<Listing> => {
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const newListing: Listing = { ...data, id: `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, isBoosted: data.isBoosted || false };
+        db.listings.unshift(newListing);
+        saveMockDb(db);
+        return newListing;
+    }
+    const listingsCollection = collection(firestoreDb, "listings");
+    const newDocRef = await addDoc(listingsCollection, { ...data, createdAt: serverTimestamp() });
+    return { ...data, id: newDocRef.id, createdAt: new Date() };
 };
 
 export const updateListing = async (listingId: string, data: Partial<Listing>): Promise<Listing | undefined> => {
-  const currentDb = loadDb();
-  const listingIndex = currentDb.listings.findIndex(l => l.id === listingId);
-  if (listingIndex !== -1) {
-      currentDb.listings[listingIndex] = { ...currentDb.listings[listingIndex], ...data };
-      saveDb(currentDb);
-      return currentDb.listings[listingIndex];
-  }
-  return undefined;
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const listingIndex = db.listings.findIndex(l => l.id === listingId);
+        if (listingIndex !== -1) {
+            db.listings[listingIndex] = { ...db.listings[listingIndex], ...data };
+            saveMockDb(db);
+            return db.listings[listingIndex];
+        } return undefined;
+    }
+    const listingRef = doc(firestoreDb, "listings", listingId);
+    await updateDoc(listingRef, data);
+    const updatedListingSnap = await getDoc(listingRef);
+    return docToObj<Listing>(updatedListingSnap);
 };
 
-
 export const deleteListing = async (listingId: string): Promise<boolean> => {
-  const currentDb = loadDb();
-  const initialLength = currentDb.listings.length;
-  currentDb.listings = currentDb.listings.filter(l => l.id !== listingId);
-  // Also remove related data for consistency
-  currentDb.bookings = currentDb.bookings.filter(b => b.listingId !== listingId);
-  currentDb.reviews = currentDb.reviews.filter(r => r.listingId !== listingId);
-  const deleted = currentDb.listings.length < initialLength;
-  if (deleted) {
-    saveDb(currentDb);
-  }
-  return deleted;
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const initialLength = db.listings.length;
+        db.listings = db.listings.filter(l => l.id !== listingId);
+        db.bookings = db.bookings.filter(b => b.listingId !== listingId);
+        db.reviews = db.reviews.filter(r => r.listingId !== listingId);
+        const deleted = db.listings.length < initialLength;
+        if (deleted) saveMockDb(db);
+        return deleted;
+    }
+    // Deletion is now handled in a server action for Firestore for consistency
+    throw new Error("Direct client-side deletion from mock-data is disabled. Use deleteListingAction.");
 };
 
 // --- Review Functions ---
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
-  const currentDb = loadDb();
-  return currentDb.reviews.filter(review => review.listingId === listingId)
-    .sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+    if (firebaseInitializationError) {
+        return loadMockDb().reviews.filter(review => review.listingId === listingId).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+    }
+    const q = query(collection(firestoreDb, "reviews"), where("listingId", "==", listingId), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => docToObj<Review>(doc));
 };
 
 // --- Booking Functions ---
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
-  const currentDb = loadDb();
-  // Find bookings where the user is either the renter or the landowner
-  return currentDb.bookings
-    .filter(b => b.renterId === userId || b.landownerId === userId)
-    .map(booking => {
-        // Populate with names for easier display in the UI
-        const listing = currentDb.listings.find(l => l.id === booking.listingId);
-        const renter = currentDb.users.find(u => u.id === booking.renterId);
-        const landowner = currentDb.users.find(u => u.id === booking.landownerId);
-        return { ...booking, listingTitle: listing?.title, renterName: renter?.name, landownerName: landowner?.name };
-    })
-    .sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        return db.bookings.filter(b => b.renterId === userId || b.landownerId === userId).map(booking => {
+            const listing = db.listings.find(l => l.id === booking.listingId);
+            const renter = db.users.find(u => u.id === booking.renterId);
+            const landowner = db.users.find(u => u.id === booking.landownerId);
+            return { ...booking, listingTitle: listing?.title, renterName: renter?.name, landownerName: landowner?.name };
+        }).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+    }
+    
+    const renterQuery = query(collection(firestoreDb, "bookings"), where("renterId", "==", userId));
+    const landownerQuery = query(collection(firestoreDb, "bookings"), where("landownerId", "==", userId));
+
+    const [renterBookingsSnap, landownerBookingsSnap] = await Promise.all([ getDocs(renterQuery), getDocs(landownerQuery) ]);
+    const bookingsMap = new Map<string, Booking>();
+    renterBookingsSnap.docs.forEach(doc => bookingsMap.set(doc.id, docToObj<Booking>(doc)));
+    landownerBookingsSnap.docs.forEach(doc => bookingsMap.set(doc.id, docToObj<Booking>(doc)));
+    
+    const allUserBookings = Array.from(bookingsMap.values());
+    const populatedBookings = await Promise.all(allUserBookings.map(b => populateBookingDetails(b)));
+
+    return populatedBookings.sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
 };
 
 export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>, status: Booking['status'] = 'Pending Confirmation'): Promise<Booking> => {
-  const currentDb = loadDb();
-  const listingInfo = currentDb.listings.find(l => l.id === data.listingId);
-  if (!listingInfo) throw new Error("Listing not found for booking request.");
-  const renterInfo = currentDb.users.find(u => u.id === data.renterId);
-  if (!renterInfo) throw new Error("Renter profile not found.");
-  const landownerInfo = currentDb.users.find(u => u.id === listingInfo.landownerId);
-  if (!landownerInfo) throw new Error("Landowner profile not found.");
-  
-  const newBooking: Booking = { 
-    ...data, id: `booking-${Date.now()}`, landownerId: listingInfo.landownerId, status, createdAt: new Date(),
-    listingTitle: listingInfo.title, renterName: renterInfo.name, landownerName: landownerInfo.name,
-  };
-  currentDb.bookings.unshift(newBooking);
-  saveDb(currentDb);
-  return newBooking;
-};
-
-// --- Booking Economic Engine ---
-const _calculateBookingPrice = (listing: Listing, booking: Booking): number => {
-    const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
-    const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
-
-    if (listing.pricingModel === 'nightly') {
-        const days = differenceInDays(toDate, fromDate) + 1;
-        return listing.price * days;
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const newBooking: Booking = { ...data, id: `booking-${Date.now()}`, status, createdAt: new Date() };
+        db.bookings.unshift(newBooking);
+        saveMockDb(db);
+        return newBooking;
     }
-    if (listing.pricingModel === 'monthly') {
-        const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-        return listing.price * fullMonths;
-    }
-    if (listing.pricingModel === 'lease-to-own') {
-        const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-        return listing.price * fullMonths;
-    }
-    return 0; // Should not happen
-};
-
-const _calculateServiceFee = (totalPrice: number, landowner: User): number => {
-    const feeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
-    return totalPrice * feeRate;
-};
-
-const _processBookingConfirmation = (db: MockDatabase, booking: Booking): MockDatabase => {
-    const listing = db.listings.find(l => l.id === booking.listingId);
-    const renter = db.users.find(u => u.id === booking.renterId);
-    const landowner = db.users.find(u => u.id === booking.landownerId);
-
-    if (!listing || !renter || !landowner) {
-        console.error("Missing data for booking confirmation:", {listing, renter, landowner});
-        throw new Error("Could not process booking confirmation due to missing user or listing data.");
-    }
-
-    const totalPrice = _calculateBookingPrice(listing, booking);
-    const renterFee = renter.subscriptionStatus === 'premium' ? 0 : 0.99;
-    const finalRenterCost = totalPrice + renterFee;
-    const serviceFee = _calculateServiceFee(totalPrice, landowner);
-    const landownerPayout = totalPrice - serviceFee;
-
-    // --- Create Transactions ---
-    // 1. Renter payment
-    db.transactions.unshift({ id: `txn-${Date.now()}-payment`, userId: renter.id, type: 'Booking Payment', status: 'Completed', amount: -finalRenterCost, currency: 'USD', date: new Date(), description: `Payment for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-    // 2. Landowner Service Fee
-    db.transactions.unshift({ id: `txn-${Date.now()}-fee`, userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD', date: new Date(), description: `Service Fee for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-    // 3. Landowner Payout
-    db.transactions.unshift({ id: `txn-${Date.now()}-payout`, userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: landownerPayout, currency: 'USD', date: new Date(), description: `Payout for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-
-    // --- Update Wallets ---
-    renter.walletBalance = (renter.walletBalance ?? 0) - finalRenterCost;
-    landowner.walletBalance = (landowner.walletBalance ?? 0) + landownerPayout;
-    
-    return db;
-};
-
-const _processRefund = (db: MockDatabase, booking: Booking): MockDatabase => {
-    const listing = db.listings.find(l => l.id === booking.listingId);
-    const renter = db.users.find(u => u.id === booking.renterId);
-    const landowner = db.users.find(u => u.id === booking.landownerId);
-
-    if (!listing || !renter || !landowner) {
-        console.error("Missing data for refund processing:", {listing, renter, landowner});
-        throw new Error("Could not process refund due to missing user or listing data.");
-    }
-
-    const totalPrice = _calculateBookingPrice(listing, booking);
-    const renterFee = renter.subscriptionStatus === 'premium' ? 0 : 0.99;
-    const originalRenterCost = totalPrice + renterFee;
-    const serviceFee = _calculateServiceFee(totalPrice, landowner);
-    const originalLandownerPayout = totalPrice - serviceFee;
-
-    // --- Create Reversal Transactions ---
-    db.transactions.unshift({ id: `txn-${Date.now()}-refund`, userId: renter.id, type: 'Booking Refund', status: 'Completed', amount: originalRenterCost, currency: 'USD', date: new Date(), description: `Refund for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-    db.transactions.unshift({ id: `txn-${Date.now()}-reversal`, userId: landowner.id, type: 'Payout Reversal', status: 'Completed', amount: -originalLandownerPayout, currency: 'USD', date: new Date(), description: `Payout Reversal for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
-
-    // --- Update Wallets ---
-    renter.walletBalance = (renter.walletBalance ?? 0) + originalRenterCost;
-    landowner.walletBalance = (landowner.walletBalance ?? 0) - originalLandownerPayout;
-    
-    return db;
+    const bookingsCollection = collection(firestoreDb, "bookings");
+    const newDocRef = await addDoc(bookingsCollection, { ...data, status, createdAt: serverTimestamp() });
+    const newBooking = (await getDoc(newDocRef)).data() as Booking;
+    return { ...newBooking, id: newDocRef.id, createdAt: new Date() };
 };
 
 export const updateBookingStatus = async (bookingId: string, newStatus: Booking['status']): Promise<Booking | undefined> => {
-    let currentDb = loadDb();
-    const bookingIndex = currentDb.bookings.findIndex(b => b.id === bookingId);
-    if (bookingIndex === -1) return undefined;
-
-    const booking = currentDb.bookings[bookingIndex];
-    const oldStatus = booking.status;
-    
-    // Prevent re-processing
-    if(oldStatus === newStatus) return booking;
-
-    booking.status = newStatus;
-
-    try {
-        if (newStatus === 'Confirmed' && oldStatus === 'Pending Confirmation') {
-            currentDb = _processBookingConfirmation(currentDb, booking);
-        } else if (newStatus === 'Refund Approved' && oldStatus === 'Refund Requested') {
-            currentDb = _processRefund(currentDb, booking);
-        }
-        
-        saveDb(currentDb);
-        return booking;
-
-    } catch (error) {
-        console.error("Error processing booking status change:", error);
-        // Rollback status change on error
-        currentDb.bookings[bookingIndex].status = oldStatus;
-        saveDb(currentDb);
-        throw error;
+    if (firebaseInitializationError) {
+        // Mock mode: Only update status, no economic logic here.
+        const db = loadMockDb();
+        const bookingIndex = db.bookings.findIndex(b => b.id === bookingId);
+        if (bookingIndex !== -1) {
+            db.bookings[bookingIndex].status = newStatus;
+            saveMockDb(db);
+            return db.bookings[bookingIndex];
+        } return undefined;
     }
+    // Live mode: Status changes (including financial ones) should be handled via a server-side transaction.
+    // This client-side update is now just for non-financial status changes (e.g. cancelled before confirmation).
+    const bookingRef = doc(firestoreDb, "bookings", bookingId);
+    await updateDoc(bookingRef, { status: newStatus });
+    const updatedBookingSnap = await getDoc(bookingRef);
+    return docToObj<Booking>(updatedBookingSnap);
 };
 
 
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
-    const currentDb = loadDb();
+    // Phase 2: This will be migrated to Firestore. For now, it remains mock.
+    const currentDb = loadMockDb();
     return currentDb.transactions.filter(t => t.userId === userId)
       .sort((a,b) => (b.date as Date).getTime() - (a.date as Date).getTime());
 };
@@ -401,53 +297,75 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
 
 // --- Bookmark Functions ---
 export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
-  const currentDb = loadDb();
-  const userIndex = currentDb.users.findIndex(u => u.id === userId);
-  if (userIndex !== -1) {
-    const user = currentDb.users[userIndex];
-    if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
-      throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached for standard accounts.`);
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const userIndex = db.users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            const user = db.users[userIndex];
+            if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
+                throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
+            }
+            if (!user.bookmarkedListingIds?.includes(listingId)) {
+                user.bookmarkedListingIds = [...(user.bookmarkedListingIds || []), listingId];
+                saveMockDb(db);
+            }
+            return user;
+        } return undefined;
     }
-    if (!user.bookmarkedListingIds?.includes(listingId)) {
-      user.bookmarkedListingIds = [...(user.bookmarkedListingIds || []), listingId];
-      saveDb(currentDb);
+    const userRef = doc(firestoreDb, "users", userId);
+    const user = await getUserById(userId);
+    if (user) {
+        if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
+            throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
+        }
+        const updatedBookmarks = [...(user.bookmarkedListingIds || []), listingId];
+        await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
+        return { ...user, bookmarkedListingIds: updatedBookmarks };
     }
-    return user;
-  }
-  return undefined;
+    return undefined;
 };
 
 export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
-  const currentDb = loadDb();
-  const userIndex = currentDb.users.findIndex(u => u.id === userId);
-  if (userIndex !== -1) {
-    const user = currentDb.users[userIndex];
-    if (user.bookmarkedListingIds?.includes(listingId)) {
-      user.bookmarkedListingIds = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
-      saveDb(currentDb);
+    if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const userIndex = db.users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            const user = db.users[userIndex];
+            if (user.bookmarkedListingIds?.includes(listingId)) {
+                user.bookmarkedListingIds = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
+                saveMockDb(db);
+            }
+            return user;
+        } return undefined;
+    }
+    const userRef = doc(firestoreDb, "users", userId);
+    const user = await getUserById(userId);
+    if (user && user.bookmarkedListingIds?.includes(listingId)) {
+        const updatedBookmarks = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
+        await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
+        return { ...user, bookmarkedListingIds: updatedBookmarks };
     }
     return user;
-  }
-  return undefined;
 };
 
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-  const currentDb = loadDb();
+  // Phase 2: This will be migrated to use Firestore aggregates.
+  const currentDb = loadMockDb();
   return currentDb.metrics;
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
-  // This is a placeholder for a more complex simulation.
-  // In a real scenario, this would create users, listings, bookings, and transactions.
-  const currentDb = loadDb();
+  // This will be migrated to create real Firestore data in Phase 2.
+  const currentDb = loadMockDb();
   const botUser: User = { id: `bot-${Date.now()}`, name: 'Simulated Bot', email: `bot${Date.now()}@example.com`, subscriptionStatus: 'standard', createdAt: new Date() };
   currentDb.users.push(botUser);
-  saveDb(currentDb);
+  saveMockDb(currentDb);
   return { message: 'Ran a simple simulation cycle: created 1 new bot user.' };
 };
 
 export const getMarketInsights = async () => {
+  // This will be migrated to use real data in Phase 2.
   return {
     avgPricePerSqftMonthly: 0.08,
     avgPricePerSqftNightly: 0.03,
@@ -458,22 +376,46 @@ export const getMarketInsights = async () => {
 };
 
 export const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
-    const currentDb = loadDb();
-    const listing = currentDb.listings.find(l => l.id === booking.listingId);
-    const renter = currentDb.users.find(u => u.id === booking.renterId);
-    const landowner = currentDb.users.find(u => u.id === booking.landownerId);
+    // This helper function enriches a booking object with names, which is useful for the UI.
+    const [listing, renter, landowner] = await Promise.all([
+        getListingById(booking.listingId),
+        getUserById(booking.renterId),
+        getUserById(booking.landownerId)
+    ]);
     return { ...booking, listingTitle: listing?.title, renterName: renter?.name, landownerName: landowner?.name };
 };
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
-    const currentDb = loadDb();
-    return currentDb.listings.filter(l => l.landownerId === landownerId).length;
+    if (firebaseInitializationError) {
+        return loadMockDb().listings.filter(l => l.landownerId === landownerId).length;
+    }
+    const q = query(collection(firestoreDb, 'listings'), where('landownerId', '==', landownerId));
+    const snapshot = await getDocs(q);
+    return snapshot.size;
 };
     
-// Exporting mock users for auth context usage
 export { MOCK_USER_FOR_UI_TESTING, MOCK_GOOGLE_USER_FOR_UI_TESTING, MOCK_GABE_ADMIN_USER };
-export const mockUsers = loadDb().users;
-export const incrementMockDataVersion = () => {
-  // This is a dummy function to notify listeners. The actual data is re-read from localStorage.
-  window.dispatchEvent(new CustomEvent('mockDataChanged'));
+export const mockUsers = getInitialData().users;
+
+// Admin state for checklist
+export const getAdminChecklistState = async (): Promise<Set<string>> => {
+    if (firebaseInitializationError) {
+        const stored = localStorage.getItem('launchChecklist');
+        return stored ? new Set(JSON.parse(stored)) : new Set();
+    }
+    const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists() && docSnap.data().checkedItems) {
+        return new Set(docSnap.data().checkedItems);
+    }
+    return new Set();
+};
+
+export const saveAdminChecklistState = async (checkedItems: Set<string>): Promise<void> => {
+    if (firebaseInitializationError) {
+        localStorage.setItem('launchChecklist', JSON.stringify(Array.from(checkedItems)));
+        return;
+    }
+    const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
+    await setDoc(docRef, { checkedItems: Array.from(checkedItems) });
 };
