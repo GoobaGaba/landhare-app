@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -148,21 +149,21 @@ export default function HomePage() {
             <div className="space-y-8">
               <div>
                 <Users className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-headline text-primary mb-3">Empowerment for Landowners</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3 font-extrabold">Empowerment for Landowners</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Unlock the potential of your idle land. Generate income, support alternative lifestyles, and contribute to a growing community focused on sustainable and flexible land use.
                 </p>
               </div>
               <div>
                 <Feather className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-headline text-primary mb-3">Freedom for Land-Seekers</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3 font-extrabold">Freedom for Land-Seekers</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Find flexible, affordable land options for your tiny home, RV, or unique project. Our "Bring Your Own Home" (BYOH) model offers unparalleled freedom to live life on your terms.
                 </p>
               </div>
               <div>
                 <TrendingUp className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-2xl font-headline text-primary mb-3">Pathways to Ownership</h3>
+                <h3 className="text-2xl font-headline text-primary mb-3 font-extrabold">Pathways to Ownership</h3>
                 <p className="text-foreground/90 leading-relaxed">
                   Discover unique Lease-to-Own (LTO) opportunities. Take incremental steps towards owning your piece of land and building your future, with clear terms and community support.
                 </p>
