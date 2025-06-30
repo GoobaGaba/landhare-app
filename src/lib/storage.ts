@@ -10,9 +10,11 @@ if (!app && !firebaseInitializationError) {
 
 const storage = firebaseInitializationError ? null : getStorage(app!);
 
-// Generates a unique file name to avoid collisions
-const generateUniqueFileName = (userId: string, fileName: string) => {
-  const fileExt = fileName?.split('.').pop() || 'jpg';
+// Generates a unique file name to avoid collisions.
+// This version is more robust to handle undefined or extension-less filenames.
+const generateUniqueFileName = (userId: string, fileName?: string) => {
+  // Use a default extension if the name is missing or has no extension.
+  const fileExt = fileName?.includes('.') ? fileName.split('.').pop() : 'jpg';
   const randomString = Math.random().toString(36).substring(2, 10);
   return `${userId}-${Date.now()}-${randomString}.${fileExt}`;
 };

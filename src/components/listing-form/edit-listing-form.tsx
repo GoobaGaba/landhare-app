@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useTransition, ChangeEvent } from 'react';
@@ -151,6 +152,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const isPremiumUser = subscriptionStatus === 'premium';
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
   const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
+  const isUploadingImages = imagePreviews.some(p => p.isLoading);
 
 
   const handleSuggestPrice = async () => {
@@ -247,28 +249,27 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
       let fileName = (preview.file as File).name;
 
       // Convert HEIC/HEIF files
-      if (fileToUpload.type === 'image/heic' || fileToUpload.type === 'image/heif' || fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif')) {
+      if (fileToUpload.type === 'image/heic' || fileToUpload.type === 'image/heif' || fileName?.toLowerCase().endsWith('.heic') || fileName?.toLowerCase().endsWith('.heif')) {
         try {
           toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
           const convertedBlob = await heic2any({ blob: fileToUpload, toType: 'image/jpeg', quality: 0.9 }) as Blob;
-          const newFileName = fileName.replace(/\.[^/.]+$/, ".jpeg");
+          const newFileName = (fileName || 'image.heic').replace(/\.[^/.]+$/, ".jpeg");
           fileToUpload = new File([convertedBlob], newFileName, { type: 'image/jpeg' });
-          fileName = newFileName; // Keep fileName in sync for logging
+          fileName = newFileName;
         } catch (e) {
           console.error("HEIC Conversion failed: ", e);
           toast({ title: "Conversion Failed", description: `Could not convert ${fileName}. Please try a different image format.`, variant: "destructive" });
           setImagePreviews(prev => prev.filter(p => p.url !== preview.url));
           URL.revokeObjectURL(preview.url);
-          continue; // Skip to next file
+          continue;
         }
       }
 
       // Upload the processed file
       try {
         const downloadURL = await uploadListingImage(fileToUpload as File, currentUser.uid);
-        // Replace temporary blob URL with final Firebase URL
         setImagePreviews(prev => prev.map(p => p.url === preview.url ? { ...p, url: downloadURL, isLoading: false, file: undefined } : p));
-        URL.revokeObjectURL(preview.url); // Clean up blob URL
+        URL.revokeObjectURL(preview.url);
         const currentImages = getValues('images');
         setValue('images', [...currentImages, downloadURL], { shouldDirty: true, shouldValidate: true });
       } catch (error) {
@@ -534,7 +535,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <Button variant="outline" type="button" asChild><Link href={`/my-listings`}><ArrowLeft className="mr-2 h-4 w-4"/> Back to My Listings</Link></Button>
-          <Button type="submit" disabled={isSubmitting || !isDirty || isMockModeNoUser}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
+          <Button type="submit" disabled={isSubmitting || !isDirty || isMockModeNoUser || isUploadingImages}>{isSubmitting || isUploadingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Update Listing</Button>
         </CardFooter>
       </form>
       {submissionSuccess && <div className="p-4 mt-4"><Alert variant="default" className="border-green-500 bg-green-50"><CheckCircle className="h-4 w-4 text-green-600" /><AlertTitle className="text-green-700">Listing Updated!</AlertTitle><AlertDescription className="text-green-600">Your changes have been saved.<Button asChild variant="link" className="ml-2 p-0 h-auto text-green-700"><Link href={`/listings/${listing.id}`}>View Listing</Link></Button></AlertDescription></Alert></div>}
