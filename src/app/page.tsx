@@ -53,7 +53,7 @@ export default function HomePage() {
              <>
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" asChild><Link href="/search"><SearchIcon className="mr-2 h-5 w-5" /> Find Land</Link></Button>
-                <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild><Link href="/login?redirect=%2Flistings%2Fnew"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
+                <Button size="lg" variant="secondary" asChild><Link href="/listings/new"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
               </div>
             </>
           )}
@@ -130,7 +130,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-6 text-primary">What Makes Us Special</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-6 text-title">What Makes Us Special</h2>
           <p className="text-lg text-muted-foreground text-center max-w-3xl mx-auto mb-12">
             We're more than just a listing site. We're a community empowering new ways of living and land use.
           </p>
@@ -177,7 +177,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary">Key Features</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-title">Key Features</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: SearchIcon, title: 'Instant Search & Booking', description: 'Map-based search with filters for price, size, and amenities.' },
@@ -221,7 +221,7 @@ export default function HomePage() {
 
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
-          <h2 className="text-3xl md:text-4xl font-headline mb-6">Ready to Change the Game?</h2>
+          <h2 className="text-3xl md:text-4xl font-headline font-bold mb-6">Ready to Change the Game?</h2>
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
             Join LandShare today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
