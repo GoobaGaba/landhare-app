@@ -316,7 +316,7 @@ export default function ListingDetailPage() {
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
         <div className="relative w-full h-72 md:h-96 md:col-span-2 rounded-lg overflow-hidden shadow-lg">
-          <Image src={mainImage} alt={listing.title} data-ai-hint={listing.images && listing.images.length > 0 ? "landscape field" : "listing placeholder"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
+          <Image src={mainImage} alt={listing.title} data-ai-hint={mainImage.includes('placehold.co') ? "listing placeholder" : "landscape field"} fill sizes="(max-width: 768px) 100vw, 1200px" className="object-cover" priority />
            {currentUser && !isCurrentUserLandowner && (
             <Button
               size="icon"
@@ -335,7 +335,7 @@ export default function ListingDetailPage() {
         </div>
         {otherImages.map((img, index) => (
           <div key={index} className="relative w-full h-48 md:h-72 rounded-lg overflow-hidden shadow-md">
-            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint={listing.images && listing.images.length > (index+1) ? "nature detail" : "detail placeholder"} fill sizes="50vw" className="object-cover" />
+            <Image src={img} alt={`${listing.title} - view ${index + 1}`} data-ai-hint={img.includes('placehold.co') ? "detail placeholder" : "nature detail"} fill sizes="50vw" className="object-cover" />
           </div>
         ))}
       </div>

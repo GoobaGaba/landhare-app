@@ -62,7 +62,7 @@ const listingFormSchema = z.object({
   leaseToOwnDetails: z.string().optional(),
   downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Each image must be a valid URL.")).min(1, "Please upload at least one image."),
+  images: z.array(z.string().url("Each image must be a valid URL.")).default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
 }).superRefine((data, ctx) => {
@@ -319,9 +319,9 @@ export function ListingForm() {
     
     setIsSubmitting(true); setSubmissionError(null); setSubmissionSuccess(null); setFormSubmittedSuccessfully(false);
     try {
-      const finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
+      let finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
       if(finalImageUrls.length === 0){
-        throw new Error("Please upload at least one image.");
+        finalImageUrls = [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title)}`];
       }
 
       const newListingPayload: Omit<Listing, 'id'> = {

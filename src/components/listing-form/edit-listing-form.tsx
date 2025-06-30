@@ -62,7 +62,7 @@ const editListingFormSchema = z.object({
   leaseToOwnDetails: z.string().optional(),
   downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Image URL invalid or missing.")).min(1, "Please upload at least one image."),
+  images: z.array(z.string().url("Image URL invalid or missing.")).default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   isAvailable: z.boolean().default(true),
@@ -325,9 +325,9 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
     setSubmissionSuccess(false);
 
     try {
-        const finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
+        let finalImageUrls = imagePreviews.filter(p => !p.isLoading).map(p => p.url);
         if(finalImageUrls.length === 0){
-            throw new Error("Please upload at least one image.");
+            finalImageUrls = [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title)}`];
         }
 
         const updateData: Partial<Listing> = {

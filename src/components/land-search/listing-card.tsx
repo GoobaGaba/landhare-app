@@ -102,7 +102,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <Image
             src={listing.images[0] || fallbackImageSrc}
             alt={listing.title}
-            data-ai-hint={listing.images[0] ? "landscape nature" : "property placeholder"}
+            data-ai-hint={listing.images[0]?.includes('placehold.co') ? "property placeholder" : "landscape nature"}
             fill
             sizes="(max-width: 640px) 100vw, 33vw"
             className="object-cover"
@@ -232,7 +232,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
           <Image
             src={listing.images[0] || fallbackImageSrc}
             alt={listing.title}
-            data-ai-hint={listing.images[0] ? "landscape nature" : "property placeholder"}
+            data-ai-hint={listing.images[0]?.includes('placehold.co') ? "property placeholder" : "landscape nature"}
             fill
             sizes={isCompact ? "(max-width: 768px) 50vw, 256px" : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
             className="object-cover"
