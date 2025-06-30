@@ -62,7 +62,7 @@ const listingFormSchema = z.object({
   leaseToOwnDetails: z.string().optional(),
   downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Each image must be a valid URL.")).default([]),
+  images: z.array(z.string().url("Each image must be a valid URL.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
 }).superRefine((data, ctx) => {
@@ -313,7 +313,7 @@ export function ListingForm() {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" }); return;
     }
     if (atListingLimit) {
-      toast({ title: "Listing Limit Reached", description: `Free accounts can only create ${FREE_TIER_LISTING_LIMIT} listing. Please upgrade to Premium.`, variant: "destructive", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
+      toast({ title: "Listing Limit Reached", description: `Standard accounts can only create ${FREE_TIER_LISTING_LIMIT} listing. Please upgrade to Premium.`, variant: "destructive", action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction> });
       return;
     }
     
@@ -374,7 +374,7 @@ export function ListingForm() {
             <Crown className="h-4 w-4 text-premium" />
             <AlertTitle>Listing Limit Reached</AlertTitle>
             <AlertDescription>
-              Free accounts can create {FREE_TIER_LISTING_LIMIT} listing. <Button variant="link" asChild className="p-0 h-auto text-premium hover:text-premium/80"><Link href="/pricing">Upgrade to Premium</Link></Button> for unlimited listings.
+              Standard accounts can create {FREE_TIER_LISTING_LIMIT} listing. <Button variant="link" asChild className="p-0 h-auto text-premium hover:text-premium/80"><Link href="/pricing">Upgrade to Premium</Link></Button> for unlimited listings.
             </AlertDescription>
         </Alert>
       )}
@@ -384,24 +384,25 @@ export function ListingForm() {
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
               <Input id="title" {...register('title')} aria-invalid={errors.title ? "true" : "false"} className="flex-grow" />
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation || isMockModeNoUser || !isPremiumUser}
-                      className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
-                    >
-                      {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                       {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+               <div className="relative">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSuggestTitle}
+                          disabled={isAiLoading || !watchedLocation || isMockModeNoUser || !isPremiumUser}
+                        >
+                          {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {!isPremiumUser && <Crown className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 text-premium fill-premium pointer-events-none" />}
+              </div>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
             {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -409,26 +410,27 @@ export function ListingForm() {
 
           <div>
             <Label htmlFor="description">Description</Label>
-             <div className="flex items-center gap-2">
+             <div className="flex items-start gap-2">
                 <Textarea id="description" {...register('description')} rows={5} aria-invalid={errors.description ? "true" : "false"} className="flex-grow"/>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser || !isPremiumUser}
-                        className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
-                        >
-                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
-                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                    <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleSuggestDescription}
+                            disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser || !isPremiumUser}
+                            >
+                            {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
+                    </Tooltip>
+                    </TooltipProvider>
+                    {!isPremiumUser && <Crown className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 text-premium fill-premium pointer-events-none" />}
+                </div>
             </div>
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
             {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -479,7 +481,7 @@ export function ListingForm() {
                 ))}
                 {imagePreviews.length < imageUploadLimit && (<label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary transition-colors"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>)}
             </div>
-            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
           </div>
 
           <div>
@@ -531,7 +533,7 @@ export function ListingForm() {
                   {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2"><Checkbox id={`amenity-${amenity.id}`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}`} className="font-normal">{amenity.label}</Label></div>))}
                 </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities[0]?.message}</p>}
           </div>
-          <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{subscriptionStatus === 'premium' ? "Premium: 0.49% on payouts." : "Free: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
+          <Alert variant="default" className="mt-4 bg-muted/40"><Percent className="h-4 w-4" /><AlertTitle className="text-sm font-medium">Service Fee</AlertTitle><AlertDescription className="text-xs">{subscriptionStatus === 'premium' ? "Premium: 0.49% on payouts." : "Standard: 2% on payouts."}<Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more.</Link></AlertDescription></Alert>
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
           <div></div>

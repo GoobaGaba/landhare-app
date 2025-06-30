@@ -31,7 +31,7 @@ export default function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { currentUser, logoutUser, loading } = useAuth();
+  const { currentUser, logoutUser, loading, subscriptionStatus } = useAuth();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -112,7 +112,10 @@ export default function AppHeader() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>
-                        {currentUser.appProfile?.name || currentUser.displayName || currentUser.email}
+                        <div className="flex items-center gap-2">
+                           <span>{currentUser.appProfile?.name || currentUser.displayName || currentUser.email}</span>
+                           {subscriptionStatus === 'premium' && <Crown className="h-4 w-4 text-premium" />}
+                        </div>
                       </DropdownMenuLabel>
                       {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
                         <>

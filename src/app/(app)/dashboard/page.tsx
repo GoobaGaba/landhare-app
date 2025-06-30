@@ -19,6 +19,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from "@/lib/utils";
+import { MarketInsights } from "@/components/dashboard/market-insights";
 
 
 const chartConfig = {
@@ -182,7 +183,7 @@ export default function DashboardPage() {
     if (atListingLimit) {
       toast({
         title: "Listing Limit Reached",
-        description: `Free accounts can create ${FREE_TIER_LISTING_LIMIT} listing. Upgrade to Premium for more.`,
+        description: `Standard accounts can create ${FREE_TIER_LISTING_LIMIT} listing. Upgrade to Premium for more.`,
         action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction>,
       });
     } else if (firebaseInitializationError && !currentUser.appProfile) {
@@ -315,7 +316,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         
-        {isPremiumUser && (
+        {isPremiumUser ? (
             <div className="md:col-span-2 lg:col-span-3">
               {isInsightsLoading ? (
                 <Card className="flex items-center justify-center min-h-[300px]">
@@ -323,13 +324,27 @@ export default function DashboardPage() {
                   <p className="ml-2 text-muted-foreground">Loading Market Insights...</p>
                 </Card>
               ) : marketInsights ? (
-                <Alert><AlertTitle>Coming Soon!</AlertTitle><AlertDescription>Market Insights will be displayed here.</AlertDescription></Alert>
+                <MarketInsights insights={marketInsights} />
               ) : (
                 <Card className="flex items-center justify-center min-h-[300px] bg-muted/30">
                   <p className="text-muted-foreground">Could not load market insights data.</p>
                 </Card>
               )}
             </div>
+        ) : (
+            <Card className="md:col-span-2 lg:col-span-3 bg-muted/30">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Crown className="text-premium h-6 w-6"/> Unlock Market Insights
+                    </CardTitle>
+                    <CardDescription>Upgrade to Premium to see exclusive market data like popular amenities and average pricing in your area to optimize your listings.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <Button asChild className="bg-premium hover:bg-premium/90 text-premium-foreground">
+                        <Link href="/pricing">Upgrade to Premium</Link>
+                    </Button>
+                </CardContent>
+            </Card>
         )}
 
         <Card>
@@ -395,24 +410,8 @@ export default function DashboardPage() {
               <div className="flex items-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading bookmarks...
               </div>
-            ) : bookmarkedItems.length > 0 ? (
-              <>
-                <p>You have <strong>{bookmarkedItems.length} bookmarked listing{bookmarkedItems.length === 1 ? '' : 's'}</strong>.</p>
-                <ul className="space-y-1 text-sm max-h-24 overflow-y-auto custom-scrollbar pr-2">
-                  {bookmarkedItems.slice(0, 5).map(listing => (
-                    <li key={listing.id}>
-                      <Link href={`/listings/${listing.id}`} className="text-primary hover:underline truncate block">
-                        {listing.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                {bookmarkedItems.length > 5 && (
-                  <p className="text-xs text-muted-foreground">...and {bookmarkedItems.length - 5} more.</p>
-                )}
-              </>
             ) : (
-              <p className="text-sm text-muted-foreground">You have no listings bookmarked yet.</p>
+              <p>You have <strong>{bookmarkedItems.length} bookmarked listing{bookmarkedItems.length === 1 ? '' : 's'}</strong>.</p>
             )}
             <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
               <Link href="/bookmarks">View All Bookmarks</Link>
@@ -440,5 +439,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

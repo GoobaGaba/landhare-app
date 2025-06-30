@@ -47,7 +47,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (currentUser && currentUser.appProfile) {
       const currentAppProfile = currentUser.appProfile;
-      const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'free');
+      const currentSubscription = subscriptionStatus !== 'loading' ? subscriptionStatus : (currentAppProfile?.subscriptionStatus || 'standard');
 
       const displayData: ProfileDisplayData = {
         name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
@@ -133,13 +133,13 @@ export default function ProfilePage() {
         return;
     }
 
-    const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'free' : 'premium';
+    const newStatus = profileDisplayData.subscriptionTier === 'premium' ? 'standard' : 'premium';
     
     // Check for listing limit before allowing a downgrade from this simple toggle
-    if (newStatus === 'free' && myListings.length > FREE_TIER_LISTING_LIMIT) {
+    if (newStatus === 'standard' && myListings.length > FREE_TIER_LISTING_LIMIT) {
         toast({
             title: "Listing Limit Exceeded",
-            description: `You have ${myListings.length} listings. The Free tier only allows ${FREE_TIER_LISTING_LIMIT}. Please manage your listings to proceed.`,
+            description: `You have ${myListings.length} listings. The Standard tier only allows ${FREE_TIER_LISTING_LIMIT}. Please manage your listings to proceed.`,
             variant: "default",
             action: <Button variant="link" size="sm" onClick={() => router.push('/downgrade')}>Manage Listings</Button>,
             duration: 8000,
@@ -218,7 +218,13 @@ export default function ProfilePage() {
           <h1 className="text-3xl font-bold">{profileDisplayData.name}</h1>
           <p className="text-muted-foreground">{profileDisplayData.email}</p>
           <p className="text-sm text-muted-foreground">Member since {profileDisplayData.memberSince.toLocaleDateString()}</p>
-          <p className="text-sm text-muted-foreground capitalize">Current Plan: <span className={profileDisplayData.subscriptionTier === 'premium' ? "text-premium font-semibold" : ""}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}</span></p>
+          <p className="text-sm text-muted-foreground capitalize flex items-center gap-1.5">
+            Current Plan: 
+            <span className={cn(profileDisplayData.subscriptionTier === 'premium' ? "text-premium font-semibold" : "")}>
+                {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}
+            </span>
+            {profileDisplayData.subscriptionTier === 'premium' && <Crown className="h-4 w-4 text-premium"/>}
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefreshProfile} className="ml-auto self-start sm:self-center" disabled={authLoading || isSaving || isSwitchingSubscription || isMockUserNoProfile}>
           {authLoading || isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><RefreshCw className="mr-2 h-4 w-4" /> Refresh Profile</>}
@@ -354,7 +360,13 @@ export default function ProfilePage() {
               </Card>
 
               <div className="p-4 border rounded-lg bg-muted/30">
-                <h3 className="text-md font-semibold mb-1">Current Plan: <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>{profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier</span></h3>
+                <h3 className="text-md font-semibold mb-1 flex items-center gap-1.5">
+                    Current Plan: 
+                    <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>
+                        {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier
+                    </span>
+                    {profileDisplayData.subscriptionTier === 'premium' && <Crown className="h-4 w-4 text-premium"/>}
+                </h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   {profileDisplayData.subscriptionTier === 'premium' 
                     ? "You're enjoying all the benefits of Premium! Thank you for your support." 
@@ -379,7 +391,7 @@ export default function ProfilePage() {
                         className="w-full sm:w-auto"
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
-                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Free' : 'Premium'}
+                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Standard' : 'Premium'}
                     </Button>
                     {isMockUserNoProfile &&
                         <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in preview mode without a mock user.</p>

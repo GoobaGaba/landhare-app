@@ -35,7 +35,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
 
   const isCompact = sizeVariant === 'compact';
   const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(listing.id) || false;
-  const atBookmarkLimit = subscriptionStatus === 'free' && (currentUser?.appProfile?.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT;
+  const atBookmarkLimit = subscriptionStatus === 'standard' && (currentUser?.appProfile?.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT;
 
   const handleCardClick = () => {
     if (onCardClick) {
@@ -60,7 +60,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     if (!isBookmarked && atBookmarkLimit) {
       toast({
         title: "Bookmark Limit Reached",
-        description: `Free accounts can save up to ${FREE_TIER_BOOKMARK_LIMIT} listings. Upgrade for unlimited bookmarks!`,
+        description: `Standard accounts can save up to ${FREE_TIER_BOOKMARK_LIMIT} listings. Upgrade for unlimited bookmarks!`,
         variant: "default", 
         action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction>,
       });
@@ -140,9 +140,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                       {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary")} />}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
-                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
-                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-premium" />}
+                <TooltipContent side="left" className="flex items-center gap-1">
+                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached" : "Add bookmark")}</p>
+                  {!isBookmarked && atBookmarkLimit && <Crown className="h-3 w-3 text-premium" />}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -276,9 +276,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                       {isBookmarking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-primary", isCompact ? "h-4 w-4" : "")} />}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
-                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached (Upgrade)" : "Add bookmark")}</p>
-                  {!isBookmarked && atBookmarkLimit && <Crown className="inline-block ml-1 h-3 w-3 text-premium" />}
+                <TooltipContent side="left" className="flex items-center gap-1">
+                  <p>{isBookmarked ? "Remove bookmark" : (atBookmarkLimit ? "Bookmark limit reached" : "Add bookmark")}</p>
+                  {!isBookmarked && atBookmarkLimit && <Crown className="h-3 w-3 text-premium" />}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

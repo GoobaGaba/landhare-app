@@ -38,7 +38,7 @@ export default function MyBookmarksPage() {
     }
   }, [currentUser, allAvailableListings]);
 
-  const atBookmarkLimit = subscriptionStatus === 'free' && bookmarkedListings.length >= FREE_TIER_BOOKMARK_LIMIT;
+  const atBookmarkLimit = subscriptionStatus === 'standard' && bookmarkedListings.length >= FREE_TIER_BOOKMARK_LIMIT;
 
   if (authLoading || listingsLoading) {
     return (
@@ -93,12 +93,12 @@ export default function MyBookmarksPage() {
       </div>
 
       {atBookmarkLimit && (
-         <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-700">
-            <Crown className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-700">Bookmark Limit Reached</AlertTitle>
-            <AlertDescription>
-                Free accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} listings.
-                <Button variant="link" asChild className="p-0 h-auto ml-1 text-amber-700 hover:text-amber-800">
+         <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-500/50">
+            <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200 font-semibold">Bookmark Limit Reached</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+                Standard accounts can save up to {FREE_TIER_BOOKMARK_LIMIT} listings.
+                <Button variant="link" asChild className="p-0 h-auto ml-1 text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200">
                     <Link href="/pricing">Upgrade to Premium</Link>
                 </Button> for unlimited bookmarks!
             </AlertDescription>

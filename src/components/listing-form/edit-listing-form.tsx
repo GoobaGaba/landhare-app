@@ -62,7 +62,7 @@ const editListingFormSchema = z.object({
   leaseToOwnDetails: z.string().optional(),
   downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
   amenities: z.array(z.string()).optional().default([]),
-  images: z.array(z.string().url("Image URL invalid or missing.")).default([]),
+  images: z.array(z.string().url("Image URL invalid or missing.")).optional().default([]),
   leaseTerm: z.enum(['short-term', 'long-term', 'flexible']).optional(),
   minLeaseDurationMonths: z.coerce.number().int().positive().optional().nullable(),
   isAvailable: z.boolean().default(true),
@@ -365,24 +365,25 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="title">Listing Title</Label>
             <div className="flex items-center gap-2">
               <Input id="title" {...register('title')} className="flex-grow" />
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleSuggestTitle}
-                      disabled={isAiLoading || !watchedLocation || isMockModeNoUser}
-                      className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
-                    >
-                      {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
-                      {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
-                    </Button>
-                  </TooltipTrigger>
-                   <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+               <div className="relative">
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleSuggestTitle}
+                          disabled={isAiLoading || !watchedLocation || isMockModeNoUser || !isPremiumUser}
+                        >
+                          {isAiLoading && titleSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4 text-yellow-500" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>{isPremiumUser ? "Suggest Title with AI" : "AI Title Assistant (Premium Feature)"}</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {!isPremiumUser && <Crown className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 text-premium fill-premium pointer-events-none" />}
+              </div>
             </div>
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
             {titleSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested: "{titleSuggestion.suggestedTitle}"</AlertTitle><AlertDescription><p className="text-xs">{titleSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('title', titleSuggestion.suggestedTitle, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -390,26 +391,27 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
           <div>
             <Label htmlFor="description">Description</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
                 <Textarea id="description" {...register('description')} rows={5} className="flex-grow"/>
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleSuggestDescription}
-                        disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser}
-                        className={cn(!isPremiumUser && "opacity-70 cursor-not-allowed relative")}
-                        >
-                        {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
-                        {!isPremiumUser && <Crown className="absolute -top-1 -right-1 h-3 w-3 text-premium fill-premium" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="relative">
+                    <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleSuggestDescription}
+                            disabled={isAiLoading || !watchedTitle || !watchedLocation || !watchedSizeSqft || !watchedPrice || isMockModeNoUser || !isPremiumUser}
+                            >
+                            {isAiLoading && descriptionSuggestion === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-premium" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top"><p>{isPremiumUser ? "Generate Description with AI" : "AI Description Generator (Premium Feature)"}</p></TooltipContent>
+                    </Tooltip>
+                    </TooltipProvider>
+                    {!isPremiumUser && <Crown className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 text-premium fill-premium pointer-events-none" />}
+                </div>
             </div>
             {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
             {descriptionSuggestion && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>Suggested Description:</AlertTitle><AlertDescription><p className="text-xs whitespace-pre-line">{descriptionSuggestion.suggestedDescription}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('description', descriptionSuggestion.suggestedDescription, {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
@@ -462,7 +464,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                 {imagePreviews.length < imageUploadLimit && <label htmlFor="image-upload" className="aspect-square flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary text-muted-foreground hover:text-primary"><FileImage className="h-8 w-8"/><span className="text-xs mt-1">Add more</span></label>}
               </div>
             )}
-            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images.message}</p>}
+            {errors.images && <p className="text-sm text-destructive mt-1">{errors.images[0]?.message}</p>}
           </div>
           
           <div>
