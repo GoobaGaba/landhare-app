@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
@@ -88,7 +87,7 @@ export default function AppHeader() {
                 <Search className="mr-2 h-4 w-4 hidden lg:inline-block" /> Browse Land
             </Link>
           </Button>
-          <Button variant="outline" className="h-10 px-4 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild>
+          <Button variant="outline" className="h-10 px-4 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild>
             <Link href={listYourLandHref}>
                 <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
             </Link>
@@ -203,7 +202,7 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
                   <SheetClose asChild>
-                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT">
+                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground">
                       <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>

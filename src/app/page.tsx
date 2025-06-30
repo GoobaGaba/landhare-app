@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from 'next/image';
@@ -53,7 +52,7 @@ export default function HomePage() {
              <>
               <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" asChild><Link href="/search"><SearchIcon className="mr-2 h-5 w-5" /> Find Land</Link></Button>
-                <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild><Link href="/login?redirect=%2Flistings%2Fnew"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
+                <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild><Link href="/login?redirect=%2Flistings%2Fnew"><Home className="mr-2 h-5 w-5" /> List Your Land</Link></Button>
               </div>
             </>
           )}
@@ -229,7 +228,7 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT/10 hover:text-neon-DEFAULT" asChild>
+            <Button size="lg" variant="outline" className="border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild>
                <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
           </div>
@@ -238,5 +237,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
