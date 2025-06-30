@@ -233,6 +233,9 @@ export default function HomePage() {
             <Button size="lg" variant="secondary" asChild>
                <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
+            <Button size="lg" asChild className="bg-premium hover:bg-premium/90 text-premium-foreground">
+              <Link href="/pricing"><Crown className="mr-2 h-5 w-5" /> Explore Premium</Link>
+            </Button>
           </div>
         </div>
       </section>
