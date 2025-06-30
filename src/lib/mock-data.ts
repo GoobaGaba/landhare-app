@@ -304,7 +304,7 @@ export const updateBookingStatus = async (bookingId: string, status: Booking['st
   } else if (status === 'Declined' || status === 'Cancelled by Renter') {
      if (paymentTxnIndex !== -1) {
         const paymentTxn = currentDb.transactions[paymentTxnIndex];
-        if (paymentTxn.status !== 'Completed') {
+        if (paymentTxn.status === 'Pending') { // Only reverse pending transactions
             paymentTxn.status = 'Failed';
             const renterIndex = currentDb.users.findIndex(u => u.id === booking.renterId);
             if (renterIndex !== -1) {

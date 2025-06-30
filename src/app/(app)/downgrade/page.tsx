@@ -37,7 +37,7 @@ export default function DowngradePage() {
     }
   }, [currentUser, subscriptionStatus, myListings, authLoading, listingsLoading, router]);
 
-  const listingsOverLimit = useMemo(() => myListings.length - FREE_TIER_LISTING_LIMIT, [myListings.length]);
+  const listingsOverLimit = useMemo(() => Math.max(0, myListings.length - FREE_TIER_LISTING_LIMIT), [myListings.length]);
   const canDowngrade = selectedListings.length >= listingsOverLimit;
 
   const handleToggleListing = (listingId: string) => {

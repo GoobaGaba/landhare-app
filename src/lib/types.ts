@@ -191,5 +191,3 @@ export interface MarketInsightsData {
   supplyByPricingModel: { name: PricingModel; value: number; percent: string }[];
   demandByPricingModel: { name: PricingModel; value: number; percent: string }[];
 }
-
-    
