@@ -183,11 +183,3 @@ export interface PlatformMetrics {
   totalListings: number;
   totalBookings: number;
 }
-
-export interface MarketInsightsData {
-  avgPricePerSqftMonthly: number;
-  avgPricePerSqftNightly: number;
-  amenityPopularity: { name: string; count: number }[];
-  supplyByPricingModel: { name: PricingModel; value: number; percent: string }[];
-  demandByPricingModel: { name: PricingModel; value: number; percent: string }[];
-}

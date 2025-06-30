@@ -19,7 +19,6 @@ import { ToastAction } from '@/components/ui/toast';
 import { firebaseInitializationError } from '@/lib/firebase';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { MarketInsights } from "@/components/dashboard/market-insights";
 
 
 const chartConfig = {
@@ -324,7 +323,7 @@ export default function DashboardPage() {
                   <p className="ml-2 text-muted-foreground">Loading Market Insights...</p>
                 </Card>
               ) : marketInsights ? (
-                <MarketInsights insights={marketInsights} />
+                <Alert><AlertTitle>Coming Soon!</AlertTitle><AlertDescription>Market Insights will be displayed here.</AlertDescription></Alert>
               ) : (
                 <Card className="flex items-center justify-center min-h-[300px] bg-muted/30">
                   <p className="text-muted-foreground">Could not load market insights data.</p>

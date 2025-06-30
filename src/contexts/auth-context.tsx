@@ -26,8 +26,6 @@ import {
   MOCK_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
-  createSubscriptionTransaction,
-  createRefundTransaction,
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -387,23 +385,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setAuthError(null);
     try {
-        const wasPremium = currentUser.appProfile?.subscriptionStatus === 'premium';
-        // This updates our mock DB or Firestore.
         const updatedAppProfileFromDb = await updateAppUserProfileDb(currentUser.uid, data);
         if (!updatedAppProfileFromDb) {
             throw new Error("Failed to update user profile in the database.");
         }
         
-        // Handle subscription change transactions.
-        const isNowPremium = updatedAppProfileFromDb.subscriptionStatus === 'premium';
-        const isNowFree = updatedAppProfileFromDb.subscriptionStatus === 'free';
-        
-        if (wasPremium && isNowFree) {
-            await createRefundTransaction(currentUser.uid);
-        } else if (!wasPremium && isNowPremium) {
-            await createSubscriptionTransaction(currentUser.uid);
-        }
-
         // In live mode, also update the Firebase Auth profile if name or avatar changed.
         if (!firebaseInitializationError && firebaseAuthInstance && firebaseAuthInstance.currentUser) {
             const firebaseProfileUpdates: { displayName?: string; photoURL?: string } = {};
