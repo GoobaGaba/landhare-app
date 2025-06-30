@@ -199,7 +199,7 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
       
       {isUserAdmin && (
-        <Card className="bg-primary/5 border-primary/20 ring-2 ring-primary/30 shadow-lg">
+        <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
               <Shield className="h-6 w-6"/>
@@ -245,9 +245,6 @@ export default function DashboardPage() {
                     ${currentMonthEarnings.toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">From completed payouts this month.</p>
-                 <Button asChild variant="outline" size="sm" className="mt-4">
-                    <Link href="/transactions">View Payout History</Link>
-                </Button>
             </CardContent>
         </Card>
         

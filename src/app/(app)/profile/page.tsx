@@ -401,5 +401,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

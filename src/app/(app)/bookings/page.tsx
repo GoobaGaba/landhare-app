@@ -262,7 +262,7 @@ export default function BookingsPage() {
       if (updatedBooking) {
         let toastDescription = `Booking status changed to ${newStatus}.`;
         if (newStatus === 'Cancelled by Renter') {
-          toastDescription = "Your booking has been cancelled. No refund is automatically issued.";
+          toastDescription = "Your booking has been cancelled.";
         } else if (newStatus === 'Refund Requested') {
           toastDescription = "A refund has been requested. The landowner will review it.";
         } else if (newStatus === 'Refund Approved') {
@@ -273,8 +273,10 @@ export default function BookingsPage() {
         // This is the key change: refreshing the global user profile triggers updates everywhere
         await refreshUserProfile(); 
 
+        // Smart Follow-up Action: If landowner just confirmed, auto-trigger lease generation
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
-            const freshlyLoadedBooking = await getBookingsForUser(currentUser.uid).then(bs => bs.find(b => b.id === booking.id && b.status === 'Confirmed'));
+            // Need to get the freshly populated booking details after the update
+            const freshlyLoadedBooking = await populateBookingDetails(updatedBooking);
             if (freshlyLoadedBooking) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
             }
