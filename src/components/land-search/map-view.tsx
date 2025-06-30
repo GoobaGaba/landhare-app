@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -55,24 +54,24 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
 
 // This new function uses direct hex codes to avoid CSS variable issues with the map overlay.
 const getPinColors = (listing: Listing, isSelected: boolean) => {
-    const greyDotColor = '#4B5563'; // A neutral, dark grey for the pin's dot.
+    const darkDotColor = '#1A1A1A'; // 90% black for the pin's dot.
     if (isSelected) {
         return {
             background: '#CC6633', // Burnt Orange (Accent color)
-            glyphColor: greyDotColor,
+            glyphColor: darkDotColor,
             borderColor: '#FFFFFF' // White border for selected to make it pop
         };
     }
     if (listing.isBoosted) {
         return {
             background: '#8A2BE2', // Purple for Premium/Boosted
-            glyphColor: greyDotColor,
+            glyphColor: darkDotColor,
             borderColor: '#FFFFFF'
         };
     }
     return {
         background: '#336633', // Forest Green (Primary color)
-        glyphColor: greyDotColor,
+        glyphColor: darkDotColor,
         borderColor: '#FFFFFF'
     };
 };
