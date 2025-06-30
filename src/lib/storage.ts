@@ -12,7 +12,7 @@ const storage = firebaseInitializationError ? null : getStorage(app!);
 
 // Generates a unique file name to avoid collisions
 const generateUniqueFileName = (userId: string, fileName: string) => {
-  const fileExt = fileName.split('.').pop() || 'jpg';
+  const fileExt = fileName?.split('.').pop() || 'jpg';
   const randomString = Math.random().toString(36).substring(2, 10);
   return `${userId}-${Date.now()}-${randomString}.${fileExt}`;
 };

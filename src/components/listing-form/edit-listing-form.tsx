@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useTransition, ChangeEvent } from 'react';
@@ -252,8 +251,9 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
         try {
           toast({ title: "Converting Image", description: `Converting ${fileName} to a web-friendly format...`, duration: 3000 });
           const convertedBlob = await heic2any({ blob: fileToUpload, toType: 'image/jpeg', quality: 0.9 }) as Blob;
-          fileToUpload = convertedBlob;
-          fileName = fileName.replace(/\.[^/.]+$/, ".jpeg");
+          const newFileName = fileName.replace(/\.[^/.]+$/, ".jpeg");
+          fileToUpload = new File([convertedBlob], newFileName, { type: 'image/jpeg' });
+          fileName = newFileName; // Keep fileName in sync for logging
         } catch (e) {
           console.error("HEIC Conversion failed: ", e);
           toast({ title: "Conversion Failed", description: `Could not convert ${fileName}. Please try a different image format.`, variant: "destructive" });
