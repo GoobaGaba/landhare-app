@@ -477,3 +477,5 @@ export const incrementMockDataVersion = () => {
   // This is a dummy function to notify listeners. The actual data is re-read from localStorage.
   window.dispatchEvent(new CustomEvent('mockDataChanged'));
 };
+
+    
