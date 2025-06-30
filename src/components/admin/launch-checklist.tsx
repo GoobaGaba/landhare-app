@@ -176,7 +176,16 @@ export function LaunchChecklist() {
         if (!siteUrl) return 'Loading...';
         try {
             const urlObject = new URL(siteUrl);
-            return `${urlObject.hostname}/*`;
+            // For live Firebase URLs (e.g., project-id.web.app), this is correct.
+            if (urlObject.hostname.endsWith('.web.app')) {
+                return `${urlObject.hostname}/*`;
+            }
+            // For localhost, no referrer is needed, but showing this helps.
+            if (urlObject.hostname === 'localhost') {
+                return 'localhost is usually trusted by default.';
+            }
+            // For other custom domains, this is a good pattern.
+            return `*.${urlObject.hostname}/*`;
         } catch (e) {
             return 'Could not determine pattern.';
         }

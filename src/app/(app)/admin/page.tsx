@@ -97,6 +97,18 @@ export default function AdminDashboardPage() {
         A top-level overview of the LandShare platform's simulated economy and user activity.
       </p>
 
+       <Card className="border-accent">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-accent"><Rocket className="h-5 w-5"/>Launch Readiness Checklist</CardTitle>
+          <CardDescription>
+            An interactive checklist to track critical configuration, features, and future goals for the platform. Progress is saved automatically.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LaunchChecklist />
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -159,18 +171,6 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-       <Card className="border-accent">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-accent"><Rocket className="h-5 w-5"/>Launch Readiness Checklist</CardTitle>
-          <CardDescription>
-            An interactive checklist to track critical configuration, features, and future goals for the platform. Progress is saved automatically.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LaunchChecklist />
-        </CardContent>
-      </Card>
 
 
       <Card>
