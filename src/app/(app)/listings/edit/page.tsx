@@ -1,2 +1,2 @@
-// This file is an orphaned duplicate and has been explicitly neutralized to resolve a Next.js build error.
+// This file creates a route conflict and has been explicitly neutralized to allow the app to build.
 export default null;
