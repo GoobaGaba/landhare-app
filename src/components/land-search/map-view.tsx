@@ -58,6 +58,18 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
 
+  const getPinBackgroundColor = (listing: Listing, isSelected: boolean) => {
+    if (isSelected) return 'hsl(var(--accent))';
+    if (listing.isBoosted) return 'hsl(var(--premium))';
+    return 'hsl(var(--primary))';
+  };
+
+  const getPinGlyphColor = (listing: Listing, isSelected: boolean) => {
+    if (isSelected) return 'hsl(var(--accent-foreground))';
+    if (listing.isBoosted) return 'hsl(var(--premium-foreground))';
+    return 'hsl(var(--primary-foreground))';
+  };
+
   return (
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
         <Map
@@ -80,9 +92,9 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
-                  background={isSelected ? 'hsl(var(--accent))' : (listing.isBoosted ? 'hsl(var(--premium))' : 'hsl(var(--primary))')}
+                  background={getPinBackgroundColor(listing, isSelected)}
                   borderColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--border))'}
-                  glyphColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--primary-foreground))'}
+                  glyphColor={getPinGlyphColor(listing, isSelected)}
                   scale={isSelected ? 1.5 : 1}
                 />
               </AdvancedMarker>
