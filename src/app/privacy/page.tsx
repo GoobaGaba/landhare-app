@@ -9,7 +9,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <ShieldCheck className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl font-bold">Privacy Policy</CardTitle>
+            <CardTitle className="text-3xl font-headline">Privacy Policy</CardTitle>
           </div>
           <CardDescription>
             Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

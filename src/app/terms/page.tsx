@@ -9,7 +9,7 @@ export default function TermsPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <FileText className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl font-bold">Terms of Service</CardTitle>
+            <CardTitle className="text-3xl font-headline">Terms of Service</CardTitle>
           </div>
           <CardDescription>
             Last Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

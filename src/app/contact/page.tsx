@@ -30,7 +30,7 @@ export default function ContactPage() {
     <div className="container mx-auto px-4 py-8 md:py-12">
       <header className="text-center mb-12 md:mb-16">
         <MessageSquare className="h-16 w-16 text-primary mx-auto mb-4" />
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-3">Get In Touch</h1>
+        <h1 className="text-4xl md:text-5xl font-headline text-primary mb-3">Get In Touch</h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
           We're here to help! Whether you have questions about our platform, need support, or just want to say hello, feel free to reach out.
         </p>

@@ -121,7 +121,7 @@ export default function SignupPage() {
   return (
     <Card className="w-full max-w-sm shadow-xl">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
+        <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
         <CardDescription>Join LandShare to find or list land.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

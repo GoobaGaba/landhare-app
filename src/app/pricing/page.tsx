@@ -108,7 +108,7 @@ export default function PricingPage() {
   return (
     <div className="container mx-auto px-4 py-12 md:py-20">
       <header className="text-center mb-12 md:mb-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-title mb-4">
+        <h1 className="text-4xl md:text-5xl font-headline text-title mb-4">
           Fair & Transparent Pricing
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -128,7 +128,7 @@ export default function PricingPage() {
                 </div>
               )}
               <CardHeader className="pb-4">
-                <CardTitle className={cn("text-2xl font-semibold", plan.highlight ? "text-premium" : "text-primary")}>{plan.title}</CardTitle>
+                <CardTitle className={cn("text-2xl font-headline", plan.highlight ? "text-premium" : "text-primary")}>{plan.title}</CardTitle>
                 <div className="flex items-baseline mt-2">
                   <span className="text-4xl font-bold">{plan.price}</span>
                   {plan.period !== "to Join" && <span className="text-muted-foreground ml-1">{plan.period}</span>}

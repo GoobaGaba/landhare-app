@@ -10,7 +10,7 @@ export default function SafetyPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <ShieldCheck className="h-10 w-10 text-primary" />
-            <CardTitle className="text-3xl md:text-4xl font-bold">LandShare Safety</CardTitle>
+            <CardTitle className="text-3xl md:text-4xl font-headline">LandShare Safety</CardTitle>
           </div>
           <CardDescription>
             Your safety and trust are important to us. Here are some guidelines and tips for a secure experience.

@@ -112,7 +112,7 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-sm shadow-xl">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold">Welcome Back!</CardTitle>
+        <CardTitle className="text-2xl font-headline">Welcome Back!</CardTitle>
         <CardDescription>Log in to manage your land and bookings.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
