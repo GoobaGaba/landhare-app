@@ -58,10 +58,10 @@ export function useListingsData(): ListingsDataState {
   }, [internalListings]);
 
   const myListings = useMemo(() => {
-    return currentUser
-      ? internalListings.filter(listing => listing.landownerId === currentUser.uid)
-      : [];
-  }, [internalListings, currentUser?.uid]); 
+    if (!currentUser) return [];
+    // Ensure we are comparing against the latest internalListings state
+    return internalListings.filter(listing => listing.landownerId === currentUser.uid);
+  }, [internalListings, currentUser]);
 
   const recentListings = useMemo(() => {
     return [...allAvailableListings]

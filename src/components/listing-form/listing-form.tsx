@@ -331,7 +331,7 @@ export function ListingForm() {
       setTitleSuggestion(null); 
       setDescriptionSuggestion(null); 
       setFormSubmittedSuccessfully(true);
-      // refreshListings() is now implicitly handled by the data hook via mockDataVersion increment
+      refreshListings();
     } catch (error: any) {
       console.error("Error creating listing:", error);
       let errorMessage = error.message || "Failed to create listing. Please try again.";

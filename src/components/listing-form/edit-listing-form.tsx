@@ -25,10 +25,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from '@/contexts/auth-context';
-import { useListingsData } from '@/hooks/use-listings-data';
 import { uploadListingImage } from '@/lib/storage';
-import { firebaseInitializationError, db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { firebaseInitializationError } from '@/lib/firebase';
+import { updateUserProfile, updateListing as dbUpdateListing } from '@/lib/mock-data';
 
 import { getSuggestedPriceAction, getSuggestedTitleAction, getGeneratedDescriptionAction } from '@/lib/actions/ai-actions';
 import type { Listing, PriceSuggestionInput, PriceSuggestionOutput, LeaseTerm, SuggestListingTitleInput, SuggestListingTitleOutput, PricingModel, GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
@@ -89,7 +88,6 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser, subscriptionStatus } = useAuth(); 
-  const { refreshListings } = useListingsData();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -321,12 +319,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             downPayment: data.downPayment || undefined,
             minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
         };
-
-        const listingDocRef = doc(db, "listings", listing.id);
-        await updateDoc(listingDocRef, updateData);
+        
+        await dbUpdateListing(listing.id, updateData);
         
         toast({ title: "Success!", description: `Listing "${data.title}" updated successfully!` });
-        refreshListings();
         setSubmissionSuccess(true);
         router.push(`/my-listings`);
 

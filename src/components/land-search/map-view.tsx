@@ -33,9 +33,8 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
     }
     
     if (listings.length === 0) {
-        // Optionally reset to a default view if no listings are present
         map.panTo({ lat: 39.8283, lng: -98.5795 });
-        map.setZoom(5);
+        map.setZoom(4);
         return;
     }
 
@@ -63,7 +62,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
         <Map
           defaultCenter={defaultPosition}
-          defaultZoom={5}
+          defaultZoom={4}
           gestureHandling={'greedy'}
           disableDefaultUI={true}
           mapId={'landshare-map'}
@@ -77,7 +76,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={(e: any) => { e.stop(); onMarkerClick(listing.id); }}
+                onClick={(e: any) => { onMarkerClick(listing.id); }}
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
@@ -120,5 +119,3 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
     </Card>
   );
 }
-
-    
