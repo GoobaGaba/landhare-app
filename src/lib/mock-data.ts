@@ -1,6 +1,7 @@
 
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics } from './types';
+import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 /**
  * @fileOverview
@@ -87,9 +88,29 @@ function loadDb(): MockDatabase {
 
 /**
  * Saves the current state of the database to localStorage and dispatches an event to notify the app of changes.
+ * This is the single point of truth for updating the mock database.
+ * It also centralizes the recalculation of platform metrics to ensure consistency.
  * @param newDb The new database state to save.
  */
 function saveDb(newDb: MockDatabase) {
+    // Before saving, always recalculate platform-wide metrics to ensure they are up-to-date.
+    // This centralized approach prevents inconsistent metric states.
+    const users = newDb.users.filter(u => !u.id.startsWith('bot-'));
+    const transactions = newDb.transactions;
+    const totalServiceFees = transactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const totalSubscriptionRevenue = transactions.filter(t => t.type === 'Subscription' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
+    newDb.metrics = {
+      id: 'global_metrics',
+      totalUsers: users.length,
+      totalListings: newDb.listings.length,
+      totalBookings: newDb.bookings.length,
+      totalServiceFees,
+      totalSubscriptionRevenue,
+      totalRevenue: totalServiceFees + totalSubscriptionRevenue
+    };
+
+
     if (typeof window === 'undefined') {
         db = newDb;
         return;
@@ -135,6 +156,19 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
   const currentDb = loadDb();
   const userIndex = currentDb.users.findIndex(u => u.id === userId);
   if (userIndex !== -1) {
+    // If subscription status changes, create a transaction record.
+    const oldStatus = currentDb.users[userIndex].subscriptionStatus;
+    const newStatus = data.subscriptionStatus;
+    if (newStatus && oldStatus !== newStatus) {
+        if (newStatus === 'premium') {
+             currentDb.transactions.unshift({ id: `txn-${Date.now()}`, userId, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date(), description: 'Upgrade to Premium Subscription' });
+             currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) - 5.00;
+        } else if (newStatus === 'free') {
+            currentDb.transactions.unshift({ id: `txn-${Date.now()}`, userId, type: 'Subscription Refund', status: 'Completed', amount: 5.00, currency: 'USD', date: new Date(), description: 'Refund for Premium Subscription Downgrade' });
+            currentDb.users[userIndex].walletBalance = (currentDb.users[userIndex].walletBalance ?? 0) + 5.00;
+        }
+    }
+    
     currentDb.users[userIndex] = { ...currentDb.users[userIndex], ...data };
     saveDb(currentDb);
     return currentDb.users[userIndex];
@@ -241,16 +275,121 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
   return newBooking;
 };
 
-export const updateBookingStatus = async (bookingId: string, status: Booking['status']): Promise<Booking | undefined> => {
-    const currentDb = loadDb();
-    const bookingIndex = currentDb.bookings.findIndex(b => b.id === bookingId);
-    if (bookingIndex !== -1) {
-        currentDb.bookings[bookingIndex].status = status;
-        saveDb(currentDb);
-        return currentDb.bookings[bookingIndex];
+// --- Booking Economic Engine ---
+const _calculateBookingPrice = (listing: Listing, booking: Booking): number => {
+    const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
+    const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
+
+    if (listing.pricingModel === 'nightly') {
+        const days = differenceInDays(toDate, fromDate) + 1;
+        return listing.price * days;
     }
-    return undefined;
+    if (listing.pricingModel === 'monthly') {
+        const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+        return listing.price * fullMonths;
+    }
+    if (listing.pricingModel === 'lease-to-own') {
+        const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
+        return listing.price * fullMonths;
+    }
+    return 0; // Should not happen
 };
+
+const _calculateServiceFee = (totalPrice: number, landowner: User): number => {
+    const feeRate = landowner.subscriptionStatus === 'premium' ? 0.0049 : 0.02;
+    return totalPrice * feeRate;
+};
+
+const _processBookingConfirmation = (db: MockDatabase, booking: Booking): MockDatabase => {
+    const listing = db.listings.find(l => l.id === booking.listingId);
+    const renter = db.users.find(u => u.id === booking.renterId);
+    const landowner = db.users.find(u => u.id === booking.landownerId);
+
+    if (!listing || !renter || !landowner) {
+        console.error("Missing data for booking confirmation:", {listing, renter, landowner});
+        throw new Error("Could not process booking confirmation due to missing user or listing data.");
+    }
+
+    const totalPrice = _calculateBookingPrice(listing, booking);
+    const renterFee = renter.subscriptionStatus === 'premium' ? 0 : 0.99;
+    const finalRenterCost = totalPrice + renterFee;
+    const serviceFee = _calculateServiceFee(totalPrice, landowner);
+    const landownerPayout = totalPrice - serviceFee;
+
+    // --- Create Transactions ---
+    // 1. Renter payment
+    db.transactions.unshift({ id: `txn-${Date.now()}-payment`, userId: renter.id, type: 'Booking Payment', status: 'Completed', amount: -finalRenterCost, currency: 'USD', date: new Date(), description: `Payment for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
+    // 2. Landowner Service Fee
+    db.transactions.unshift({ id: `txn-${Date.now()}-fee`, userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD', date: new Date(), description: `Service Fee for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
+    // 3. Landowner Payout
+    db.transactions.unshift({ id: `txn-${Date.now()}-payout`, userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: landownerPayout, currency: 'USD', date: new Date(), description: `Payout for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
+
+    // --- Update Wallets ---
+    renter.walletBalance = (renter.walletBalance ?? 0) - finalRenterCost;
+    landowner.walletBalance = (landowner.walletBalance ?? 0) + landownerPayout;
+    
+    return db;
+};
+
+const _processRefund = (db: MockDatabase, booking: Booking): MockDatabase => {
+    const listing = db.listings.find(l => l.id === booking.listingId);
+    const renter = db.users.find(u => u.id === booking.renterId);
+    const landowner = db.users.find(u => u.id === booking.landownerId);
+
+    if (!listing || !renter || !landowner) {
+        console.error("Missing data for refund processing:", {listing, renter, landowner});
+        throw new Error("Could not process refund due to missing user or listing data.");
+    }
+
+    const totalPrice = _calculateBookingPrice(listing, booking);
+    const renterFee = renter.subscriptionStatus === 'premium' ? 0 : 0.99;
+    const originalRenterCost = totalPrice + renterFee;
+    const serviceFee = _calculateServiceFee(totalPrice, landowner);
+    const originalLandownerPayout = totalPrice - serviceFee;
+
+    // --- Create Reversal Transactions ---
+    db.transactions.unshift({ id: `txn-${Date.now()}-refund`, userId: renter.id, type: 'Booking Refund', status: 'Completed', amount: originalRenterCost, currency: 'USD', date: new Date(), description: `Refund for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
+    db.transactions.unshift({ id: `txn-${Date.now()}-reversal`, userId: landowner.id, type: 'Payout Reversal', status: 'Completed', amount: -originalLandownerPayout, currency: 'USD', date: new Date(), description: `Payout Reversal for "${listing.title}"`, relatedBookingId: booking.id, relatedListingId: listing.id });
+
+    // --- Update Wallets ---
+    renter.walletBalance = (renter.walletBalance ?? 0) + originalRenterCost;
+    landowner.walletBalance = (landowner.walletBalance ?? 0) - originalLandownerPayout;
+    
+    return db;
+};
+
+export const updateBookingStatus = async (bookingId: string, newStatus: Booking['status']): Promise<Booking | undefined> => {
+    let currentDb = loadDb();
+    const bookingIndex = currentDb.bookings.findIndex(b => b.id === bookingId);
+    if (bookingIndex === -1) return undefined;
+
+    const booking = currentDb.bookings[bookingIndex];
+    const oldStatus = booking.status;
+    
+    // Prevent re-processing
+    if(oldStatus === newStatus) return booking;
+
+    booking.status = newStatus;
+
+    try {
+        if (newStatus === 'Confirmed' && oldStatus === 'Pending Confirmation') {
+            currentDb = _processBookingConfirmation(currentDb, booking);
+        } else if (newStatus === 'Refund Approved' && oldStatus === 'Refund Requested') {
+            currentDb = _processRefund(currentDb, booking);
+        }
+        
+        saveDb(currentDb);
+        return booking;
+
+    } catch (error) {
+        console.error("Error processing booking status change:", error);
+        // Rollback status change on error
+        currentDb.bookings[bookingIndex].status = oldStatus;
+        saveDb(currentDb);
+        throw error;
+    }
+};
+
 
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
@@ -295,23 +434,7 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
   const currentDb = loadDb();
-  const users = currentDb.users.filter(u => !u.id.startsWith('bot-'));
-  const listings = currentDb.listings;
-  const bookings = currentDb.bookings;
-  const transactions = currentDb.transactions;
-
-  const totalServiceFees = transactions.filter(t => t.type === 'Service Fee' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  const totalSubscriptionRevenue = transactions.filter(t => t.type === 'Subscription' && t.status === 'Completed').reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  
-  return {
-    id: 'global_metrics',
-    totalUsers: users.length,
-    totalListings: listings.length,
-    totalBookings: bookings.length,
-    totalServiceFees: totalServiceFees,
-    totalSubscriptionRevenue: totalSubscriptionRevenue,
-    totalRevenue: totalServiceFees + totalSubscriptionRevenue
-  };
+  return currentDb.metrics;
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
