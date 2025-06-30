@@ -3,12 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, DollarSign } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
 import type { Listing } from '@/lib/types';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 interface MapViewProps {
@@ -54,21 +53,32 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
   return null;
 };
 
+// This new function uses direct hex codes to avoid CSS variable issues with the map overlay.
+const getPinColors = (listing: Listing, isSelected: boolean) => {
+    if (isSelected) {
+        return {
+            background: '#CC6633', // Burnt Orange (Accent color from PRD)
+            glyphColor: '#FFFFFF',
+            borderColor: '#FFFFFF' // Use white border for selected to make it pop
+        };
+    }
+    if (listing.isBoosted) {
+        return {
+            background: '#8A2BE2', // A distinct purple for Premium/Boosted
+            glyphColor: '#FFFFFF',
+            borderColor: '#FFFFFF'
+        };
+    }
+    return {
+        background: '#336633', // Forest Green (Primary color from PRD)
+        glyphColor: '#FFFFFF',
+        borderColor: '#FFFFFF'
+    };
+};
+
 export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
-
-  const getPinBackgroundColor = (listing: Listing, isSelected: boolean) => {
-    if (isSelected) return 'hsl(var(--accent))';
-    if (listing.isBoosted) return 'hsl(var(--premium))';
-    return 'hsl(var(--primary))';
-  };
-
-  const getPinGlyphColor = (listing: Listing, isSelected: boolean) => {
-    if (isSelected) return 'hsl(var(--accent-foreground))';
-    if (listing.isBoosted) return 'hsl(var(--premium-foreground))';
-    return 'hsl(var(--primary-foreground))';
-  };
 
   return (
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
@@ -83,18 +93,21 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
         >
           {listings.map((listing) => {
             if (listing.lat == null || listing.lng == null) return null;
+            
             const isSelected = selectedId === listing.id;
+            const pinColors = getPinColors(listing, isSelected);
+
             return (
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
-                onClick={(e: any) => { onMarkerClick(listing.id); }}
+                onClick={() => onMarkerClick(listing.id)}
                 zIndex={isSelected ? 10 : 1}
               >
                 <Pin 
-                  background={getPinBackgroundColor(listing, isSelected)}
-                  borderColor={isSelected ? 'hsl(var(--background))' : 'hsl(var(--border))'}
-                  glyphColor={getPinGlyphColor(listing, isSelected)}
+                  background={pinColors.background}
+                  borderColor={pinColors.borderColor}
+                  glyphColor={pinColors.glyphColor}
                   scale={isSelected ? 1.5 : 1}
                 />
               </AdvancedMarker>
