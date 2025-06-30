@@ -47,7 +47,7 @@ const amenitiesList = [
 ];
 
 const MAX_IMAGES = 10;
-const MAX_IMAGES_FREE = 5;
+const MAX_IMAGES_STANDARD = 5;
 const MAX_FILE_SIZE_MB = 5;
 
 const listingFormSchema = z.object({
@@ -142,7 +142,7 @@ export function ListingForm() {
 
   const isPremiumUser = subscriptionStatus === 'premium';
   const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
-  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
+  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_STANDARD;
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
   const isUploadingImages = imagePreviews.some(p => p.isLoading);
 

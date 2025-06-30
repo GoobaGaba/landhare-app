@@ -47,7 +47,7 @@ const amenitiesList = [
 ];
 
 const MAX_IMAGES = 10; // Premium users can upload more
-const MAX_IMAGES_FREE = 5;
+const MAX_IMAGES_STANDARD = 5;
 const MAX_FILE_SIZE_MB = 5;
 
 const editListingFormSchema = z.object({
@@ -151,7 +151,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
   const isPremiumUser = subscriptionStatus === 'premium';
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
-  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_FREE;
+  const imageUploadLimit = isPremiumUser ? MAX_IMAGES : MAX_IMAGES_STANDARD;
   const isUploadingImages = imagePreviews.some(p => p.isLoading);
 
 

@@ -65,7 +65,7 @@ const getPinColors = (listing: Listing, isSelected: boolean) => {
     }
     if (listing.isBoosted) {
         return {
-            background: '#9333ea', // Premium Purple
+            background: '#8B5CF6', // Vibrant Purple for Premium/Boosted
             glyphColor: darkDotColor,
             borderColor: '#FFFFFF'
         };
@@ -103,7 +103,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => onMarkerClick(listing.id)}
-                zIndex={isSelected ? 10 : 1}
+                zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : 1)}
               >
                 <Pin 
                   background={pinColors.background}

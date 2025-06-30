@@ -91,11 +91,12 @@ function SearchPageContent() {
     }
 
     listingsToFilter = [...listingsToFilter].sort((a, b) => {
+      // Primary sort: Boosted listings always come first.
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+
+      // Secondary sort: Based on user's selection.
       let comparison = 0;
-      if (a.isBoosted && !b.isBoosted) comparison = -1;
-      if (!a.isBoosted && b.isBoosted) comparison = 1;
-      if (comparison !== 0 && !(sortBy.includes('rating'))) return comparison;
-      
       const priceA = a.price ?? 0;
       const priceB = b.price ?? 0;
 
@@ -105,17 +106,9 @@ function SearchPageContent() {
         case 'size_asc': comparison = a.sizeSqft - b.sizeSqft; break;
         case 'size_desc': comparison = b.sizeSqft - a.sizeSqft; break;
         case 'rating_desc': 
+        default:
           comparison = (b.rating || 0) - (a.rating || 0);
-          if (comparison === 0) {
-             if (a.isBoosted && !b.isBoosted) return -1;
-             if (!a.isBoosted && b.isBoosted) return 1;
-          }
           break;
-        default: comparison = 0;
-      }
-      if (comparison === 0 && !sortBy.includes('rating')) {
-        if (a.isBoosted && !b.isBoosted) return -1;
-        if (!a.isBoosted && b.isBoosted) return 1;
       }
       return comparison;
     });
