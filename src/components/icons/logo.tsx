@@ -1,14 +1,15 @@
 import { cn } from '@/lib/utils';
 
 export function Logo({ className }: { className?: string }) {
-  // This version uses a standard <img> tag to bypass Next.js image optimization,
-  // which seems to be the source of the issue. It directly requests the file
-  // from the /public directory.
+  // This is the most direct way to reference an image in the `public` folder.
+  // It bypasses the Next.js Image component to avoid potential optimization issues
+  // and directly uses the browser's ability to load an image.
+  // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
-      src="/logo.png" // The leading '/' points to the 'public' directory.
+      src="/logo.png"
       alt="LandHare Logo"
-      className={cn("object-contain", className)} // The className from header/footer will apply sizing
+      className={cn("object-contain", className)}
     />
   );
 }
