@@ -104,21 +104,32 @@ export default function ListingDetailPage() {
 
       setIsLoading(true);
       try {
+        // Step 1: Fetch the critical listing data. This is public.
         const listingData = await getListingById(id);
         setListing(listingData || null);
 
         if (listingData) {
-          const [landownerData, reviewsData] = await Promise.all([
-            getUserById(listingData.landownerId),
-            getReviewsForListing(listingData.id)
-          ]);
-          setLandowner(landownerData || null);
+          // Step 2: Fetch public review data.
+          const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
+
+          // Step 3: Attempt to fetch protected landowner data.
+          // This will fail for public users, which is expected.
+          try {
+            const landownerData = await getUserById(listingData.landownerId);
+            setLandowner(landownerData || null);
+          } catch (landownerError) {
+            // This is an expected failure for non-authenticated users due to security rules.
+            // We can safely ignore it and the UI will adapt.
+            console.warn(`Could not fetch landowner profile. This is expected for public viewers.`);
+            setLandowner(null);
+          }
         }
       } catch (error: any) {
-        console.error(`[ListingDetailPage] Error fetching listing data for ID ${id}:`, error);
-        toast({ title: "Loading Error", description: error.message || "Could not load listing details.", variant: "destructive" });
-        setListing(null);
+        // This outer catch now only handles the critical failure of fetching the listing itself.
+        console.error(`[ListingDetailPage] CRITICAL Error fetching listing data for ID ${id}:`, error);
+        toast({ title: "Loading Error", description: "Could not load the main listing details.", variant: "destructive" });
+        setListing(null); // Ensure listing is null on critical failure
       } finally {
         setIsLoading(false);
       }
