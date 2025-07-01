@@ -1,15 +1,18 @@
+
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import logoImage from './logo.png';
 
 export function Logo({ className }: { className?: string }) {
-  // This is the most direct way to reference an image in the `public` folder.
-  // It bypasses the Next.js Image component to avoid potential optimization issues
-  // and directly uses the browser's ability to load an image.
-  // eslint-disable-next-line @next/next/no-img-element
+  // This approach imports the image directly.
+  // Next.js's build system handles the path, making it very reliable.
   return (
-    <img
-      src="/logo.png"
+    <Image
+      src={logoImage}
       alt="LandHare Logo"
       className={cn("object-contain", className)}
+      // When importing an image, width and height are handled automatically.
+      // The `className` prop (e.g., "h-8 w-8") controls the display size.
     />
   );
 }
