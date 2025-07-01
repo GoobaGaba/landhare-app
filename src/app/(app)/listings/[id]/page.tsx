@@ -451,7 +451,7 @@ export default function ListingDetailPage() {
             <CardContent className="text-xs text-muted-foreground space-y-1">
               <p>Ensure you understand the land use rules.</p>
               <p>Communicate clearly with the landowner.</p>
-              <p>All payments are processed securely through LandShare.</p>
+              <p>All payments are processed securely through LandHare.</p>
               <Link href="/safety" className="text-primary hover:underline">Read our safety tips</Link>
             </CardContent>
           </Card>
@@ -640,7 +640,7 @@ export default function ListingDetailPage() {
               <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${priceDetails.estimatedTax.toFixed(2)}</span></div>
               <Separator className="my-2"/>
               <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${priceDetails.totalPrice.toFixed(2)}</span></p>
-              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
+              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails?.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
                     <p className="text-sm text-destructive flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate. Rate may be adjusted.
                     </p>

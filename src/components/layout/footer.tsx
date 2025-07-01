@@ -9,7 +9,7 @@ export default function AppFooter() {
         <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
                 <Logo className="h-7 w-7"/>
-                <span className="font-headline text-lg font-bold">LandShare</span>
+                <span className="font-headline text-lg font-bold">LandHare</span>
             </div>
             <nav className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
                 <Link href="/about" className="hover:text-primary transition-colors">About Us</Link>
@@ -20,7 +20,7 @@ export default function AppFooter() {
             </nav>
         </div>
         <div className="mt-6 pt-4 border-t text-center text-xs text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} LandShare Connect. All Rights Reserved.</p>
+            <p>&copy; {new Date().getFullYear()} LandHare. All Rights Reserved.</p>
             <p className="mt-1">Disrupting housing, one plot at a time.</p>
         </div>
       </div>

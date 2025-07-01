@@ -155,7 +155,14 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                   <Link href={`/listings/${listing.id}`} onClick={(e) => e.stopPropagation()}>{listing.title}</Link>
                 </CardTitle>
                 {listing.pricingModel === 'lease-to-own' && (
-                    <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide">LTO</Badge>
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-help">LTO</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Lease to own</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
             </div>
             <div className="text-sm text-muted-foreground flex items-center mt-1">
@@ -253,9 +260,16 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             </TooltipProvider>
           )}
           {listing.pricingModel === 'lease-to-own' && (
-            <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
-              <Sparkles className="mr-1 h-2.5 w-2.5"/>LTO
-            </Badge>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-help", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
+                    <Sparkles className="mr-1 h-2.5 w-2.5"/>LTO
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent><p>Lease to own</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {currentUser && listing.landownerId !== currentUser.uid && (
              <TooltipProvider delayDuration={100}>

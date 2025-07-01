@@ -23,7 +23,7 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'LandShare',
+  title: 'LandHare',
   description: 'Connecting landowners with those seeking affordable land.',
 };
 

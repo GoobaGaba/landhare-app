@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
           <p className="text-lg text-muted-foreground mb-6">
-            LandShare ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Services.
+            LandHare ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Services.
           </p>
 
           <h2 className="text-xl font-semibold mt-6 mb-3">1. Information We Collect</h2>
@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
             <li>Improve and personalize your experience on our Services.</li>
             <li>Send you technical notices, updates, security alerts, and support messages.</li>
             <li>Respond to your comments, questions, and requests.</li>
-            <li>Communicate with you about products, services, offers, promotions, and events offered by LandShare and others.</li>
+            <li>Communicate with you about products, services, offers, promotions, and events offered by LandHare and others.</li>
             <li>Monitor and analyze trends, usage, and activities in connection with our Services.</li>
             <li>Protect against, investigate, and deter fraudulent, unauthorized, or illegal activity.</li>
           </ul>
@@ -59,7 +59,7 @@ export default function PrivacyPolicyPage() {
             <li>With other users (e.g., sharing a Host's contact information with a Renter upon a confirmed booking).</li>
             <li>With third-party service providers who perform services on our behalf (e.g., payment processing, data analysis, email delivery, hosting services).</li>
             <li>In response to a request for information if we believe disclosure is in accordance with, or required by, any applicable law, regulation, or legal process.</li>
-            <li>If we believe your actions are inconsistent with our user agreements or policies, or to protect the rights, property, and safety of LandShare or others.</li>
+            <li>If we believe your actions are inconsistent with our user agreements or policies, or to protect the rights, property, and safety of LandHare or others.</li>
             <li>In connection with, or during negotiations of, any merger, sale of company assets, financing, or acquisition of all or a portion of our business by another company.</li>
             <li>With your consent or at your direction.</li>
           </ul>
@@ -104,5 +104,3 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
-
-    

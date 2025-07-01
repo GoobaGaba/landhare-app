@@ -7,7 +7,7 @@ export default function AboutPage() {
   return (
     <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
       <header className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-headline text-title mb-4">About LandShare Connect</h1>
+        <h1 className="text-4xl md:text-5xl font-headline text-title mb-4">About LandHare</h1>
         <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
           Reimagining land use and ownership for a more flexible and sustainable future.
         </p>
@@ -29,7 +29,7 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent>
           <p className="text-foreground/90 leading-relaxed">
-            The dream of owning property feels more distant than ever for many. At the same time, countless acres of land sit unused. LandShare Connect was born from a simple idea: what if we could connect these two realities? Our mission is to bridge the gap between landowners and those seeking affordable, flexible land options. We are building a community-driven marketplace that empowers people to unlock the potential of land, fostering everything from tiny home communities and RV spots to sustainable agriculture and unique personal projects.
+            The dream of owning property feels more distant than ever for many. At the same time, countless acres of land sit unused. LandHare was born from a simple idea: what if we could connect these two realities? Our mission is to bridge the gap between landowners and those seeking affordable, flexible land options. We are building a community-driven marketplace that empowers people to unlock the potential of land, fostering everything from tiny home communities and RV spots to sustainable agriculture and unique personal projects.
           </p>
         </CardContent>
       </Card>
@@ -65,7 +65,7 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent>
             <p>
-                LandShare is currently in its early stages, and we are continuously working to improve the platform and add new features. We are excited about the future and the potential to create real change in the housing landscape. Thank you for being a part of our story.
+                LandHare is currently in its early stages, and we are continuously working to improve the platform and add new features. We are excited about the future and the potential to create real change in the housing landscape. Thank you for being a part of our story.
             </p>
         </CardContent>
        </Card>
