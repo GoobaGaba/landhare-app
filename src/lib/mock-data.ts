@@ -4,7 +4,7 @@ import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, 
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { firebaseInitializationError, db as firestoreDb } from './firebase';
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp 
+    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, runTransaction, Timestamp, increment
 } from 'firebase/firestore';
 
 
@@ -21,6 +21,11 @@ const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 export const ADMIN_UIDS = ['AdminGNL6965'];
+const RENTER_FEE = 0.99; // Flat fee for non-premium renters
+const TAX_RATE = 0.05; // 5%
+const PREMIUM_SERVICE_FEE_RATE = 0.0049; // 0.49%
+const STANDARD_SERVICE_FEE_RATE = 0.02; // 2%
+const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
 // --- DATABASE STRUCTURE (for mock mode) ---
 interface MockDatabase {
@@ -146,10 +151,61 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
         }
         return undefined;
     }
-    const userRef = doc(firestoreDb, "users", userId);
-    await updateDoc(userRef, data);
-    const updatedUserSnap = await getDoc(userRef);
-    return docToObj<User>(updatedUserSnap);
+
+    // Live mode with subscription financial logic
+    if (data.subscriptionStatus) {
+        return runTransaction(firestoreDb, async (transaction) => {
+            const userRef = doc(firestoreDb, "users", userId);
+            const userSnap = await transaction.get(userRef);
+            if (!userSnap.exists()) throw new Error("User not found for subscription change.");
+
+            const currentUserData = userSnap.data() as User;
+            const newStatus = data.subscriptionStatus;
+            
+            // Prevent changing to the same status
+            if (currentUserData.subscriptionStatus === newStatus) return currentUserData;
+
+            const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
+            const now = new Date();
+            let transactionAmount = 0;
+            let transactionType: 'Subscription' | 'Subscription Refund' = 'Subscription';
+
+            if (newStatus === 'premium') {
+                transactionAmount = -PREMIUM_SUBSCRIPTION_PRICE;
+                transactionType = 'Subscription';
+            } else { // Downgrading to standard
+                transactionAmount = PREMIUM_SUBSCRIPTION_PRICE;
+                transactionType = 'Subscription Refund';
+            }
+
+            // Create transaction record
+            const newTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(newTxRef, {
+                userId, type: transactionType, status: 'Completed',
+                amount: transactionAmount, currency: 'USD', date: now,
+                description: `${transactionType} - ${newStatus} tier`,
+            });
+            
+            // Update user wallet and subscription status
+            transaction.update(userRef, {
+                walletBalance: increment(transactionAmount),
+                subscriptionStatus: newStatus,
+            });
+
+            // Update platform metrics
+            transaction.update(metricsRef, {
+                totalSubscriptionRevenue: increment(-transactionAmount) // a refund is negative revenue
+            });
+            
+            return { ...currentUserData, ...data, walletBalance: (currentUserData.walletBalance || 0) + transactionAmount };
+        });
+    } else {
+        // Standard non-financial profile update
+        const userRef = doc(firestoreDb, "users", userId);
+        await updateDoc(userRef, data);
+        const updatedUserSnap = await getDoc(userRef);
+        return docToObj<User>(updatedUserSnap);
+    }
 };
 
 
@@ -252,18 +308,72 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
     return populatedBookings.sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
 };
 
-export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>, status: Booking['status'] = 'Pending Confirmation'): Promise<Booking> => {
+const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, renterSubscription: SubscriptionStatus): number => {
+  let baseRate = 0;
+  if (listing.pricingModel === 'nightly') {
+      const days = differenceInDays(dateRange.to, dateRange.from) + 1;
+      baseRate = (listing.price || 0) * (days > 0 ? days : 1);
+  } else { // monthly or LTO
+      const days = differenceInDays(dateRange.to, dateRange.from) + 1;
+      baseRate = (listing.price / 30) * (days > 0 ? days : 1);
+  }
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
+  const subtotal = baseRate + renterFee;
+  const estimatedTax = subtotal * TAX_RATE;
+  return subtotal + estimatedTax;
+};
+
+export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>): Promise<Booking> => {
     if (firebaseInitializationError) {
         const db = loadMockDb();
-        const newBooking: Booking = { ...data, id: `booking-${Date.now()}`, status, createdAt: new Date() };
+        const newBooking: Booking = { ...data, id: `booking-${Date.now()}`, status: 'Pending Confirmation', createdAt: new Date() };
         db.bookings.unshift(newBooking);
         saveMockDb(db);
         return newBooking;
     }
-    const bookingsCollection = collection(firestoreDb, "bookings");
-    const newDocRef = await addDoc(bookingsCollection, { ...data, status, createdAt: serverTimestamp() });
-    const newBooking = (await getDoc(newDocRef)).data() as Booking;
-    return { ...newBooking, id: newDocRef.id, createdAt: new Date() };
+    
+    return runTransaction(firestoreDb, async (transaction) => {
+        const listingRef = doc(firestoreDb, "listings", data.listingId);
+        const renterRef = doc(firestoreDb, "users", data.renterId);
+
+        const [listingSnap, renterSnap] = await Promise.all([transaction.get(listingRef), transaction.get(renterRef)]);
+        if (!listingSnap.exists()) throw new Error("Listing not found.");
+        if (!renterSnap.exists()) throw new Error("Renter not found.");
+
+        const listing = listingSnap.data() as Listing;
+        const renter = renterSnap.data() as User;
+        
+        const fromDate = (data.dateRange.from as Timestamp).toDate();
+        const toDate = (data.dateRange.to as Timestamp).toDate();
+        const totalPrice = _calculatePrice(listing, {from: fromDate, to: toDate}, renter.subscriptionStatus || 'standard');
+        
+        if ((renter.walletBalance || 0) < totalPrice) throw new Error("Insufficient wallet balance.");
+
+        const newBookingRef = doc(collection(firestoreDb, "bookings"));
+        const newTxRef = doc(collection(firestoreDb, 'transactions'));
+        
+        // 1. Create Pending Payment Transaction for Renter
+        transaction.set(newTxRef, {
+            userId: data.renterId, type: 'Booking Payment', status: 'Pending',
+            amount: -totalPrice, currency: 'USD', date: serverTimestamp(),
+            description: `Payment for "${listing.title}"`,
+            relatedBookingId: newBookingRef.id, relatedListingId: data.listingId
+        });
+
+        // 2. Debit Renter's Wallet
+        transaction.update(renterRef, { walletBalance: increment(-totalPrice) });
+        
+        // 3. Create Booking Document
+        transaction.set(newBookingRef, {
+            ...data,
+            status: 'Pending Confirmation',
+            createdAt: serverTimestamp(),
+            totalPrice: totalPrice,
+            paymentTransactionId: newTxRef.id
+        });
+        
+        return { ...data, id: newBookingRef.id } as Booking;
+    });
 };
 
 export const updateBookingStatus = async (bookingId: string, newStatus: Booking['status']): Promise<Booking | undefined> => {
@@ -277,21 +387,89 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
             return db.bookings[bookingIndex];
         } return undefined;
     }
-    // Live mode: Status changes (including financial ones) should be handled via a server-side transaction.
-    // This client-side update is now just for non-financial status changes (e.g. cancelled before confirmation).
-    const bookingRef = doc(firestoreDb, "bookings", bookingId);
-    await updateDoc(bookingRef, { status: newStatus });
-    const updatedBookingSnap = await getDoc(bookingRef);
-    return docToObj<Booking>(updatedBookingSnap);
+
+    return runTransaction(firestoreDb, async (transaction) => {
+        const bookingRef = doc(firestoreDb, 'bookings', bookingId);
+        const bookingSnap = await transaction.get(bookingRef);
+        if (!bookingSnap.exists()) throw new Error("Booking not found.");
+        
+        const booking = docToObj<Booking>(bookingSnap);
+        const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
+
+        if (newStatus === 'Confirmed' && booking.status === 'Pending Confirmation') {
+            const landownerRef = doc(firestoreDb, 'users', booking.landownerId);
+            const landownerSnap = await transaction.get(landownerRef);
+            if (!landownerSnap.exists()) throw new Error("Landowner not found.");
+
+            const landowner = landownerSnap.data() as User;
+            const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? PREMIUM_SERVICE_FEE_RATE : STANDARD_SERVICE_FEE_RATE;
+            const serviceFee = (booking.totalPrice || 0) * serviceFeeRate;
+            const payoutAmount = (booking.totalPrice || 0) - serviceFee;
+
+            // Mark original payment as completed
+            if (booking.paymentTransactionId) {
+                const paymentTxRef = doc(firestoreDb, 'transactions', booking.paymentTransactionId);
+                transaction.update(paymentTxRef, { status: 'Completed' });
+            }
+            
+            // Create payout and fee transactions
+            const payoutTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(payoutTxRef, {
+                userId: booking.landownerId, type: 'Landowner Payout', status: 'Completed', amount: payoutAmount,
+                currency: 'USD', date: serverTimestamp(), description: `Payout for "${booking.listingTitle || 'listing'}"`,
+                relatedBookingId: booking.id, relatedListingId: booking.listingId
+            });
+
+            const feeTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(feeTxRef, {
+                userId: booking.landownerId, type: 'Service Fee', status: 'Completed', amount: -serviceFee,
+                currency: 'USD', date: serverTimestamp(), description: `Service Fee for "${booking.listingTitle || 'listing'}"`,
+                relatedBookingId: booking.id, relatedListingId: booking.listingId
+            });
+
+            // Update landowner wallet and metrics
+            transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
+            transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee) });
+        } 
+        else if (newStatus === 'Declined' || newStatus === 'Cancelled by Renter' || newStatus === 'Refund Approved') {
+            const renterRef = doc(firestoreDb, 'users', booking.renterId);
+            
+            // Refund renter
+            transaction.update(renterRef, { walletBalance: increment(booking.totalPrice || 0) });
+            
+            // Mark original payment as reversed
+            if (booking.paymentTransactionId) {
+                const paymentTxRef = doc(firestoreDb, 'transactions', booking.paymentTransactionId);
+                transaction.update(paymentTxRef, { status: 'Reversed' });
+            }
+            
+            // Create refund transaction record
+            const refundTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(refundTxRef, {
+                userId: booking.renterId, type: 'Booking Refund', status: 'Completed', amount: booking.totalPrice || 0,
+                currency: 'USD', date: serverTimestamp(), description: `Refund for "${booking.listingTitle || 'listing'}"`,
+                relatedBookingId: booking.id, relatedListingId: booking.listingId
+            });
+        }
+
+        // Finally, update the booking status itself
+        transaction.update(bookingRef, { status: newStatus });
+        return { ...booking, status: newStatus };
+    });
 };
 
 
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
-    // Phase 2: This will be migrated to Firestore. For now, it remains mock.
-    const currentDb = loadMockDb();
-    return currentDb.transactions.filter(t => t.userId === userId)
-      .sort((a,b) => (b.date as Date).getTime() - (a.date as Date).getTime());
+    if (firebaseInitializationError) {
+        const currentDb = loadMockDb();
+        return currentDb.transactions.filter(t => t.userId === userId)
+          .sort((a,b) => (b.date as Date).getTime() - (a.date as Date).getTime());
+    }
+
+    const q = query(collection(firestoreDb, 'transactions'), where('userId', '==', userId), orderBy('date', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(d => docToObj<Transaction>(d));
 };
 
 
@@ -350,9 +528,16 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
 
 // --- Admin & Bot Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-  // Phase 2: This will be migrated to use Firestore aggregates.
-  const currentDb = loadMockDb();
-  return currentDb.metrics;
+    if (firebaseInitializationError) {
+        return loadMockDb().metrics;
+    }
+    const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
+    const metricsSnap = await getDoc(metricsRef);
+    if (metricsSnap.exists()) {
+        return docToObj<PlatformMetrics>(metricsSnap);
+    }
+    // Fallback if document doesn't exist
+    return { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
 };
 
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {

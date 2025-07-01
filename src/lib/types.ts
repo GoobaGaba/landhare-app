@@ -55,7 +55,7 @@ export interface Review {
 }
 
 export interface Booking {
-  id: string;
+  id:string;
   listingId: string;
   renterId: string;
   landownerId: string;
@@ -64,6 +64,8 @@ export interface Booking {
     from: Date | Timestamp;
     to: Date | Timestamp;
   };
+  totalPrice?: number; // Price at the time of booking, locked in.
+  paymentTransactionId?: string; // The renter's initial payment transaction.
   createdAt?: Date | Timestamp;
   listingTitle?: string;
   landownerName?: string;

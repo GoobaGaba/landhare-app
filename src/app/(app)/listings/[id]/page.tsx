@@ -24,6 +24,7 @@ import { firebaseInitializationError } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Timestamp } from 'firebase/firestore';
 
 const calculatePriceDetails = (listing: Listing, dateRange: DateRange, renterSubscription: SubscriptionStatus): PriceDetails | null => {
   if (!listing || !dateRange?.from || !dateRange.to) return null;
@@ -254,24 +255,21 @@ export default function ListingDetailPage() {
 
     setIsSubmittingBooking(true);
     try {
-      // Standardize all new bookings/inquiries to 'Pending Confirmation'
-      const bookingStatus = 'Pending Confirmation';
-
       const bookingDataPayload = {
         listingId: listing.id,
         renterId: currentUser.uid,
         landownerId: listing.landownerId,
         dateRange: !dateRange?.from || !dateRange.to
-          ? { from: new Date(), to: addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30) }
-          : { from: dateRange.from, to: dateRange.to },
+          ? { from: new Timestamp(new Date().getTime() / 1000, 0), to: new Timestamp(addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30).getTime() / 1000, 0) }
+          : { from: Timestamp.fromDate(dateRange.from), to: Timestamp.fromDate(dateRange.to) },
       };
       
-      await addBookingRequest(bookingDataPayload, bookingStatus);
+      await addBookingRequest(bookingDataPayload);
 
       setShowBookingDialog(false);
       toast({
         title: "Request Sent!",
-        description: `Your request for "${listing.title}" has been sent. The landowner will review it shortly.`,
+        description: `Your request for "${listing.title}" has been sent. The landowner will review it shortly. Your wallet has been charged.`,
       });
       router.push('/bookings');
     } catch (error: any) {
