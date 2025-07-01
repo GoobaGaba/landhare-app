@@ -20,6 +20,8 @@ import { useListingsData } from '@/hooks/use-listings-data';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 
 const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
@@ -230,13 +232,16 @@ export default function SearchPage() {
     if (!apiKey) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Map Service Error</AlertTitle>
-                    <AlertDescription>
-                        The Google Maps API key is missing. The map cannot be displayed. Please set the <code className="font-mono bg-muted p-1 rounded">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable.
-                    </AlertDescription>
-                </Alert>
+                <Card className="max-w-4xl mx-auto my-8">
+                    <CardHeader>
+                        <CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle/> Map Service Error</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>The Google Maps API key is missing. The map and search functionality cannot be displayed.</p>
+                        <p className="text-xs text-muted-foreground mt-2">Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the server has been restarted.</p>
+                        <Button asChild variant="outline" className="mt-4"><Link href="/">Go Home</Link></Button>
+                    </CardContent>
+                </Card>
             </div>
         )
     }
