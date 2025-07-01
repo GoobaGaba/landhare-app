@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
 // IMPORTANT: Environment Variable Management for Firebase
@@ -90,7 +90,10 @@ if (isApiKeyEffectivelyMissing) {
     } else {
       appInstance = getApp();
     }
-    authInstance = getAuth(appInstance);
+    // Use initializeAuth to explicitly set persistence
+    authInstance = initializeAuth(appInstance, {
+      persistence: browserLocalPersistence
+    });
     firestoreInstance = getFirestore(appInstance);
   } catch (error: any) {
     console.error("Firebase Initialization Failed (even with presumed API key):", error);
