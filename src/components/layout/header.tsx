@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
@@ -88,7 +89,7 @@ export default function AppHeader() {
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
             <Logo className="h-12 w-12" />
-            <span className="font-headline text-xl text-title hidden sm:inline-block">LandHare</span>
+            <span className="font-headline text-xl font-bold text-title hidden sm:inline-block">LandHare</span>
           </Link>
         </div>
 
