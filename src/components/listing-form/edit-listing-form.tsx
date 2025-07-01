@@ -528,9 +528,9 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Duration options (LTO included)</Label>
               <Controller name="leaseTerm" control={control} render={({ field }) => (
                   <RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
-                      <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short-edit" /><Label htmlFor="term-short-edit" className="font-normal">Short Term (30 days)</Label></div>
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short-edit" /><Label htmlFor="term-short-edit" className="font-normal">Short Term (&lt;30 days)</Label></div>
                       <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long-edit" /><Label htmlFor="term-long-edit" className="font-normal">Long Term (1+ month)</Label></div>
-                      <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible-edit" /><Label htmlFor="term-flexible-edit" className="font-normal">Flexible (Open to any duration, incl. LTO)</Label></div>
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible-edit" /><Label htmlFor="term-flexible-edit" className="font-normal">Flexible (+Pathway to LTO)</Label></div>
                   </RadioGroup>)} />
               {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
             </div>
