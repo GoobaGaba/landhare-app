@@ -89,7 +89,7 @@ export default function AppHeader() {
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
             <Logo className="h-8 w-8" />
-            <span className="font-headline text-xl font-bold text-primary hidden sm:inline-block">LandHare</span>
+            <span className="font-headline text-xl font-bold text-title hidden sm:inline-block">LandHare</span>
           </Link>
         </div>
 
@@ -204,7 +204,7 @@ export default function AppHeader() {
                 <div className="p-4 border-b">
                   <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
                     <Logo className="h-8 w-8" />
-                    <span className="font-headline text-xl font-bold text-primary">LandHare</span>
+                    <span className="font-headline text-xl font-bold text-title">LandHare</span>
                   </Link>
                 </div>
 
