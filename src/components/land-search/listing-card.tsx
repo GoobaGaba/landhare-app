@@ -118,7 +118,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                             />
                         </div>
                     </TooltipTrigger>
-                    <TooltipContent side="right"><p>Boosted Listing (Premium Feature)</p></TooltipContent>
+                    <TooltipContent side="right"><p>Boosted Listing (Premium)</p></TooltipContent>
                 </Tooltip>
             </TooltipProvider>
           )}
@@ -255,7 +255,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                             />
                         </div>
                     </TooltipTrigger>
-                    <TooltipContent side="right"><p>Boosted Listing (Premium Feature)</p></TooltipContent>
+                    <TooltipContent side="right"><p>Boosted Listing (Premium)</p></TooltipContent>
                 </Tooltip>
             </TooltipProvider>
           )}
