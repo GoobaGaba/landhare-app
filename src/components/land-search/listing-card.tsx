@@ -111,7 +111,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md">
+                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md cursor-default">
                             <TrendingUp
                                 className={cn("text-premium-foreground", isCompact ? "h-3 w-3" : "h-4 w-4")}
                                 strokeWidth={3}
@@ -157,10 +157,10 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
                 {listing.pricingModel === 'lease-to-own' && (
                   <TooltipProvider delayDuration={100}>
                     <Tooltip>
-                      <TooltipTrigger>
-                        <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-help">LTO</Badge>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="ml-2 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-default">LTO</Badge>
                       </TooltipTrigger>
-                      <TooltipContent><p>Lease to own</p></TooltipContent>
+                      <TooltipContent side="right"><p>Lease to own</p></TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
@@ -248,7 +248,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md">
+                        <div className="absolute top-2 left-2 z-10 bg-premium/80 text-premium-foreground p-1.5 rounded-full shadow-md cursor-default">
                             <TrendingUp
                                 className={cn("text-premium-foreground", isCompact ? "h-3 w-3" : "h-4 w-4")}
                                 strokeWidth={3}
@@ -263,11 +263,11 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-help", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
+                  <Badge variant="outline" className={cn("absolute top-2 right-2 z-10 text-xs bg-premium text-premium-foreground border-premium/80 tracking-wide cursor-default", isCompact ? "px-1.5 py-0.5 text-[0.6rem]" : "px-2 py-0.5")}>
                     <Sparkles className="mr-1 h-2.5 w-2.5"/>LTO
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent><p>Lease to own</p></TooltipContent>
+                <TooltipContent side="right"><p>Lease to own</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -332,3 +332,5 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     </Card>
   );
 }
+
+    
