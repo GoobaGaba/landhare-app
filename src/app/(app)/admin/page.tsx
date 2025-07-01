@@ -6,10 +6,11 @@ import { useAuth } from '@/contexts/auth-context';
 import { getPlatformMetrics, runBotSimulationCycle, ADMIN_UIDS } from '@/lib/mock-data';
 import type { PlatformMetrics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle, Rocket } from 'lucide-react';
+import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle, Rocket, FlaskConical, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LaunchChecklist } from '@/components/admin/launch-checklist';
+import Link from 'next/link';
 
 
 export default function AdminDashboardPage() {
@@ -171,6 +172,20 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary"/>Landhare Backtest BETA</CardTitle>
+          <CardDescription>
+            An interactive tool to simulate business strategies and backtest economic models over time. Adjust variables and see their impact on a dynamic graph.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Button asChild>
+                <Link href="/admin/backtest">Launch Backtest Tool <ExternalLink className="ml-2 h-4 w-4" /></Link>
+            </Button>
+        </CardContent>
+      </Card>
 
 
       <Card>
