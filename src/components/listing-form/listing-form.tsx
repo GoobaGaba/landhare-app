@@ -309,6 +309,16 @@ export function ListingForm() {
   };
 
   const onSubmit = async (data: ListingFormData) => {
+    if (!isLocationVerified) {
+        toast({
+            title: "Location Not Verified",
+            description: "Please click the 'Verify' button next to the location to confirm its position on the map before creating the listing.",
+            variant: "destructive",
+            duration: 7000,
+        });
+        return; // Block submission
+    }
+
     if (authLoading || !currentUser?.uid) {
       toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" }); return;
     }
@@ -338,7 +348,7 @@ export function ListingForm() {
         minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
       };
       
-      const newListing = await addListing(newListingPayload, subscriptionStatus === 'premium');
+      const newListing = await addListing(newListingPayload);
       
       setSubmissionSuccess({ message: `Listing "${data.title}" created successfully!`, listingId: newListing.id });
       toast({ title: "Success!", description: `Listing "${data.title}" created!`, action: <ToastAction altText="View Listing" onClick={() => router.push(`/listings/${newListing.id}`)}>View</ToastAction> });

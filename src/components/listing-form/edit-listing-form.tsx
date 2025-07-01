@@ -316,6 +316,16 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
 
   const onSubmit = async (data: EditListingFormData) => {
+    if (!isLocationVerified) {
+        toast({
+            title: "Location Not Verified",
+            description: "Please click the 'Verify' button to confirm the new location on the map before saving your changes.",
+            variant: "destructive",
+            duration: 7000,
+        });
+        return; // Block submission
+    }
+    
     if (!currentUser?.uid || currentUser.uid !== listing.landownerId) {
       setSubmissionError("You are not authorized to edit this listing.");
       return;
