@@ -58,19 +58,6 @@ export default function AboutPage() {
         </div>
       </div>
 
-       <Card className="shadow-md bg-green-100 dark:bg-green-900/30 border-green-500 mb-12">
-          <CardHeader>
-              <CardTitle className="text-xl text-green-800 dark:text-green-200 flex items-center gap-2">
-                  <ShieldCheck className="h-6 w-6"/> Build Integrity Check
-              </CardTitle>
-          </CardHeader>
-          <CardContent className="text-green-700 dark:text-green-300">
-              <p>
-                  If you can see this card, it means the `tsconfig.json` fix was successful. The build process correctly ignored the duplicate `workspace` directory, and we can now safely edit pages without causing parallel route errors.
-              </p>
-          </CardContent>
-       </Card>
-
        <Card className="shadow-md bg-muted/40">
         <CardHeader>
             <CardTitle>Join Us on Our Journey</CardTitle>
