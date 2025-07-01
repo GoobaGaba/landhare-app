@@ -56,8 +56,8 @@ const editListingFormSchema = z.object({
   location: z.string().min(3, "Location is required."),
   lat: z.number().optional(),
   lng: z.number().optional(),
-  sizeSqft: z.coerce.number().positive("Size must be a positive number."),
-  price: z.coerce.number().positive("Price must be a positive number."),
+  sizeSqft: z.coerce.number().positive("Size must be a positive number.").min(1, "Size must be a positive number."),
+  price: z.coerce.number().positive("Price must be a positive number.").min(1, "Price must be a positive number."),
   pricingModel: z.enum(['nightly', 'monthly', 'lease-to-own']),
   leaseToOwnDetails: z.string().optional(),
   downPayment: z.coerce.number().positive("Down payment must be a positive number.").optional(),
@@ -454,7 +454,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
             </div>
 
-            <div><Label htmlFor="sizeSqft">Size (sq ft)</Label><Input id="sizeSqft" type="number" min="0" {...register('sizeSqft')} />{errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}</div>
+            <div><Label htmlFor="sizeSqft">Size (sq ft)</Label><Input id="sizeSqft" type="number" min="1" {...register('sizeSqft')} />{errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}</div>
 
           <div>
             <Label>Images ({imagePreviews.length} / {imageUploadLimit})</Label>
@@ -516,7 +516,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           <div>
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
-              <Input id="price" type="number" min="0" {...register('price')} className="flex-grow" />
+              <Input id="price" type="number" min="1" {...register('price')} className="flex-grow" />
               {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || isMockModeNoUser} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
@@ -539,7 +539,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           {watchedPricingModel !== 'lease-to-own' && watchedLeaseTerm !== 'flexible' && (
             <div>
               <Label htmlFor="minLeaseDurationMonths">{minStayLabel}</Label>
-              <Input id="minLeaseDurationMonths" type="number" min="0" placeholder="e.g., 1, 3, 12" {...register('minLeaseDurationMonths')} />
+              <Input id="minLeaseDurationMonths" type="number" min="1" placeholder={watchedPricingModel === 'nightly' ? "e.g., 2" : "e.g., 1, 6, 12"} {...register('minLeaseDurationMonths')} />
               {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
             </div>
           )}
@@ -571,8 +571,10 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
 
           <Alert variant="default" className="mt-4 bg-muted/40">
             <Percent className="h-4 w-4" />
-            <AlertTitle className="text-sm font-medium">Service Fee Transparency</AlertTitle>
+            <AlertTitle className="text-sm font-medium">Trust and Transparency</AlertTitle>
             <AlertDescription className="text-xs">
+              Always free to post a listing. Service fee only applied when a listing is booked and paid for.
+              <br />
               Landowner payouts have a service fee. 
               <span className={cn(subscriptionStatus === 'premium' && 'font-bold text-premium')}> Premium: 0.49%</span> | 
               <span className={cn(subscriptionStatus === 'standard' && 'font-bold text-primary')}> Standard: 2%</span>.
