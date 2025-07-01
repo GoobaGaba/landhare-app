@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown, MapPin } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown, MapPin, Droplets, UtilityPole, SquareDashedBottom, Dog, Wifi, Waves, Flame } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
@@ -35,15 +35,15 @@ import { cn } from '@/lib/utils';
 
 
 const amenitiesList = [
-  { id: 'water hookup', label: 'Water Hookup' },
-  { id: 'power access', label: 'Power Access' },
-  { id: 'septic system', label: 'Septic System' },
-  { id: 'road access', label: 'Road Access' },
-  { id: 'fenced', label: 'Fenced' },
-  { id: 'wifi available', label: 'Wi-Fi Available' },
-  { id: 'pet friendly', label: 'Pet Friendly'},
-  { id: 'lake access', label: 'Lake Access'},
-  { id: 'fire pit', label: 'Fire Pit'},
+  { id: 'water hookup', label: 'Water Hookup', icon: Droplets },
+  { id: 'power access', label: 'Power Access', icon: UtilityPole },
+  { id: 'septic system', label: 'Septic System', icon: Trash2 },
+  { id: 'road access', label: 'Road Access', icon: MapPin },
+  { id: 'fenced', label: 'Fenced', icon: SquareDashedBottom },
+  { id: 'pet friendly', label: 'Pet Friendly', icon: Dog },
+  { id: 'wifi available', label: 'Wi-Fi Available', icon: Wifi },
+  { id: 'lake access', label: 'Lake Access', icon: Waves },
+  { id: 'fire pit', label: 'Fire Pit', icon: Flame },
 ];
 
 const MAX_IMAGES = 10; // Premium users can upload more
@@ -340,14 +340,24 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             finalImageUrls = [`https://placehold.co/800x600.png?text=${encodeURIComponent(data.title)}`];
         }
 
-        const updateData: Partial<Listing> = {
+        let leaseTerm = data.leaseTerm;
+        if (data.pricingModel === 'nightly') leaseTerm = 'short-term';
+        if (data.pricingModel === 'lease-to-own') leaseTerm = 'flexible';
+
+        const updatePayload: Partial<Listing> = {
             ...data,
             images: finalImageUrls,
-            downPayment: data.downPayment || undefined,
-            minLeaseDurationMonths: (data.leaseTerm !== 'flexible' && data.minLeaseDurationMonths && Number.isInteger(data.minLeaseDurationMonths) && data.minLeaseDurationMonths > 0) ? data.minLeaseDurationMonths : undefined,
+            leaseTerm: leaseTerm,
         };
         
-        await dbUpdateListing(listing.id, updateData);
+        // Critical: Remove undefined keys before sending to Firestore
+        Object.keys(updatePayload).forEach(key => {
+            if (updatePayload[key as keyof typeof updatePayload] === undefined) {
+                delete updatePayload[key as keyof typeof updatePayload];
+            }
+        });
+        
+        await dbUpdateListing(listing.id, updatePayload);
         
         toast({ title: "Success!", description: `Listing "${data.title}" updated successfully!` });
         setSubmissionSuccess(true);
@@ -362,6 +372,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
   };
   
   const priceLabel = watchedPricingModel === 'nightly' ? "Price per Night ($)" : watchedPricingModel === 'monthly' ? "Price per Month ($)" : "Est. Monthly Payment ($) for LTO";
+  const minStayLabel = watchedPricingModel === 'nightly' ? "Minimum Stay (Nights)" : "Minimum Lease (Months)";
 
   return (
     <Card className="w-full max-w-2xl mx-auto my-8">
@@ -443,7 +454,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
             </div>
 
-            <div><Label htmlFor="sizeSqft">Size (sq ft)</Label><Input id="sizeSqft" type="number" {...register('sizeSqft')} />{errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}</div>
+            <div><Label htmlFor="sizeSqft">Size (sq ft)</Label><Input id="sizeSqft" type="number" min="0" {...register('sizeSqft')} />{errors.sizeSqft && <p className="text-sm text-destructive mt-1">{errors.sizeSqft.message}</p>}</div>
 
           <div>
             <Label>Images ({imagePreviews.length} / {imageUploadLimit})</Label>
@@ -496,7 +507,7 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
                 </div>
                  <div>
                     <Label htmlFor="downPayment">Down Payment ($)</Label>
-                    <Input id="downPayment" type="number" {...register('downPayment')} placeholder="e.g., 5000" />
+                    <Input id="downPayment" type="number" min="0" {...register('downPayment')} placeholder="e.g., 5000" />
                     {errors.downPayment && <p className="text-sm text-destructive mt-1">{errors.downPayment.message}</p>}
                 </div>
             </div>
@@ -505,29 +516,43 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
           <div>
             <Label htmlFor="price">{priceLabel}</Label>
             <div className="flex items-center gap-2">
-              <Input id="price" type="number" {...register('price')} className="flex-grow" />
+              <Input id="price" type="number" min="0" {...register('price')} className="flex-grow" />
               {watchedPricingModel !== 'lease-to-own' && <Button type="button" variant="outline" size="icon" onClick={handleSuggestPrice} disabled={isAiLoading || !watchedLocation || !watchedSizeSqft || (watchedSizeSqft != null && watchedSizeSqft <= 0) || isMockModeNoUser} title="Suggest Price"><Sparkles className="h-4 w-4 text-accent" /></Button>}
             </div>
             {errors.price && <p className="text-sm text-destructive mt-1">{errors.price.message}</p>}
             {priceSuggestion && watchedPricingModel !== 'lease-to-own' && <Alert className="mt-2"><Info className="h-4 w-4" /><AlertTitle>AI Suggested: ${priceSuggestion.suggestedPrice.toFixed(0)}/month</AlertTitle><AlertDescription><p className="text-xs">{priceSuggestion.reasoning}</p><Button type="button" size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => setValue('price', parseFloat(priceSuggestion.suggestedPrice.toFixed(0)), {shouldDirty: true})}>Use</Button></AlertDescription></Alert>}
           </div>
 
-          <div><Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Lease Term Options</Label><Controller name="leaseTerm" control={control} render={({ field }) => (
-                <RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short-edit" /><Label htmlFor="term-short-edit" className="font-normal">Short Term (&lt; 6 mo)</Label></div>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long-edit" /><Label htmlFor="term-long-edit" className="font-normal">Long Term (6+ mo)</Label></div>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible-edit" /><Label htmlFor="term-flexible-edit" className="font-normal">Flexible</Label></div>
-                </RadioGroup>)} />{errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
-          </div>
+          {watchedPricingModel !== 'nightly' && watchedPricingModel !== 'lease-to-own' && (
+            <div>
+              <Label className="flex items-center mb-2"><CalendarClock className="h-4 w-4 mr-2 text-primary" /> Duration options (LTO included)</Label>
+              <Controller name="leaseTerm" control={control} render={({ field }) => (
+                  <RadioGroup onValueChange={(value) => { field.onChange(value); if (value === 'flexible') setValue('minLeaseDurationMonths', null, {shouldDirty: isDirty}); }} value={field.value || 'flexible'} className="space-y-1 p-2 border rounded-md">
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="short-term" id="term-short-edit" /><Label htmlFor="term-short-edit" className="font-normal">Short Term (30 days)</Label></div>
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="long-term" id="term-long-edit" /><Label htmlFor="term-long-edit" className="font-normal">Long Term (1+ month)</Label></div>
+                      <div className="flex items-center space-x-2"><RadioGroupItem value="flexible" id="term-flexible-edit" /><Label htmlFor="term-flexible-edit" className="font-normal">Flexible (Open to any duration, incl. LTO)</Label></div>
+                  </RadioGroup>)} />
+              {errors.leaseTerm && <p className="text-sm text-destructive mt-1">{errors.leaseTerm.message}</p>}
+            </div>
+          )}
 
-          {watchedLeaseTerm && watchedLeaseTerm !== 'flexible' && (
-            <div><Label htmlFor="minLeaseDurationMonths">Min. Lease (Months)</Label><Input id="minLeaseDurationMonths" type="number" {...register('minLeaseDurationMonths')} />{errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}</div>
+          {watchedPricingModel !== 'lease-to-own' && watchedLeaseTerm !== 'flexible' && (
+            <div>
+              <Label htmlFor="minLeaseDurationMonths">{minStayLabel}</Label>
+              <Input id="minLeaseDurationMonths" type="number" min="0" placeholder="e.g., 1, 3, 12" {...register('minLeaseDurationMonths')} />
+              {errors.minLeaseDurationMonths && <p className="text-sm text-destructive mt-1">{errors.minLeaseDurationMonths.message}</p>}
+            </div>
           )}
           
           <div><Label>Amenities</Label><Controller name="amenities" control={control} render={({ field }) => (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2 p-4 border rounded-md">
                   {amenitiesList.map(amenity => (<div key={amenity.id} className="flex items-center space-x-2">
-                      <Checkbox id={`amenity-${amenity.id}-edit`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} /><Label htmlFor={`amenity-${amenity.id}-edit`} className="font-normal">{amenity.label}</Label></div>))}
+                      <Checkbox id={`amenity-${amenity.id}-edit`} checked={field.value?.includes(amenity.id)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), amenity.id] : (field.value || []).filter(v => v !== amenity.id))} />
+                      <Label htmlFor={`amenity-${amenity.id}-edit`} className="font-normal flex items-center gap-2">
+                        <amenity.icon className="h-4 w-4 text-muted-foreground" />
+                        {amenity.label}
+                      </Label>
+                      </div>))}
                 </div>)} />{errors.amenities && <p className="text-sm text-destructive mt-1">{errors.amenities[0]?.message}</p>}
           </div>
           
@@ -543,6 +568,17 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
             <Label htmlFor="isAvailable-edit" className="cursor-pointer">Make this listing available for booking</Label>
             {errors.isAvailable && <p className="text-sm text-destructive mt-1">{errors.isAvailable.message}</p>}
           </div>
+
+          <Alert variant="default" className="mt-4 bg-muted/40">
+            <Percent className="h-4 w-4" />
+            <AlertTitle className="text-sm font-medium">Service Fee Transparency</AlertTitle>
+            <AlertDescription className="text-xs">
+              Landowner payouts have a service fee. 
+              <span className={cn(subscriptionStatus === 'premium' && 'font-bold text-premium')}> Premium: 0.49%</span> | 
+              <span className={cn(subscriptionStatus === 'standard' && 'font-bold text-primary')}> Standard: 2%</span>.
+              <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more</Link>
+            </AlertDescription>
+          </Alert>
 
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">
