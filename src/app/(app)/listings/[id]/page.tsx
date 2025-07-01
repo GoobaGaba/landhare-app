@@ -408,7 +408,7 @@ export default function ListingDetailPage() {
               <CardTitle className="text-2xl flex items-center font-headline">
                 <Star className="h-6 w-6 mr-2 text-yellow-400 fill-yellow-400" />
                 Reviews ({listing.numberOfRatings || reviews.length})
-                {listing.rating !== undefined && <span className="ml-2 text-xl font-bold text-muted-foreground">{listing.rating.toFixed(1)}/5</span>}
+                {listing.rating != null && <span className="ml-2 text-xl font-bold text-muted-foreground">{listing.rating.toFixed(1)}/5</span>}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
