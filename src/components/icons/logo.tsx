@@ -11,6 +11,7 @@ export function Logo({ className }: { className?: string }) {
         alt="LandHare Logo"
         fill
         className="object-contain" // 'contain' ensures the logo's aspect ratio is preserved without cropping.
+        sizes="40px"
         priority // Tells Next.js to load the logo early as it's a critical visual element.
       />
     </div>
