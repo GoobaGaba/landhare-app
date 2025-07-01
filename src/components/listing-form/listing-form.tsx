@@ -458,7 +458,7 @@ export function ListingForm() {
                     Verify
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Verify location to ensure it shows up correctly on the map.</p>
+              <p className="text-xs text-muted-foreground mt-1">You must verify your location to ensure it appears on the map correctly.</p>
               {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
             </div>
 
