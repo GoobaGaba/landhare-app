@@ -8,10 +8,12 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank, Calendar, Clock, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
 
 type SimulationDataPoint = {
   month: number;
@@ -30,14 +32,18 @@ const defaultValues = {
   userGrowthRate: 5, // % per month
   churnRate: 2, // % per month
   monthlyActiveUsers: 80, // % of total users
-  // Revenue
+  // Revenue: Subscriptions
   premiumSubscriptionPrice: 5, // $/month
-  premiumConversionRate: 2, // % of MAU to subscription
-  avgBookingValue: 150, // $
-  bookingsPerUserPerMonth: 0.1, // i.e., 10% of active users book each month
+  premiumConversionRate: 2, // % of total users to subscription
+  // Revenue: Marketplace Service Fees
+  avgNightlyRate: 50, // $
+  avgBookingNights: 3,
+  shortTermBookingsPerMau: 0.1, // 10% of MAUs book a short-term stay each month
+  avgMonthlyLeaseValue: 300, // $
+  longTermLeasesPerMau: 0.01, // 1% of MAUs start a new long-term lease each month
   standardLandownerFee: 2.0, // %
   premiumLandownerFee: 0.49, // %
-  premiumLandownerRatio: 10, // % of landowners who are premium
+  premiumLandownerRatio: 10, // % of bookings are from premium landowners
   // Costs
   cac: 1.0, // Customer Acquisition Cost per new user
   fixedCosts: 500, // $/month
@@ -54,7 +60,8 @@ const presets = {
     name: "Aggressive Growth",
     userGrowthRate: 20,
     premiumConversionRate: 4,
-    bookingsPerUserPerMonth: 0.15,
+    shortTermBookingsPerMau: 0.15,
+    longTermLeasesPerMau: 0.02,
     fixedCosts: 2000,
     cac: 2.5,
     marketVolatility: 15,
@@ -64,7 +71,7 @@ const presets = {
     name: "Lean Bootstrapping",
     userGrowthRate: 2,
     premiumConversionRate: 1.5,
-    bookingsPerUserPerMonth: 0.05,
+    shortTermBookingsPerMau: 0.05,
     standardLandownerFee: 3.0,
     premiumLandownerFee: 1.0,
     fixedCosts: 250,
@@ -76,7 +83,8 @@ const presets = {
     name: "Subscription-Focused",
     premiumSubscriptionPrice: 10,
     premiumConversionRate: 5,
-    bookingsPerUserPerMonth: 0.05,
+    shortTermBookingsPerMau: 0.05,
+    longTermLeasesPerMau: 0.005,
     standardLandownerFee: 1.5,
     premiumLandownerFee: 0.25,
     marketVolatility: 8,
@@ -86,7 +94,8 @@ const presets = {
       name: "Marketplace-Focused",
       premiumSubscriptionPrice: 2,
       premiumConversionRate: 1,
-      bookingsPerUserPerMonth: 0.2,
+      shortTermBookingsPerMau: 0.2,
+      longTermLeasesPerMau: 0.015,
       standardLandownerFee: 3.5,
       premiumLandownerFee: 1.5,
       marketVolatility: 10,
@@ -142,21 +151,27 @@ export function BacktestSimulator() {
     const totalUsers = lastPoint.users + newUsers - churnedUsers;
     const activeUsers = totalUsers * (params.monthlyActiveUsers / 100);
 
-    // Subscription Revenue
+    // --- Subscription Revenue ---
     const premiumUsers = totalUsers * (params.premiumConversionRate / 100);
     const subscriptionRevenue = premiumUsers * params.premiumSubscriptionPrice;
 
-    // Service Fee Revenue
-    const totalBookings = activeUsers * params.bookingsPerUserPerMonth;
+    // --- Marketplace Service Fee Revenue ---
+    // Short-Term Rentals
+    const grossShortTermValue = activeUsers * params.shortTermBookingsPerMau * params.avgNightlyRate * params.avgBookingNights;
+    // Long-Term Leases
+    const grossLongTermValue = activeUsers * params.longTermLeasesPerMau * params.avgMonthlyLeaseValue;
+    // Total gross value processed by the marketplace
+    const totalBookingGrossValue = grossShortTermValue + grossLongTermValue;
+    // Weighted average service fee
     const standardFeeRate = params.standardLandownerFee / 100;
     const premiumFeeRate = params.premiumLandownerFee / 100;
     const premiumRatio = params.premiumLandownerRatio / 100;
     const avgServiceFeeRate = (premiumRatio * premiumFeeRate) + ((1 - premiumRatio) * standardFeeRate);
-    const serviceFeeRevenue = totalBookings * params.avgBookingValue * avgServiceFeeRate;
+    const serviceFeeRevenue = totalBookingGrossValue * avgServiceFeeRate;
     
     const revenue = subscriptionRevenue + serviceFeeRevenue;
     
-    // Costs
+    // --- Costs ---
     const acquisitionCosts = newUsers * params.cac;
     const totalVariableCosts = totalUsers * params.variableCostPerUser;
     const totalCosts = acquisitionCosts + params.fixedCosts + totalVariableCosts;
@@ -188,10 +203,18 @@ export function BacktestSimulator() {
     const monthlyChurnRate = params.churnRate / 100;
     if (monthlyChurnRate <= 0) return { ltv: Infinity, cac: params.cac, ratio: Infinity, breakEvenMonth: -1 };
     
-    const avgMonthlySubRevenuePerUser = params.premiumSubscriptionPrice * (params.premiumConversionRate / 100) * (params.monthlyActiveUsers / 100);
+    // --- Average Revenue Per User (ARPU) calculation ---
+    const mauRatio = params.monthlyActiveUsers / 100;
+    // Subscription part of ARPU
+    const avgMonthlySubRevenuePerUser = params.premiumSubscriptionPrice * (params.premiumConversionRate / 100);
+
+    // Marketplace part of ARPU
+    const grossShortTermPerMau = params.shortTermBookingsPerMau * params.avgNightlyRate * params.avgBookingNights;
+    const grossLongTermPerMau = params.longTermLeasesPerMau * params.avgMonthlyLeaseValue;
     const avgServiceFeeRate = ((params.premiumLandownerRatio / 100) * (params.premiumLandownerFee / 100)) + ((1 - params.premiumLandownerRatio / 100) * (params.standardLandownerFee / 100));
-    const avgMonthlyBookingRevenuePerUser = params.bookingsPerUserPerMonth * params.avgBookingValue * avgServiceFeeRate;
-    const arpu = (avgMonthlySubRevenuePerUser + avgMonthlyBookingRevenuePerUser) * (params.monthlyActiveUsers / 100);
+    const avgMonthlyMarketplaceFeePerMau = (grossShortTermPerMau + grossLongTermPerMau) * avgServiceFeeRate;
+    
+    const arpu = avgMonthlySubRevenuePerUser + (avgMonthlyMarketplaceFeePerMau * mauRatio);
     
     const grossMargin = 1 - (params.variableCostPerUser / (arpu > 0 ? arpu : 1));
     const ltv = (arpu * grossMargin) / monthlyChurnRate;
@@ -303,7 +326,7 @@ export function BacktestSimulator() {
 
   return (
     <TooltipProvider>
-    <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-1 space-y-6">
         <Card><CardHeader><CardTitle>Simulation Controls</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -315,55 +338,66 @@ export function BacktestSimulator() {
              <div className="grid grid-cols-2 gap-4"><div><Label htmlFor="speed">Sim Speed</Label><Select defaultValue="500" onValueChange={val => simulationSpeedRef.current = parseInt(val, 10)} disabled={isAnnualView}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1000">Slow</SelectItem><SelectItem value="500">Normal</SelectItem><SelectItem value="200">Fast</SelectItem><SelectItem value="50">Very Fast</SelectItem></SelectContent></Select></div><div><Label htmlFor="granularity">View</Label><Select value={displayGranularity} onValueChange={(v) => {pauseSimulation(); setDisplayGranularity(v as any)}}><SelectTrigger id="granularity"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="annual">Annual</SelectItem></SelectContent></Select></div></div>
           </CardContent>
         </Card>
-
-        <Card><CardHeader><CardTitle>KPI Dashboard</CardTitle></CardHeader>
-           <CardContent className="grid grid-cols-2 gap-4">
-              {renderKpiCard("CAC", Target, `$${kpiData.cac.toFixed(2)}`, "Customer Acquisition Cost: The average cost to acquire one new user.")}
-              {renderKpiCard("LTV", PiggyBank, isFinite(kpiData.ltv) ? `$${kpiData.ltv.toFixed(2)}` : '∞', "Customer Lifetime Value: The total net profit you can expect from a single customer over their entire time on the platform.")}
-              {renderKpiCard("LTV:CAC Ratio", Ratio, isFinite(kpiData.ratio) ? `${kpiData.ratio.toFixed(2)} : 1` : '∞', "The ratio of LTV to CAC. A healthy business model typically has a ratio of 3:1 or higher.", kpiData.ratio < 1 ? 'text-destructive' : kpiData.ratio >= 3 ? 'text-primary' : '')}
-              {renderKpiCard("Break-Even", Landmark, kpiData.breakEvenMonth > 0 ? `Month ${kpiData.breakEvenMonth}` : 'N/A', "The month where cumulative profit turns positive.")}
-           </CardContent>
-        </Card>
-
+        
         <Card><CardHeader><CardTitle>Preset Scenarios</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-2">
             {Object.values(presets).map(p => (<Button key={p.name} variant={params.name === p.name ? "secondary" : "outline"} onClick={() => handlePresetChange(p.name)}>{p.name}</Button>))}
           </CardContent>
         </Card>
-      </div>
-      
-      <div className="lg:col-span-1 space-y-6">
-         <Card><CardHeader><CardTitle>Growth & Churn</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {renderSliderInputWithTooltip("Initial Users", Users, 'initialUsers', 0, 1000, 10, "The starting number of users at Month 0.")}
-              {renderSliderInputWithTooltip("User Growth Rate", TrendingUp, 'userGrowthRate', 0, 50, 1, "The percentage of new users gained each month, based on the current total user count.", "%/mo")}
-              {renderSliderInputWithTooltip("Churn Rate", TrendingDown, 'churnRate', 0, 20, 0.5, "The percentage of total users who leave the platform each month. Higher churn negatively impacts growth and LTV.", "%/mo")}
-              {renderSliderInputWithTooltip("Monthly Active Users", Users, 'monthlyActiveUsers', 0, 100, 5, "The percentage of your total users who are considered 'active' each month and can contribute to revenue.", "% total")}
-           </CardContent>
-         </Card>
-          <Card><CardHeader><CardTitle>Costs & Market</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {renderSliderInputWithTooltip("Acquisition Cost (CAC)", Target, 'cac', 0, 10, 0.1, "The cost to acquire one new user (e.g., marketing spend).", "$/user")}
-              {renderSliderInputWithTooltip("Fixed Costs", Briefcase, 'fixedCosts', 0, 10000, 100, "Your fixed monthly expenses that don't change with user count (e.g., salaries, rent).", "$/mo")}
-              {renderSliderInputWithTooltip("Variable Cost per User", LandPlot, 'variableCostPerUser', 0, 5, 0.05, "Costs that scale with your total user base (e.g., server usage, support).", "$/user/mo")}
-              {renderSliderInputWithTooltip("Market Volatility", Zap, 'marketVolatility', 0, 50, 1, "Introduces a random fluctuation to the User Growth Rate each month to simulate market noise.", "%")}
-              {renderSliderInputWithTooltip("Tax Rate", Shield, 'taxRate', 0, 100, 1, "The tax rate applied to any profits generated.", "%")}
-           </CardContent>
-         </Card>
+
+        <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4']} className="w-full">
+            <AccordionItem value="item-1">
+                <AccordionTrigger>Growth & Churn</AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                    {renderSliderInputWithTooltip("Initial Users", Users, 'initialUsers', 0, 1000, 10, "The starting number of users at Month 0.")}
+                    {renderSliderInputWithTooltip("User Growth Rate", TrendingUp, 'userGrowthRate', 0, 50, 1, "The percentage of new users gained each month, based on the current total user count.", "%/mo")}
+                    {renderSliderInputWithTooltip("Churn Rate", TrendingDown, 'churnRate', 0, 20, 0.5, "The percentage of total users who leave the platform each month. Higher churn negatively impacts growth and LTV.", "%/mo")}
+                    {renderSliderInputWithTooltip("Monthly Active Users", Users, 'monthlyActiveUsers', 0, 100, 5, "The percentage of your total users who are considered 'active' and can contribute to revenue each month.", "% total")}
+                </AccordionContent>
+            </AccordionItem>
+             <AccordionItem value="item-2">
+                <AccordionTrigger>Revenue Model</AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-premium"/>Subscription Revenue</h4>
+                    {renderSliderInputWithTooltip("Premium Sub Price", DollarSign, 'premiumSubscriptionPrice', 0, 100, 1, "The monthly price for your premium subscription tier.", "$/mo")}
+                    {renderSliderInputWithTooltip("Premium Conversion Rate", Percent, 'premiumConversionRate', 0, 20, 0.5, "The percentage of your total users who subscribe to the premium plan.", "% total")}
+                    
+                    <h4 className="text-sm font-semibold text-muted-foreground pt-2 border-t flex items-center gap-2"><Landmark className="h-4 w-4 text-primary"/>Marketplace Revenue</h4>
+                    {renderSliderInputWithTooltip("Standard Fee", Percent, 'standardLandownerFee', 0, 10, 0.25, "The service fee percentage charged to standard (non-premium) landowners on their payouts.", "%")}
+                    {renderSliderInputWithTooltip("Premium Fee", Percent, 'premiumLandownerFee', 0, 10, 0.01, "The discounted service fee percentage charged to premium landowners on their payouts.", "%")}
+                    {renderSliderInputWithTooltip("Premium Landowner Ratio", Users, 'premiumLandownerRatio', 0, 100, 5, "The estimated percentage of bookings that come from premium landowners, who pay the lower service fee.", "%")}
+
+                    <h5 className="text-xs font-semibold text-muted-foreground pt-2 border-t flex items-center gap-2"><Clock className="h-3 w-3"/>Short-Term Rentals</h5>
+                     {renderSliderInputWithTooltip("Avg. Nightly Rate", DollarSign, 'avgNightlyRate', 0, 500, 5, "The average price per night for a short-term rental.", "$/night")}
+                     {renderSliderInputWithTooltip("Avg. Booking Length", Calendar, 'avgBookingNights', 1, 30, 1, "The average number of nights for a short-term rental booking.", "nights")}
+                     {renderSliderInputWithTooltip("Bookings per MAU/Mo", Ratio, 'shortTermBookingsPerMau', 0, 1, 0.01, "The average number of short-term bookings a single 'Monthly Active User' (MAU) makes per month.")}
+
+                     <h5 className="text-xs font-semibold text-muted-foreground pt-2 border-t flex items-center gap-2"><Calendar className="h-3 w-3"/>Long-Term Leases</h5>
+                     {renderSliderInputWithTooltip("Avg. Monthly Lease", DollarSign, 'avgMonthlyLeaseValue', 0, 2000, 50, "The average value of a monthly long-term lease.", "$/mo")}
+                     {renderSliderInputWithTooltip("Leases per MAU/Mo", Ratio, 'longTermLeasesPerMau', 0, 0.1, 0.005, "The percentage of 'Monthly Active Users' (MAU) who initiate a new long-term lease each month.")}
+
+                </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-3">
+                <AccordionTrigger>Costs & Market</AccordionTrigger>
+                <AccordionContent className="space-y-4">
+                    {renderSliderInputWithTooltip("Acquisition Cost (CAC)", Target, 'cac', 0, 10, 0.1, "The cost to acquire one new user (e.g., marketing spend).", "$/user")}
+                    {renderSliderInputWithTooltip("Fixed Costs", Briefcase, 'fixedCosts', 0, 10000, 100, "Your fixed monthly expenses that don't change with user count (e.g., salaries, rent).", "$/mo")}
+                    {renderSliderInputWithTooltip("Variable Cost per User", LandPlot, 'variableCostPerUser', 0, 5, 0.05, "Costs that scale with your total user base (e.g., server usage, support).", "$/user/mo")}
+                    {renderSliderInputWithTooltip("Market Volatility", Zap, 'marketVolatility', 0, 50, 1, "Introduces a random fluctuation to the User Growth Rate each month to simulate market noise.", "%")}
+                    {renderSliderInputWithTooltip("Tax Rate", Shield, 'taxRate', 0, 100, 1, "The tax rate applied to any profits generated.", "%")}
+                </AccordionContent>
+            </AccordionItem>
+        </Accordion>
       </div>
 
-      <div className="lg:col-span-1 xl:col-span-2 space-y-6">
-        <Card><CardHeader><CardTitle>Revenue Model</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-              <h4 className="text-sm font-semibold text-muted-foreground">Subscription Revenue</h4>
-              {renderSliderInputWithTooltip("Premium Sub Price", DollarSign, 'premiumSubscriptionPrice', 0, 100, 1, "The monthly price for your premium subscription tier.", "$/mo")}
-              {renderSliderInputWithTooltip("Premium Conversion Rate", Percent, 'premiumConversionRate', 0, 20, 0.5, "The percentage of your total users who subscribe to the premium plan.", "% total")}
-              <h4 className="text-sm font-semibold text-muted-foreground pt-2 border-t">Service Fee Revenue</h4>
-              {renderSliderInputWithTooltip("Avg. Booking Value", Landmark, 'avgBookingValue', 0, 2000, 50, "Simulates the average transaction value of a single land booking. Use this to test your fee structure based on real-world average rental rates.", "$")}
-              {renderSliderInputWithTooltip("Bookings per MAU/Mo", Ratio, 'bookingsPerUserPerMonth', 0, 1, 0.01, "The average number of bookings a single 'Monthly Active User' makes per month. E.g., 0.1 means 10% of MAUs book each month.")}
-              {renderSliderInputWithTooltip("Standard Fee", Percent, 'standardLandownerFee', 0, 10, 0.25, "The service fee percentage charged to standard (non-premium) landowners on their payouts.", "%")}
-              {renderSliderInputWithTooltip("Premium Fee", Percent, 'premiumLandownerFee', 0, 10, 0.01, "The discounted service fee percentage charged to premium landowners on their payouts.", "%")}
-              {renderSliderInputWithTooltip("Premium Landowner Ratio", Users, 'premiumLandownerRatio', 0, 100, 5, "The estimated percentage of bookings that come from premium landowners, who pay the lower service fee.", "%")}
+      <div className="lg:col-span-2 space-y-6">
+        <Card><CardHeader><CardTitle>KPI Dashboard</CardTitle></CardHeader>
+           <CardContent className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              {renderKpiCard("CAC", Target, `$${kpiData.cac.toFixed(2)}`, "Customer Acquisition Cost: The average cost to acquire one new user.")}
+              {renderKpiCard("LTV", PiggyBank, isFinite(kpiData.ltv) ? `$${kpiData.ltv.toFixed(2)}` : '∞', "Customer Lifetime Value: The total net profit you can expect from a single customer over their entire time on the platform.")}
+              {renderKpiCard("LTV:CAC Ratio", Ratio, isFinite(kpiData.ratio) ? `${kpiData.ratio.toFixed(2)} : 1` : '∞', "The ratio of LTV to CAC. A healthy business model typically has a ratio of 3:1 or higher.", kpiData.ratio < 1 ? 'text-destructive' : kpiData.ratio >= 3 ? 'text-green-600' : '')}
+              {renderKpiCard("Break-Even", Landmark, kpiData.breakEvenMonth > 0 ? `Month ${kpiData.breakEvenMonth}` : 'N/A', "The month where cumulative profit turns positive.")}
            </CardContent>
         </Card>
       
@@ -381,10 +415,10 @@ export function BacktestSimulator() {
                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Users', angle: 90, position: 'insideRight', dx: 10, fontSize: '12px' }} tickFormatter={(value) => value.toLocaleString()} />
                    <Tooltip content={<CustomChartTooltip isAnnualView={isAnnualView} />} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                    <Legend />
-                   <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} name="Revenue" />
+                   <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="hsl(var(--premium-feature-h), var(--premium-feature-s), var(--premium-feature-l))" strokeWidth={2} dot={false} name="Revenue" />
                    <Line yAxisId="left" type="monotone" dataKey="costs" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} name="Costs"/>
                    <Line yAxisId="left" type="monotone" dataKey="profit" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} name="Profit"/>
-                   <Line yAxisId="right" type="monotone" dataKey="users" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} name="Total Users"/>
+                   <Line yAxisId="right" type="monotone" dataKey="users" stroke="hsl(200, 80%, 70%)" strokeWidth={2} dot={false} name="Total Users"/>
                  </LineChart>
                </ResponsiveContainer>
             </div>
