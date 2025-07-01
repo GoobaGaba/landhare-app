@@ -43,6 +43,28 @@ export default function AppHeader() {
       toast({ title: 'Logout Failed', description: 'Could not log you out. Please try again.', variant: 'destructive' });
     }
   };
+  
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const searchQuery = formData.get('q') as string;
+    if (searchQuery.trim()) {
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+  
+   const handleMobileSearchSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+        const searchQuery = event.currentTarget.value;
+        if (searchQuery.trim()) {
+             router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+             // Find and click the close button of the sheet
+            const closeButton = event.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement;
+            closeButton?.click();
+        }
+    }
+  };
+
 
   const userNavLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -73,15 +95,15 @@ export default function AppHeader() {
 
         {/* Center Part (Desktop): Search Bar + Browse + List your Land */}
         <div className="hidden md:flex items-center justify-center gap-3 flex-1 min-w-0 px-4">
-          <div className="relative w-full max-w-md">
+          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
+              name="q"
               placeholder="Search land (e.g., Willow Creek, CO)"
               className="pl-10 w-full h-10 bg-card focus-visible:ring-primary"
-              onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/search?q=${encodeURIComponent(e.currentTarget.value)}`); }}
             />
-          </div>
+          </form>
           <Button variant="ghost" className="h-10 px-4 text-muted-foreground hover:text-primary" asChild>
             <Link href="/search">
                 <Search className="mr-2 h-4 w-4 hidden lg:inline-block" /> Browse Land
@@ -187,15 +209,18 @@ export default function AppHeader() {
                 </div>
 
                 <div className="p-4">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search land..."
-                      className="pl-8 w-full bg-background h-10"
-                      onKeyDown={(e) => { if (e.key === 'Enter') { router.push(`/search?q=${encodeURIComponent(e.currentTarget.value)}`); (e.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click(); }}}
-                    />
-                  </div>
+                    <form onSubmit={(e) => { e.preventDefault(); handleMobileSearchSubmit({ key: 'Enter', currentTarget: e.currentTarget.q } as any); }}>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                            type="search"
+                            name="q"
+                            placeholder="Search land..."
+                            className="pl-8 w-full bg-background h-10"
+                            onKeyDown={handleMobileSearchSubmit}
+                            />
+                        </div>
+                    </form>
                 </div>
 
                 <nav className="flex flex-col gap-1 px-4 flex-grow">

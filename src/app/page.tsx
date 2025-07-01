@@ -227,13 +227,13 @@ export default function HomePage() {
             Join LandShare today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground" asChild>
+            <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105" asChild>
               <Link href="/search">Start Searching Now</Link>
             </Button>
-            <Button size="lg" variant="secondary" asChild>
+            <Button size="lg" variant="secondary" asChild className="transition-transform hover:scale-105">
                <Link href={currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`}>Become a Host</Link>
             </Button>
-            <Button size="lg" asChild className="bg-premium hover:bg-premium/90 text-premium-foreground">
+            <Button size="lg" asChild className="bg-premium hover:bg-premium/90 text-premium-foreground transition-transform hover:scale-105">
               <Link href="/pricing"><Crown className="mr-2 h-5 w-5" /> Explore Premium</Link>
             </Button>
           </div>
