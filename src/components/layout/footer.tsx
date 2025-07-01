@@ -4,22 +4,24 @@ import { Logo } from '@/components/icons/logo';
 export default function AppFooter() {
   return (
     <footer className="border-t bg-background">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
-                <Logo className="h-8 w-8"/>
-            </div>
-            <nav className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                <Link href="/about" className="hover:text-primary transition-colors">About Us</Link>
-                <Link href="/contact" className="hover:text-primary transition-colors">Contact</Link>
-                <Link href="/safety" className="hover:text-primary transition-colors">Safety</Link>
-                <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
-                <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-            </nav>
+      <div className="container mx-auto px-4 py-3 relative flex items-center justify-between">
+        {/* Left: Logo */}
+        <div className="flex-shrink-0">
+          <Logo className="h-8 w-8" />
         </div>
-        <div className="mt-4 pt-4 border-t text-center text-xs text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} LandHare. All Rights Reserved.</p>
-            <p className="mt-1">Disrupting housing, one plot at a time.</p>
+        
+        {/* Center: Nav links (absolutely positioned for true centering) */}
+        <nav className="hidden md:flex flex-wrap justify-center items-center gap-x-4 text-sm text-muted-foreground absolute left-1/2 -translate-x-1/2">
+          <Link href="/about" className="hover:text-primary transition-colors">About Us</Link>
+          <Link href="/contact" className="hover:text-primary transition-colors">Contact</Link>
+          <Link href="/safety" className="hover:text-primary transition-colors">Safety</Link>
+          <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+          <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+        </nav>
+        
+        {/* Right: Copyright text */}
+        <div className="text-xs text-muted-foreground text-right w-full md:w-auto">
+          <p>&copy; {new Date().getFullYear()} LandHare. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
