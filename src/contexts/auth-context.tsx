@@ -299,6 +299,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return userWithProfile;
     } catch (err) {
       const firebaseErr = err as AuthError;
+      // Enhanced error logging
+      console.error("Google Sign-In Raw Error:", firebaseErr);
+
       let title = "Google Sign-In Failed";
       let description = "An unexpected error occurred. Please try again or contact support.";
 
@@ -318,6 +321,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           case 'auth/account-exists-with-different-credential':
               title = "Account Exists";
               description = "An account with this email already exists but was created with a different sign-in method (e.g., email/password). Please sign in using your original method.";
+              break;
+          case 'auth/argument-error':
+              title = "Configuration Error";
+              description = "There's a configuration problem with the authentication request. This often means a project setting is incorrect. Please double-check your Firebase project setup.";
               break;
           default:
               description = firebaseErr.message || description;

@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useId } from 'react';
 import { useRouter, usePathname, useParams } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,6 +92,10 @@ export default function ListingDetailPage() {
   const [showReviewPlaceholderDialog, setShowReviewPlaceholderDialog] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
+
+  // Accessibility IDs
+  const bookingDialogTitleId = useId();
+  const bookingDialogDescriptionId = useId();
 
   // Data Fetching Effect
   useEffect(() => {
@@ -259,7 +263,7 @@ export default function ListingDetailPage() {
         listingId: listing.id,
         renterId: currentUser.uid,
         landownerId: listing.landownerId,
-        dateRange: !dateRange?.from || !dateRange.to
+        dateRange: !dateRange?.from || !dateRange?.to
           ? { from: new Timestamp(new Date().getTime() / 1000, 0), to: new Timestamp(addDays(new Date(), (listing.minLeaseDurationMonths || 1) * 30).getTime() / 1000, 0) }
           : { from: Timestamp.fromDate(dateRange.from), to: Timestamp.fromDate(dateRange.to) },
       };
@@ -615,12 +619,12 @@ export default function ListingDetailPage() {
       </div>
 
       <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <DialogContent>
+        <DialogContent aria-labelledby={bookingDialogTitleId} aria-describedby={bookingDialogDescriptionId}>
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle id={bookingDialogTitleId}>
                 {listing.pricingModel === 'lease-to-own' ? "Confirm Your Inquiry" : "Confirm Your Booking Request"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription id={bookingDialogDescriptionId}>
                Please review the details for "{listing.title}". This will send a request to the landowner for confirmation.
             </DialogDescription>
           </DialogHeader>
