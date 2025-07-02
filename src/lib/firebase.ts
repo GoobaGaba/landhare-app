@@ -52,40 +52,42 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
+// --- DIAGNOSTIC LOG ---
+if (typeof window !== 'undefined') {
+  console.log(
+    '%c[DIAGNOSTIC] Firebase Environment Check:',
+    'color: blue; font-weight: bold;',
+    {
+      'NEXT_PUBLIC_FIREBASE_API_KEY (Status)':
+        !apiKey ? 'MISSING/UNDEFINED' : (apiKey.includes('AIzaSy') && apiKey.length > 15 ? `Found (starts with ${apiKey.substring(0, 8)}...)` : 'INVALID OR PLACEHOLDER'),
+      'NEXT_PUBLIC_FIREBASE_PROJECT_ID': process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'MISSING/UNDEFINED',
+    }
+  );
+}
+// --- END DIAGNOSTIC LOG ---
+
 // Proactive check to see if the API key is missing or is a placeholder.
-const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.includes("PLACEHOLDER");
+const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.length < 20;
 
 if (isApiKeyEffectivelyMissing) {
   const warningMessage = `
   ***************************************************************************************************
-  ** WARNING: FIREBASE CLIENT-SIDE CONFIG ISSUE DETECTED                                           **
+  ** WARNING: FIREBASE CONFIGURATION ERROR                                                         **
   **-----------------------------------------------------------------------------------------------**
-  ** The 'NEXT_PUBLIC_FIREBASE_API_KEY' is MISSING, UNDEFINED, or still a PLACEHOLDER.             **
-  ** Firebase features (like Authentication and Firestore) will be DISABLED until this is corrected. **
+  ** The 'NEXT_PUBLIC_FIREBASE_API_KEY' is MISSING or INVALID in your environment.                 **
+  ** The app is running in OFFLINE/MOCK mode. Real authentication and database features are OFF.   **
   **                                                                                               **
-  ** TO FIX THIS (these steps are crucial and MUST be done by YOU in YOUR local environment):      **
-  ** 1. CREATE/VERIFY '.env.local' FILE:                                                           **
-  **    - Ensure a file named EXACTLY '.env.local' exists in the ROOT directory of your project.   **
-  **    - This is NOT '.env'. It MUST be '.env.local'.                                             **
-  ** 2. CHECK VARIABLE NAME & VALUE:                                                               **
-  **    - Inside '.env.local', copy the keys from '.env.example' and fill in your values.          **
-  **    - The value for 'NEXT_PUBLIC_FIREBASE_API_KEY' MUST be your ACTUAL API key.                **
-  **    - DO NOT use placeholder values like "AIzaSy...".                                          **
-  ** 3. RESTART DEVELOPMENT SERVER:                                                                **
-  **    - FULLY RESTART your Next.js server (Ctrl+C, then 'npm run dev') after ANY changes        **
-  **      to '.env.local'. Next.js loads these variables only at startup.                          **
-  **                                                                                               **
-  ** The app will continue to run in a mock mode, but real Firebase functionality is disabled.     **
+  ** TO FIX THIS:                                                                                  **
+  ** 1. CHECK YOUR '.env.local' FILE in the project root. Ensure it exists and has no typos.       **
+  ** 2. VERIFY YOUR KEYS are copied correctly from your Firebase project settings.                 **
+  ** 3. >>> RESTART THE SERVER <<< This step is ESSENTIAL. Next.js only reads .env.local on startup.**
+  **    (Click STOP, then RUN at the top of the editor).                                           **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
-  } else {
-    // This message will appear in the server logs during build/startup if the key is missing.
-    console.warn("FIREBASE SERVER-SIDE WARNING: NEXT_PUBLIC_FIREBASE_API_KEY is missing or a placeholder. This will disable client-side Firebase features. Please check your .env.local file and restart the server.");
   }
-  // Set the error message that the rest of the app can use to enter a safe "mock" mode.
-  firebaseInitializationError = "Firebase API Key is missing or a placeholder. Firebase features are disabled.";
+  firebaseInitializationError = "Firebase API Key is missing or invalid. App is in offline mode.";
 } else {
   // Only attempt to initialize Firebase if the API key looks valid.
   try {
