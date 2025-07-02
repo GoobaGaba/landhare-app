@@ -17,44 +17,49 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
-const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
+// This flag determines if we are running in a local, mocked environment.
+export let isPrototypeMode = false;
 
-const areAnyKeysMissing = Object.values(firebaseConfig).some(value => !value || String(value).includes('...'));
+// Check if any required Firebase configuration keys are missing or placeholders.
+// This is the primary trigger for enabling prototype/mock mode.
+const areAnyKeysMissing = Object.values(firebaseConfig).some(
+  (value) => !value || String(value).includes('YOUR_')
+);
 
-if (forceMockMode) {
-  firebaseInitializationError = "Mock mode is forcefully enabled.";
-} else if (areAnyKeysMissing) {
+if (areAnyKeysMissing) {
   const warningMessage = `
   ***************************************************************************************************
-  ** WARNING: FIREBASE CONFIGURATION ERROR                                                         **
+  ** PROTOTYPE MODE ENABLED                                                                        **
   **-----------------------------------------------------------------------------------------------**
-  ** One or more 'NEXT_PUBLIC_FIREBASE_*' keys are MISSING or INVALID in your environment.         **
-  ** The app is running in OFFLINE/MOCK mode. Real authentication and database features are OFF.   **
-  **                                                                                               **
-  ** TO FIX THIS:                                                                                  **
-  ** 1. CHECK YOUR '.env.local' FILE in the project root. Ensure it exists and has no typos.       **
-  ** 2. VERIFY ALL KEYS are copied correctly from your Firebase project settings.                  **
-  ** 3. >>> RESTART THE SERVER <<< This step is ESSENTIAL. Next.js only reads .env.local on startup.**
-  **    (Click STOP, then RUN at the top of the editor).                                           **
+  ** Firebase keys are missing or are placeholders. The app is running in OFFLINE/MOCK mode.       **
+  ** This is expected for local development if you haven't set up your .env.local file.            **
+  ** Live features like real authentication will be disabled.                                      **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   }
-  firebaseInitializationError = "One or more Firebase config keys are missing. App is in offline mode.";
+  firebaseInitializationError = "Firebase keys missing; app in offline mode.";
+  isPrototypeMode = true;
+
 } else {
+  // If all keys are present, attempt to initialize Firebase services.
   try {
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
     authInstance = initializeAuth(appInstance, {
-      persistence: browserLocalPersistence
+      persistence: browserLocalPersistence,
     });
     firestoreInstance = getFirestore(appInstance);
+    console.log("[DIAGNOSTIC] Firebase services initialized successfully.");
+    isPrototypeMode = false;
+
   } catch (error: any) {
     console.error("Firebase Core App Initialization FAILED:", error);
-    firebaseInitializationError = `Firebase Core App Initialization Failed: ${error.message || "Unknown error."}. Check all config keys.`;
+    firebaseInitializationError = `Firebase Init Failed: ${error.message}.`;
     appInstance = null;
     authInstance = null;
     firestoreInstance = null;
+    isPrototypeMode = true; // Fallback to prototype mode on initialization failure.
   }
 }
 

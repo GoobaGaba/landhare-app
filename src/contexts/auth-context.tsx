@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: appProfileData?.createdAt || (firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date()),
         bio: appProfileData?.bio || '',
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
-        walletBalance: appProfileData?.walletBalance ?? 10000,
+        walletBalance: appProfileData?.walletBalance ?? 2500,
       };
       
       // We combine the Firebase user object with our application-specific profile.
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         subscriptionStatus: 'standard',
         createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date(),
         bookmarkedListingIds: [],
-        walletBalance: 10000,
+        walletBalance: 2500,
       };
       return { ...firebaseUser, appProfile: minimalAppProfile } as CurrentUser;
     }
