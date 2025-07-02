@@ -27,8 +27,6 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 //      (e.g., stop it with Ctrl+C and rerun `npm run dev`).
 //      Next.js only loads these variables at startup.
 //
-// If these are not set up correctly, Firebase initialization will fail,
-// typically with an "auth/invalid-api-key" error or similar.
 
 
 const firebaseConfig: FirebaseOptions = {
@@ -45,6 +43,9 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
+// --- New "Force Mock Mode" Flag ---
+const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
+
 // --- Comprehensive Diagnostic Check ---
 const configCheck = {
   apiKey: !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('...'),
@@ -57,27 +58,19 @@ const configCheck = {
 
 const areAnyKeysMissing = Object.values(configCheck).some(isMissing => isMissing);
 
-// Log diagnostic info to the console in a structured way
-if (typeof window !== 'undefined') {
-  console.groupCollapsed('%c[DIAGNOSTIC] Firebase Environment Check', 'color: blue; font-weight: bold;');
-  console.table({
-    'NEXT_PUBLIC_FIREBASE_API_KEY': firebaseConfig.apiKey || 'MISSING',
-    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN': firebaseConfig.authDomain || 'MISSING',
-    'NEXT_PUBLIC_FIREBASE_PROJECT_ID': firebaseConfig.projectId || 'MISSING',
-    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET': firebaseConfig.storageBucket || 'MISSING',
-    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID': firebaseConfig.messagingSenderId || 'MISSING',
-    'NEXT_PUBLIC_FIREBASE_APP_ID': firebaseConfig.appId || 'MISSING',
-  });
-  if (areAnyKeysMissing) {
-      console.error('One or more Firebase config keys are missing or invalid. Please check your .env.local file and restart the server.');
-  } else {
-      console.log('%cAll Firebase keys appear to be present.', 'color: green;');
+if (forceMockMode) {
+  if (typeof window !== 'undefined') {
+    console.warn(
+      `
+      ******************************************************************
+      ** MOCK MODE IS FORCEFULLY ENABLED VIA .env.local               **
+      ** App is running in OFFLINE mode. No connection to Firebase.   **
+      ******************************************************************
+      `
+    );
   }
-  console.groupEnd();
-}
-
-
-if (areAnyKeysMissing) {
+  firebaseInitializationError = "Mock mode is forcefully enabled.";
+} else if (areAnyKeysMissing) {
   const warningMessage = `
   ***************************************************************************************************
   ** WARNING: FIREBASE CONFIGURATION ERROR                                                         **
@@ -97,7 +90,7 @@ if (areAnyKeysMissing) {
   }
   firebaseInitializationError = "One or more Firebase config keys are missing. App is in offline mode.";
 } else {
-  // Only attempt to initialize Firebase if all keys look valid.
+  // Only attempt to initialize Firebase if all keys look valid and mock mode is not forced.
   try {
     // Step 1: Initialize the core App
     if (!getApps().length) {
