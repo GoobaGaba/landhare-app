@@ -10,19 +10,19 @@ runConfig:
   environmentVariables:
     # --- Google Service API Keys ---
     # This is the key for Firebase services (Auth, Firestore, Storage)
-    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_NEW_FIREBASE_SERVICES_KEY_HERE"
+    NEXT_PUBLIC_FIREBASE_API_KEY: "AIzaSyCXNCLdVOZd4rMkcuHvW-d2qDsiQWTpJDo"
 
     # This is the key for Google Maps Platform services (Maps, Geocoding)
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_NEW_GOOGLE_MAPS_KEY_HERE"
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "AIzaSyCccccIOCZwkrHKp9fgFid1r82yoX6ppZ4"
 
     # This is the key for Google AI / Gemini services
-    GEMINI_API_KEY: "YOUR_NEW_GEMINI_API_KEY_HERE"
+    GEMINI_API_KEY: "AIzaSyBDf3NQ9jnkwYXgMgf35i1rLZHztVpBn6o"
 
     # --- Firebase Project Configuration ---
     # These values identify your Firebase project. They are not secret keys.
     # Find them in your Firebase Console -> Project settings (gear icon) -> General tab -> Your apps -> Web app.
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_PROJECT_ID.firebaseapp.com"
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID"
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_PROJECT_ID.appspot.com"
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_MESSAGING_SENDER_ID"
-    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_WEB_APP_ID"
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "IDLandhare6569.firebaseapp.com"
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "IDLandhare6569"
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "IDLandhare6569.appspot.com"
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "800704761619"
+    NEXT_PUBLIC_FIREBASE_APP_ID: "IDLandhare6569"
