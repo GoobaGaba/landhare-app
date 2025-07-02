@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 
 export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';
@@ -41,7 +40,7 @@ export interface User {
   createdAt?: Date | Timestamp;
   subscriptionStatus?: SubscriptionStatus;
   bookmarkedListingIds?: string[];
-  walletBalance?: number;
+  walletBalance: number;
 }
 
 export interface Review {

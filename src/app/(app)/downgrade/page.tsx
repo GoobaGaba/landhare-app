@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -63,7 +62,7 @@ export default function DowngradePage() {
       
       toast({ title: "Listings Deleted", description: deleteResult.message });
       
-      const downgradeResult = await updateCurrentAppUserProfile({ subscriptionStatus: 'free' });
+      const downgradeResult = await updateCurrentAppUserProfile({ subscriptionStatus: 'standard' });
       if (downgradeResult) {
         toast({ title: "Downgrade Successful", description: "Your account is now on the Free tier." });
         router.push('/profile');
