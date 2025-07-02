@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,19 +16,17 @@ const firebaseConfig: FirebaseOptions = {
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
+let storageInstance = null;
 let firebaseInitializationError: string | null = null;
 
 // This flag determines if we are running in a local, mocked environment.
 export let isPrototypeMode = false;
 
 // Check if any required Firebase configuration keys are missing or placeholders.
-// This is the primary trigger for enabling prototype/mock mode.
 const areAnyKeysMissing = Object.values(firebaseConfig).some(
   (value) => !value || String(value).includes('YOUR_')
 );
 
-// We add an explicit override for developers to force mock mode if they have keys
-// but still want to test with the mock dataset.
 const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
 
 if (areAnyKeysMissing || forceMockMode) {
@@ -54,6 +53,7 @@ if (areAnyKeysMissing || forceMockMode) {
       persistence: browserLocalPersistence,
     });
     firestoreInstance = getFirestore(appInstance);
+    storageInstance = getStorage(appInstance);
     isPrototypeMode = false;
 
   } catch (error: any) {
@@ -62,8 +62,9 @@ if (areAnyKeysMissing || forceMockMode) {
     appInstance = null;
     authInstance = null;
     firestoreInstance = null;
+    storageInstance = null;
     isPrototypeMode = true; // Fallback to prototype mode on initialization failure.
   }
 }
 
-export { appInstance as app, authInstance as auth, firestoreInstance as db, firebaseInitializationError };
+export { appInstance as app, authInstance as auth, firestoreInstance as db, storageInstance as storage, firebaseInitializationError };
