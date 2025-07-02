@@ -299,17 +299,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return userWithProfile;
     } catch (err) {
       const firebaseErr = err as AuthError;
-      if (firebaseErr.code === 'auth/operation-not-allowed') {
-        const helpfulError = "Google Sign-In is not enabled for this project. Please enable it in your Firebase Authentication settings.";
-        setAuthError(helpfulError);
-        toast({ title: "Configuration Error", description: helpfulError, variant: "destructive", duration: 8000 });
-      } else if (firebaseErr.code === 'auth/popup-closed-by-user') {
-        setAuthError("Sign-in process cancelled by user.");
-      } else if (firebaseErr.code === 'auth/account-exists-with-different-credential') {
-        setAuthError("An account already exists with this email. Try signing in with the original method.");
-      } else {
-        setAuthError(firebaseErr.message || "Error during Google sign in.");
+      let title = "Google Sign-In Failed";
+      let description = "An unexpected error occurred. Please try again or contact support.";
+
+      switch (firebaseErr.code) {
+          case 'auth/operation-not-allowed':
+              title = "Configuration Error";
+              description = "Google Sign-In is not enabled for this project. Please go to the Firebase Console -> Authentication -> Sign-in method, and enable the Google provider.";
+              break;
+          case 'auth/popup-closed-by-user':
+              title = "Sign-In Cancelled";
+              description = "You closed the Google Sign-In pop-up before completing the process.";
+              break;
+          case 'auth/unauthorized-domain':
+              title = "Configuration Error";
+              description = "This app's domain is not authorized for Google Sign-In. Please add it to the 'Authorized domains' list in your Firebase Authentication settings.";
+              break;
+          case 'auth/account-exists-with-different-credential':
+              title = "Account Exists";
+              description = "An account with this email already exists but was created with a different sign-in method (e.g., email/password). Please sign in using your original method.";
+              break;
+          default:
+              description = firebaseErr.message || description;
+              break;
       }
+      
+      setAuthError(description);
+      toast({ title, description, variant: 'destructive', duration: 9000 });
       setLoading(false);
       throw firebaseErr;
     }
