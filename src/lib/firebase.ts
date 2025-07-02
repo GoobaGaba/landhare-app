@@ -31,20 +31,13 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 // typically with an "auth/invalid-api-key" error or similar.
 
 
-const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
 const firebaseConfig: FirebaseOptions = {
-  apiKey: apiKey,
-  authDomain: authDomain,
-  projectId: projectId,
-  storageBucket: storageBucket,
-  messagingSenderId: messagingSenderId,
-  appId: appId,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 let appInstance: FirebaseApp | null = null;
@@ -52,34 +45,49 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
-// --- DIAGNOSTIC LOG ---
+// --- Comprehensive Diagnostic Check ---
+const configCheck = {
+  apiKey: !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('...'),
+  authDomain: !firebaseConfig.authDomain || firebaseConfig.authDomain.includes('...'),
+  projectId: !firebaseConfig.projectId || firebaseConfig.projectId.includes('...'),
+  storageBucket: !firebaseConfig.storageBucket || firebaseConfig.storageBucket.includes('...'),
+  messagingSenderId: !firebaseConfig.messagingSenderId || firebaseConfig.messagingSenderId.includes('...'),
+  appId: !firebaseConfig.appId || firebaseConfig.appId.includes('...'),
+};
+
+const areAnyKeysMissing = Object.values(configCheck).some(isMissing => isMissing);
+
+// Log diagnostic info to the console in a structured way
 if (typeof window !== 'undefined') {
-  console.log(
-    '%c[DIAGNOSTIC] Firebase Environment Check:',
-    'color: blue; font-weight: bold;',
-    {
-      'NEXT_PUBLIC_FIREBASE_API_KEY (Status)':
-        !apiKey ? 'MISSING/UNDEFINED' : (apiKey.includes('AIzaSy') && apiKey.length > 15 ? `Found (starts with ${apiKey.substring(0, 8)}...)` : 'INVALID OR PLACEHOLDER'),
-      'NEXT_PUBLIC_FIREBASE_PROJECT_ID': process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'MISSING/UNDEFINED',
-    }
-  );
+  console.groupCollapsed('%c[DIAGNOSTIC] Firebase Environment Check', 'color: blue; font-weight: bold;');
+  console.table({
+    'NEXT_PUBLIC_FIREBASE_API_KEY': firebaseConfig.apiKey || 'MISSING',
+    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN': firebaseConfig.authDomain || 'MISSING',
+    'NEXT_PUBLIC_FIREBASE_PROJECT_ID': firebaseConfig.projectId || 'MISSING',
+    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET': firebaseConfig.storageBucket || 'MISSING',
+    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID': firebaseConfig.messagingSenderId || 'MISSING',
+    'NEXT_PUBLIC_FIREBASE_APP_ID': firebaseConfig.appId || 'MISSING',
+  });
+  if (areAnyKeysMissing) {
+      console.error('One or more Firebase config keys are missing or invalid. Please check your .env.local file and restart the server.');
+  } else {
+      console.log('%cAll Firebase keys appear to be present.', 'color: green;');
+  }
+  console.groupEnd();
 }
-// --- END DIAGNOSTIC LOG ---
 
-// Proactive check to see if the API key is missing or is a placeholder.
-const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.length < 20;
 
-if (isApiKeyEffectivelyMissing) {
+if (areAnyKeysMissing) {
   const warningMessage = `
   ***************************************************************************************************
   ** WARNING: FIREBASE CONFIGURATION ERROR                                                         **
   **-----------------------------------------------------------------------------------------------**
-  ** The 'NEXT_PUBLIC_FIREBASE_API_KEY' is MISSING or INVALID in your environment.                 **
+  ** One or more 'NEXT_PUBLIC_FIREBASE_*' keys are MISSING or INVALID in your environment.         **
   ** The app is running in OFFLINE/MOCK mode. Real authentication and database features are OFF.   **
   **                                                                                               **
   ** TO FIX THIS:                                                                                  **
   ** 1. CHECK YOUR '.env.local' FILE in the project root. Ensure it exists and has no typos.       **
-  ** 2. VERIFY YOUR KEYS are copied correctly from your Firebase project settings.                 **
+  ** 2. VERIFY ALL KEYS are copied correctly from your Firebase project settings.                  **
   ** 3. >>> RESTART THE SERVER <<< This step is ESSENTIAL. Next.js only reads .env.local on startup.**
   **    (Click STOP, then RUN at the top of the editor).                                           **
   ***************************************************************************************************
@@ -87,9 +95,9 @@ if (isApiKeyEffectivelyMissing) {
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   }
-  firebaseInitializationError = "Firebase API Key is missing or invalid. App is in offline mode.";
+  firebaseInitializationError = "One or more Firebase config keys are missing. App is in offline mode.";
 } else {
-  // Only attempt to initialize Firebase if the API key looks valid.
+  // Only attempt to initialize Firebase if all keys look valid.
   try {
     if (!getApps().length) {
       appInstance = initializeApp(firebaseConfig);
