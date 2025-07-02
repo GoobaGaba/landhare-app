@@ -291,10 +291,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(firebaseAuthInstance, provider);
-      const userWithProfile = await fetchAndSetAppProfile(result.user);
-      setCurrentUser(userWithProfile);
-      setLoading(false);
-      return userWithProfile;
+      // The onAuthStateChanged listener will handle fetching the profile and setting the state.
+      // This ensures that whether it's a new or existing user, the appProfile is created/fetched correctly.
+      return null;
     } catch (err) {
       const firebaseErr = err as AuthError;
       let title = "Google Sign-In Failed";

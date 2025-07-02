@@ -657,7 +657,3 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
     const presetRef = doc(firestoreDb, 'admin_state', 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
-
-    
-
-    

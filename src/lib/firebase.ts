@@ -26,20 +26,24 @@ const areAnyKeysMissing = Object.values(firebaseConfig).some(
   (value) => !value || String(value).includes('YOUR_')
 );
 
-if (areAnyKeysMissing) {
+// We add an explicit override for developers to force mock mode if they have keys
+// but still want to test with the mock dataset.
+const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
+
+if (areAnyKeysMissing || forceMockMode) {
+  const reason = areAnyKeysMissing ? "Firebase keys missing or placeholders" : "NEXT_PUBLIC_FORCE_MOCK_MODE is true";
   const warningMessage = `
   ***************************************************************************************************
   ** PROTOTYPE MODE ENABLED                                                                        **
   **-----------------------------------------------------------------------------------------------**
-  ** Firebase keys are missing or are placeholders. The app is running in OFFLINE/MOCK mode.       **
-  ** This is expected for local development if you haven't set up your .env.local file.            **
+  ** Reason: ${reason}. The app is running in OFFLINE/MOCK mode.                                   **
   ** Live features like real authentication will be disabled.                                      **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   }
-  firebaseInitializationError = "Firebase keys missing; app in offline mode.";
+  firebaseInitializationError = "App in offline/prototype mode.";
   isPrototypeMode = true;
 
 } else {
@@ -50,7 +54,6 @@ if (areAnyKeysMissing) {
       persistence: browserLocalPersistence,
     });
     firestoreInstance = getFirestore(appInstance);
-    console.log("[DIAGNOSTIC] Firebase services initialized successfully.");
     isPrototypeMode = false;
 
   } catch (error: any) {
