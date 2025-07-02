@@ -8,11 +8,14 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank, Calendar, Clock, Sparkles } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank, Calendar, Clock, Sparkles, Save, Trash2, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useToast } from '@/hooks/use-toast';
+import { getBacktestPresets, saveBacktestPreset, deleteBacktestPreset } from '@/lib/mock-data';
+import type { BacktestPreset } from '@/lib/types';
 
 
 type SimulationDataPoint = {
@@ -131,14 +134,77 @@ const CustomChartTooltip = ({ active, payload, label, isAnnualView }: any) => {
 
 
 export function BacktestSimulator() {
+  const { toast } = useToast();
   const [isRunning, setIsRunning] = useState(false);
   const [history, setHistory] = useState<SimulationDataPoint[]>([]);
   const [currentMonth, setCurrentMonth] = useState(0);
   const [params, setParams] = useState(defaultValues);
   const [displayGranularity, setDisplayGranularity] = useState<'monthly' | 'annual'>('monthly');
   
+  const [savedPresets, setSavedPresets] = useState<BacktestPreset[]>([]);
+  const [isLoadingPresets, setIsLoadingPresets] = useState(true);
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [presetName, setPresetName] = useState("");
+  
   const simulationSpeedRef = useRef(500);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchPresets = useCallback(async () => {
+    setIsLoadingPresets(true);
+    try {
+        const presetsFromDb = await getBacktestPresets();
+        setSavedPresets(presetsFromDb);
+    } catch (error: any) {
+        toast({ title: "Error Loading Presets", description: error.message, variant: "destructive"});
+    } finally {
+        setIsLoadingPresets(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchPresets();
+  }, [fetchPresets]);
+
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) {
+        toast({ title: "Preset Name Required", description: "Please enter a name for your preset.", variant: "destructive" });
+        return;
+    }
+    setIsSavingPreset(true);
+    try {
+        const newPreset: Omit<BacktestPreset, 'id'> = {
+            name: presetName,
+            parameters: { ...params, name: presetName },
+            createdAt: new Date(),
+        };
+        await saveBacktestPreset(newPreset);
+        toast({ title: "Preset Saved", description: `"${presetName}" has been saved.`});
+        setPresetName("");
+        await fetchPresets(); // Refresh list
+    } catch (error: any) {
+        toast({ title: "Error Saving Preset", description: error.message, variant: "destructive" });
+    } finally {
+        setIsSavingPreset(false);
+    }
+  };
+
+  const handleDeletePreset = async (presetId: string) => {
+    try {
+      await deleteBacktestPreset(presetId);
+      toast({ title: "Preset Deleted" });
+      await fetchPresets(); // Refresh list
+    } catch (error: any) {
+      toast({ title: "Error Deleting Preset", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const loadPreset = (preset: BacktestPreset) => {
+    setParams(preset.parameters);
+    setPresetName(preset.name);
+    handleReset();
+    toast({ title: "Preset Loaded", description: `Loaded "${preset.name}".`});
+  };
 
   const runSimulationStep = useCallback((prevHistory: SimulationDataPoint[]) => {
     const lastPoint = prevHistory[prevHistory.length - 1] || { month: 0, users: params.initialUsers, revenue: 0, costs: 0, profit: 0, subscriptionRevenue: 0, serviceFeeRevenue: 0 };
@@ -203,19 +269,13 @@ export function BacktestSimulator() {
     const monthlyChurnRate = params.churnRate / 100;
     if (monthlyChurnRate <= 0) return { ltv: Infinity, cac: params.cac, ratio: Infinity, breakEvenMonth: -1 };
     
-    // --- Average Revenue Per User (ARPU) calculation ---
     const mauRatio = params.monthlyActiveUsers / 100;
-    // Subscription part of ARPU
     const avgMonthlySubRevenuePerUser = params.premiumSubscriptionPrice * (params.premiumConversionRate / 100);
-
-    // Marketplace part of ARPU
     const grossShortTermPerMau = params.shortTermBookingsPerMau * params.avgNightlyRate * params.avgBookingNights;
     const grossLongTermPerMau = params.longTermLeasesPerMau * params.avgMonthlyLeaseValue;
     const avgServiceFeeRate = ((params.premiumLandownerRatio / 100) * (params.premiumLandownerFee / 100)) + ((1 - params.premiumLandownerRatio / 100) * (params.standardLandownerFee / 100));
     const avgMonthlyMarketplaceFeePerMau = (grossShortTermPerMau + grossLongTermPerMau) * avgServiceFeeRate;
-    
     const arpu = avgMonthlySubRevenuePerUser + (avgMonthlyMarketplaceFeePerMau * mauRatio);
-    
     const grossMargin = 1 - (params.variableCostPerUser / (arpu > 0 ? arpu : 1));
     const ltv = (arpu * grossMargin) / monthlyChurnRate;
     const cac = params.cac;
@@ -230,7 +290,6 @@ export function BacktestSimulator() {
         break;
       }
     }
-
     return { ltv, cac, ratio, breakEvenMonth };
   }, [params, history]);
 
@@ -240,9 +299,7 @@ export function BacktestSimulator() {
     for (let i = 0; i < MAX_MONTHS; i += 12) {
       const yearSlice = history.slice(i, i + 12);
       if (yearSlice.length === 0) continue;
-      
       const lastMonthOfYear = yearSlice[yearSlice.length - 1];
-      
       yearlyData.push({
         month: lastMonthOfYear.month,
         year: (i / 12) + 1,
@@ -279,7 +336,7 @@ export function BacktestSimulator() {
 
   const handlePresetChange = (presetName: string) => {
     const preset = Object.values(presets).find(p => p.name === presetName);
-    if (preset) { setParams(preset); handleReset(); }
+    if (preset) { setParams(preset); setPresetName(preset.name); handleReset(); }
   };
 
   const handleExport = () => {
@@ -339,10 +396,39 @@ export function BacktestSimulator() {
           </CardContent>
         </Card>
         
-        <Card><CardHeader><CardTitle>Preset Scenarios</CardTitle></CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {Object.values(presets).map(p => (<Button key={p.name} variant={params.name === p.name ? "secondary" : "outline"} onClick={() => handlePresetChange(p.name)}>{p.name}</Button>))}
-          </CardContent>
+         <Card>
+            <CardHeader><CardTitle>Preset Management</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-1">
+                    <Label>Load Preset</Label>
+                    <div className="flex gap-2">
+                        <Select onValueChange={(id) => { const p = savedPresets.find(pr => pr.id === id); if (p) loadPreset(p); }} disabled={isLoadingPresets}>
+                            <SelectTrigger className="flex-grow">
+                                <SelectValue placeholder={isLoadingPresets ? "Loading presets..." : "Select a saved preset"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {savedPresets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                <Accordion type="single" collapsible className="w-full">
+                                    <AccordionItem value="built-in">
+                                        <AccordionTrigger className="text-xs px-2 py-1">Built-in Scenarios</AccordionTrigger>
+                                        <AccordionContent className="p-0">
+                                            {Object.values(presets).map(p => <SelectItem key={p.name} value={p.name} onMouseDown={() => handlePresetChange(p.name)}>{p.name}</SelectItem>)}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Accordion>
+                            </SelectContent>
+                        </Select>
+                         <Button variant="destructive" size="icon" onClick={() => handleDeletePreset(savedPresets.find(p => p.name === presetName)?.id || '')} disabled={!savedPresets.some(p => p.name === presetName)} title="Delete current preset"><Trash2 className="h-4 w-4"/></Button>
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <Label htmlFor="preset-name">Save Current as Preset</Label>
+                    <div className="flex gap-2">
+                        <Input id="preset-name" placeholder="Enter preset name..." value={presetName} onChange={(e) => setPresetName(e.target.value)} />
+                        <Button onClick={handleSavePreset} disabled={isSavingPreset} size="icon" title="Save preset">{isSavingPreset ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}</Button>
+                    </div>
+                </div>
+            </CardContent>
         </Card>
 
         <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4']} className="w-full">

@@ -1,6 +1,6 @@
 
 'use client';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { firebaseInitializationError, db as firestoreDb } from './firebase';
 import { 
@@ -35,6 +35,10 @@ interface MockDatabase {
   reviews: Review[];
   transactions: Transaction[];
   metrics: PlatformMetrics;
+  adminState: {
+    launchChecklist: { checkedItems: string[] };
+    backtestPresets: BacktestPreset[];
+  }
 }
 
 // --- MOCK USER DEFINITIONS ---
@@ -51,7 +55,8 @@ const getInitialData = (): MockDatabase => {
     const reviews = [ { id: 'review-1', listingId: 'listing-1-sunny-meadow', userId: 'renter-john-smith', userName: 'John Smith', rating: 5, comment: 'Absolutely loved this spot! Jane was a great host. The meadow is beautiful and well-kept.', createdAt: new Date('2023-07-01T10:00:00Z'), }, { id: 'review-2', listingId: 'listing-2-forest-retreat', userId: 'landowner-jane-doe', userName: 'Jane Doe', rating: 4, comment: 'Nice and secluded, a bit rough around the edges but has potential. Mock Tester was responsive.', createdAt: new Date('2023-12-01T11:00:00Z'), }, { id: 'review-3-nightly', listingId: 'listing-5-cozy-rv-spot', userId: 'renter-john-smith', userName: 'John Smith', rating: 5, comment: 'Amazing RV spot, beautiful views and all hookups worked perfectly. Will be back!', createdAt: new Date('2024-07-16T10:00:00Z'), }, { id: 'review-4-lto', listingId: 'listing-6-mountain-homestead-lto', userId: 'renter-john-smith', userName: 'John Smith', rating: 4, comment: 'Interesting LTO option. Land is raw but promising. Landowner (Admin) was helpful with initial info.', createdAt: new Date('2024-05-01T10:00:00Z'), }, { id: 'review-5-basic', listingId: 'listing-7-basic-rural-plot', userId: MOCK_USER_FOR_UI_TESTING.id, userName: MOCK_USER_FOR_UI_TESTING.name, rating: 2, comment: 'It truly is basic, but the price was right for what it is. No surprises. Good for minimalists.', createdAt: new Date('2024-06-10T10:00:00Z'), }, { id: 'review-6-riverside', listingId: 'listing-4-riverside-haven', userId: 'landowner-jane-doe', userName: 'Jane Doe', rating: 5, comment: 'A truly fantastic spot for a long-term lease. Host was accommodating. River access is a huge plus.', createdAt: new Date('2024-07-15T10:00:00Z'), }, ];
     const transactions = [ { id: 'txn1', userId: MOCK_GABE_ADMIN_USER.id, type: 'Subscription', status: 'Completed', amount: -5.00, currency: 'USD', date: new Date('2024-07-01T00:00:00Z'), description: 'Premium Subscription - July' }, { id: 'txn2', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 196.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot' }, { id: 'txn3', userId: MOCK_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -4.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (2%) for Forest Retreat Lot' }, { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot' }, { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee (2%) for Sunny Meadow Plot' }, { id: 'txn6', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Completed', amount: -2100.99, currency: 'USD', date: new Date('2023-12-15T00:00:00Z'), description: 'Payment for Sunny Meadow Plot (6 months)' }, { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot' }, ];
     const metrics: PlatformMetrics = { id: 'global_metrics', totalRevenue: 16.00, totalServiceFees: 11.00, totalSubscriptionRevenue: 5.00, totalUsers: users.length, totalListings: listings.length, totalBookings: bookings.length };
-    return { users, listings, bookings, reviews, transactions, metrics };
+    const adminState: MockDatabase['adminState'] = { launchChecklist: { checkedItems: [] }, backtestPresets: [] };
+    return { users, listings, bookings, reviews, transactions, metrics, adminState };
 };
 
 // --- MOCK MODE CORE DATABASE FUNCTIONS ---
@@ -69,6 +74,10 @@ function loadMockDb(): MockDatabase {
                     if (value) return new Date(value);
                 } return value;
             });
+            // Ensure adminState exists
+            if (!parsed.adminState) {
+                parsed.adminState = getInitialData().adminState;
+            }
             return parsed;
         }
     } catch (error) { console.error("Failed to load or parse mock DB from localStorage, resetting.", error); }
@@ -121,11 +130,12 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
+    const initialWalletBalance = ADMIN_UIDS.includes(userId) ? 10000 : 2500;
     if (firebaseInitializationError) {
         const db = loadMockDb();
         const existingUser = db.users.find(u => u.id === userId);
         if (existingUser) return existingUser;
-        const newUser: User = { id: userId, email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: new Date(), bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: 10000 };
+        const newUser: User = { id: userId, email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: new Date(), bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
         db.users.push(newUser);
         saveMockDb(db);
         return newUser;
@@ -135,7 +145,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     if (existingUserSnap.exists()) {
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: 10000 };
+    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
     await setDoc(userRef, newUser);
     return { ...newUser, id: userId, createdAt: new Date() };
 };
@@ -162,7 +172,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             const currentUserData = userSnap.data() as User;
             const newStatus = data.subscriptionStatus;
             
-            // Prevent changing to the same status
             if (currentUserData.subscriptionStatus === newStatus) return currentUserData;
 
             const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
@@ -543,7 +552,7 @@ export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
 export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
   // This will be migrated to create real Firestore data in Phase 2.
   const currentDb = loadMockDb();
-  const botUser: User = { id: `bot-${Date.now()}`, name: 'Simulated Bot', email: `bot${Date.now()}@example.com`, subscriptionStatus: 'standard', createdAt: new Date() };
+  const botUser: User = { id: `bot-${Date.now()}`, name: 'Simulated Bot', email: `bot${Date.now()}@example.com`, subscriptionStatus: 'standard', createdAt: new Date(), walletBalance: 2500 };
   currentDb.users.push(botUser);
   saveMockDb(currentDb);
   return { message: 'Ran a simple simulation cycle: created 1 new bot user.' };
@@ -582,12 +591,10 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
 export { MOCK_USER_FOR_UI_TESTING, MOCK_GOOGLE_USER_FOR_UI_TESTING, MOCK_GABE_ADMIN_USER };
 export const mockUsers = getInitialData().users;
 
-// Admin state for checklist
+// --- Admin State Functions (Checklist & Backtest Presets) ---
 export const getAdminChecklistState = async (): Promise<Set<string>> => {
     if (firebaseInitializationError) {
-        // This function is now only safe to call on the client-side for mock mode.
-        // The hook `useChecklistState` will handle this logic.
-        throw new Error("getAdminChecklistState should not be called directly in mock mode from a server component.");
+        return new Set(loadMockDb().adminState.launchChecklist.checkedItems);
     }
     const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     const docSnap = await getDoc(docRef);
@@ -599,11 +606,47 @@ export const getAdminChecklistState = async (): Promise<Set<string>> => {
 
 export const saveAdminChecklistState = async (checkedItems: Set<string>): Promise<void> => {
     if (firebaseInitializationError) {
-         if (typeof window !== 'undefined') {
-            localStorage.setItem('launchChecklist', JSON.stringify(Array.from(checkedItems)));
-        }
+         const db = loadMockDb();
+         db.adminState.launchChecklist.checkedItems = Array.from(checkedItems);
+         saveMockDb(db);
         return;
     }
     const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     await setDoc(docRef, { checkedItems: Array.from(checkedItems) });
+};
+
+export const getBacktestPresets = async (): Promise<BacktestPreset[]> => {
+    if (firebaseInitializationError) {
+        return loadMockDb().adminState.backtestPresets || [];
+    }
+    const presetsCollection = collection(firestoreDb, 'admin_state', 'backtest_presets');
+    const presetsSnap = await getDocs(presetsCollection);
+    return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d)).sort((a,b) => (a.name > b.name) ? 1 : -1);
+};
+
+export const saveBacktestPreset = async (preset: Omit<BacktestPreset, 'id'>): Promise<BacktestPreset> => {
+     if (firebaseInitializationError) {
+        const db = loadMockDb();
+        const newPreset = { ...preset, id: `preset-${Date.now()}` };
+        if (!db.adminState.backtestPresets) db.adminState.backtestPresets = [];
+        db.adminState.backtestPresets.push(newPreset);
+        saveMockDb(db);
+        return newPreset;
+    }
+    const presetsCollection = collection(firestoreDb, 'admin_state', 'backtest_presets');
+    const newDocRef = await addDoc(presetsCollection, { ...preset, createdAt: serverTimestamp() });
+    return { ...preset, id: newDocRef.id, createdAt: new Date() }
+};
+
+export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
+     if (firebaseInitializationError) {
+        const db = loadMockDb();
+        if (db.adminState.backtestPresets) {
+          db.adminState.backtestPresets = db.adminState.backtestPresets.filter(p => p.id !== presetId);
+          saveMockDb(db);
+        }
+        return;
+    }
+    const presetRef = doc(firestoreDb, 'admin_state', 'backtest_presets', presetId);
+    await deleteDoc(presetRef);
 };

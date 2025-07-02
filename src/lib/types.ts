@@ -192,3 +192,35 @@ export interface MarketInsightsData {
     supplyByPricingModel: { name: string; value: number, percent: string }[];
     demandByPricingModel: { name: string; value: number, percent: string }[];
 }
+
+// Type for the parameters stored in a backtest preset
+export interface BacktestParameters {
+  name: string;
+  initialUsers: number;
+  userGrowthRate: number;
+  churnRate: number;
+  monthlyActiveUsers: number;
+  premiumSubscriptionPrice: number;
+  premiumConversionRate: number;
+  avgNightlyRate: number;
+  avgBookingNights: number;
+  shortTermBookingsPerMau: number;
+  avgMonthlyLeaseValue: number;
+  longTermLeasesPerMau: number;
+  standardLandownerFee: number;
+  premiumLandownerFee: number;
+  premiumLandownerRatio: number;
+  cac: number;
+  fixedCosts: number;
+  variableCostPerUser: number;
+  marketVolatility: number;
+  taxRate: number;
+}
+
+// Type for the entire backtest preset object stored in Firestore
+export interface BacktestPreset {
+  id: string;
+  name: string;
+  parameters: BacktestParameters;
+  createdAt: Date | Timestamp;
+}
