@@ -1,4 +1,3 @@
-
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
@@ -9,11 +8,21 @@ runConfig:
   # These environment variables are available to your app's build and runtime.
   # They are the definitive source of truth for your LIVE, DEPLOYED application.
   environmentVariables:
-    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_FIREBASE_SERVICES_API_KEY_HERE"
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_AUTH_DOMAIN_HERE"
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID_HERE"
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_STORAGE_BUCKET_HERE"
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_MESSAGING_SENDER_ID_HERE"
-    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_APP_ID_HERE"
-    GEMINI_API_KEY: "YOUR_GEMINI_API_KEY_HERE"
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+    # --- Google Service API Keys ---
+    # This is the key for Firebase services (Auth, Firestore, Storage)
+    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_NEW_FIREBASE_SERVICES_KEY_HERE"
+
+    # This is the key for Google Maps Platform services (Maps, Geocoding)
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_NEW_GOOGLE_MAPS_KEY_HERE"
+
+    # This is the key for Google AI / Gemini services
+    GEMINI_API_KEY: "YOUR_NEW_GEMINI_API_KEY_HERE"
+
+    # --- Firebase Project Configuration ---
+    # These values identify your Firebase project. They are not secret keys.
+    # Find them in your Firebase Console -> Project settings (gear icon) -> General tab -> Your apps -> Web app.
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_PROJECT_ID.firebaseapp.com"
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID"
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_PROJECT_ID.appspot.com"
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_MESSAGING_SENDER_ID"
+    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_WEB_APP_ID"
