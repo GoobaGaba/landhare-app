@@ -624,39 +624,41 @@ export default function ListingDetailPage() {
                Please review the details for "{listing.title}". This will send a request to the landowner for confirmation.
             </DialogDescription>
           </DialogHeader>
-          {priceDetails && dateRange?.from && dateRange.to && (
-            <div className="space-y-2 py-4 text-sm">
-              <p><strong>Check-in:</strong> {format(dateRange.from, "PPP")}</p>
-              <p><strong>Check-out:</strong> {format(dateRange.to, "PPP")}</p>
-              <p><strong>Duration:</strong> {priceDetails.duration} {priceDetails.durationUnit}</p>
-              <Separator className="my-2"/>
-              <div className="flex justify-between">
-                <span>{priceDetails.displayRate}</span>
-                <span>${priceDetails.basePrice.toFixed(2)}</span>
+          <div className="py-2 space-y-4">
+            {priceDetails && dateRange?.from && dateRange.to && (
+              <div className="space-y-2 text-sm">
+                <p><strong>Check-in:</strong> {format(dateRange.from, "PPP")}</p>
+                <p><strong>Check-out:</strong> {format(dateRange.to, "PPP")}</p>
+                <p><strong>Duration:</strong> {priceDetails.duration} {priceDetails.durationUnit}</p>
+                <Separator className="my-2"/>
+                <div className="flex justify-between">
+                  <span>{priceDetails.displayRate}</span>
+                  <span>${priceDetails.basePrice.toFixed(2)}</span>
+                </div>
+                {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
+                {subscriptionStatus === 'premium' && <div className="flex justify-between text-premium"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
+                <div className="flex justify-between"><span>Subtotal:</span> <span>${priceDetails.subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${priceDetails.estimatedTax.toFixed(2)}</span></div>
+                <Separator className="my-2"/>
+                <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${priceDetails.totalPrice.toFixed(2)}</span></p>
+                {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails?.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
+                      <p className="text-sm text-destructive flex items-center">
+                          <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate. Rate may be adjusted.
+                      </p>
+                )}
               </div>
-              {priceDetails.renterFee > 0 && <div className="flex justify-between"><span>Renter Service Fee:</span> <span>${priceDetails.renterFee.toFixed(2)}</span></div>}
-              {subscriptionStatus === 'premium' && <div className="flex justify-between text-premium"><span>Renter Service Fee (Premium Benefit!):</span> <span>$0.00</span></div>}
-              <div className="flex justify-between"><span>Subtotal:</span> <span>${priceDetails.subtotal.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span>Est. Taxes (5%):</span> <span>${priceDetails.estimatedTax.toFixed(2)}</span></div>
-              <Separator className="my-2"/>
-              <p className="text-lg font-semibold flex justify-between"><strong>Estimated Total:</strong> <span>${priceDetails.totalPrice.toFixed(2)}</span></p>
-              {listing.pricingModel === 'monthly' && listing.minLeaseDurationMonths && priceDetails?.duration && priceDetails.duration < (listing.minLeaseDurationMonths * 28) && ( 
-                    <p className="text-sm text-destructive flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-1" /> Selected duration is less than the minimum requirement of {listing.minLeaseDurationMonths} months for the listed monthly rate. Rate may be adjusted.
-                    </p>
-              )}
-            </div>
-          )}
-          {listing.pricingModel === 'lease-to-own' && listing.leaseToOwnDetails && (
-            <div className="py-4 space-y-2 text-sm">
-                <p><strong>Listing:</strong> {listing.title}</p>
-                <p><strong>Inquiry Type:</strong> Lease-to-Own</p>
-                <h4 className="font-medium mt-2 text-premium">Key Terms from Landowner:</h4>
-                <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md whitespace-pre-line">{listing.leaseToOwnDetails}</p>
-                <p className="text-xs text-muted-foreground mt-2">The landowner will receive your contact information and can discuss further details and specific terms with you.</p>
-            </div>
-          )}
-           <p className="text-xs text-muted-foreground px-6">The landowner service fee (currently {currentUser?.appProfile?.subscriptionStatus === 'premium' ? "0.49%" : "2%"} of lease value) will be deducted from the landowner's payout for successful bookings.</p>
+            )}
+            {listing.pricingModel === 'lease-to-own' && listing.leaseToOwnDetails && (
+              <div className="space-y-2 text-sm">
+                  <p><strong>Listing:</strong> {listing.title}</p>
+                  <p><strong>Inquiry Type:</strong> Lease-to-Own</p>
+                  <h4 className="font-medium mt-2 text-premium">Key Terms from Landowner:</h4>
+                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded-md whitespace-pre-line">{listing.leaseToOwnDetails}</p>
+                  <p className="text-xs text-muted-foreground mt-2">The landowner will receive your contact information and can discuss further details and specific terms with you.</p>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">The landowner service fee (currently {currentUser?.appProfile?.subscriptionStatus === 'premium' ? "0.49%" : "2%"} of lease value) will be deducted from the landowner's payout for successful bookings.</p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBookingDialog(false)} disabled={isSubmittingBooking}>Cancel</Button>
             <Button onClick={handleConfirmBooking} disabled={
