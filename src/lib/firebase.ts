@@ -99,19 +99,43 @@ if (areAnyKeysMissing) {
 } else {
   // Only attempt to initialize Firebase if all keys look valid.
   try {
+    // Step 1: Initialize the core App
     if (!getApps().length) {
       appInstance = initializeApp(firebaseConfig);
+      console.log('%c[DIAGNOSTIC] Firebase App Initialized Successfully.', 'color: green;');
     } else {
       appInstance = getApp();
+      console.log('%c[DIAGNOSTIC] Firebase App Retrieved Successfully.', 'color: green;');
     }
-    // Use initializeAuth to explicitly set persistence which is better for SSR frameworks like Next.js
-    authInstance = initializeAuth(appInstance, {
-      persistence: browserLocalPersistence
-    });
-    firestoreInstance = getFirestore(appInstance);
+    
+    // Step 2: Initialize Auth
+    try {
+      authInstance = initializeAuth(appInstance, {
+        persistence: browserLocalPersistence
+      });
+      console.log('%c[DIAGNOSTIC] Firebase Auth Initialized Successfully.', 'color: green;');
+    } catch (authError: any) {
+        console.error("%cFirebase Auth Initialization FAILED:", 'color: red; font-weight: bold;', authError);
+        firebaseInitializationError = `Firebase Auth Initialization Failed: ${authError.message || "Unknown auth error."}.`;
+        authInstance = null;
+    }
+    
+    // Step 3: Initialize Firestore
+    try {
+        firestoreInstance = getFirestore(appInstance);
+        console.log('%c[DIAGNOSTIC] Firebase Firestore Initialized Successfully.', 'color: green;');
+    } catch (firestoreError: any) {
+        console.error("%cFirebase Firestore Initialization FAILED:", 'color: red; font-weight: bold;', firestoreError);
+        // Don't overwrite the main error if auth already failed
+        if (!firebaseInitializationError) {
+             firebaseInitializationError = `Firebase Firestore Initialization Failed: ${firestoreError.message || "Unknown firestore error."}.`;
+        }
+        firestoreInstance = null;
+    }
+
   } catch (error: any) {
-    console.error("Firebase Initialization Failed (even with presumed API key):", error);
-    firebaseInitializationError = `Firebase Initialization Failed: ${error.message || "Unknown error."}. Firebase features are disabled.`;
+    console.error("%cFirebase Core App Initialization FAILED:", 'color: red; font-weight: bold;', error);
+    firebaseInitializationError = `Firebase Core App Initialization Failed: ${error.message || "Unknown error."}. Check all config keys.`;
     // Ensure all instances are null on failure.
     appInstance = null;
     authInstance = null;
