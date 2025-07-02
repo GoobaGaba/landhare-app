@@ -52,6 +52,7 @@ let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
+// Proactive check to see if the API key is missing or is a placeholder.
 const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.includes("PLACEHOLDER");
 
 if (isApiKeyEffectivelyMissing) {
@@ -80,17 +81,20 @@ if (isApiKeyEffectivelyMissing) {
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   } else {
+    // This message will appear in the server logs during build/startup if the key is missing.
     console.warn("FIREBASE SERVER-SIDE WARNING: NEXT_PUBLIC_FIREBASE_API_KEY is missing or a placeholder. This will disable client-side Firebase features. Please check your .env.local file and restart the server.");
   }
+  // Set the error message that the rest of the app can use to enter a safe "mock" mode.
   firebaseInitializationError = "Firebase API Key is missing or a placeholder. Firebase features are disabled.";
 } else {
+  // Only attempt to initialize Firebase if the API key looks valid.
   try {
     if (!getApps().length) {
       appInstance = initializeApp(firebaseConfig);
     } else {
       appInstance = getApp();
     }
-    // Use initializeAuth to explicitly set persistence
+    // Use initializeAuth to explicitly set persistence which is better for SSR frameworks like Next.js
     authInstance = initializeAuth(appInstance, {
       persistence: browserLocalPersistence
     });
@@ -98,6 +102,7 @@ if (isApiKeyEffectivelyMissing) {
   } catch (error: any) {
     console.error("Firebase Initialization Failed (even with presumed API key):", error);
     firebaseInitializationError = `Firebase Initialization Failed: ${error.message || "Unknown error."}. Firebase features are disabled.`;
+    // Ensure all instances are null on failure.
     appInstance = null;
     authInstance = null;
     firestoreInstance = null;
