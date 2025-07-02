@@ -279,47 +279,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async (): Promise<CurrentUser | null> => {
     setAuthError(null);
     setLoading(true);
-    // In mock mode, simulate a Google sign-in.
-    if (firebaseInitializationError || !firebaseAuthInstance) {
-      const mockGoogleAppProfile = await dbCreateUserProfile(MOCK_GOOGLE_USER_FOR_UI_TESTING.id, MOCK_GOOGLE_USER_FOR_UI_TESTING.email, MOCK_GOOGLE_USER_FOR_UI_TESTING.name, MOCK_GOOGLE_USER_FOR_UI_TESTING.avatarUrl);
-      const userToSignIn: CurrentUser = {
-        uid: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, 
-        email: MOCK_GOOGLE_USER_FOR_UI_TESTING.email,
-        displayName: MOCK_GOOGLE_USER_FOR_UI_TESTING.name,
-        photoURL: MOCK_GOOGLE_USER_FOR_UI_TESTING.avatarUrl,
-        emailVerified: true, isAnonymous: false,
-        getIdToken: async () => 'mock-google-token',
-        getIdTokenResult: async () => ({ token: 'mock-google-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: 'google.com', signInSecondFactor: null}),
-        reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
-        metadata: { creationTime: (mockGoogleAppProfile.createdAt instanceof Date ? mockGoogleAppProfile.createdAt : new Date()).toISOString(), lastSignInTime: new Date().toISOString() },
-        providerData: [{ providerId: 'google.com', uid: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, displayName: MOCK_GOOGLE_USER_FOR_UI_TESTING.name, email: MOCK_GOOGLE_USER_FOR_UI_TESTING.email, photoURL: MOCK_GOOGLE_USER_FOR_UI_TESTING.avatarUrl, phoneNumber: null }],
-        refreshToken: 'mock-google-refresh-token', tenantId: null,
-        appProfile: mockGoogleAppProfile,
-      } as CurrentUser;
 
-      setCurrentUser(userToSignIn);
-      setSubscriptionStatus(userToSignIn.appProfile?.subscriptionStatus || 'free');
+    if (firebaseInitializationError || !firebaseAuthInstance) {
+      // Use the mock user for UI testing in a non-Firebase environment
+      const mockUser = await fetchAndSetAppProfile(MOCK_GOOGLE_USER_FOR_UI_TESTING as any);
+      setCurrentUser(mockUser);
       setLoading(false);
-      toast({ title: "Google Sign-In Successful (Mock Mode)", description: `Welcome, ${userToSignIn.displayName}.`});
-      return userToSignIn;
+      return mockUser;
     }
 
-    // In live mode, use the Google Auth provider.
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(firebaseAuthInstance, provider);
-      const additionalInfo = getAdditionalUserInfo(result);
-      if (additionalInfo?.isNewUser) {
-        // Proactively create the Firestore profile. onAuthStateChanged will still run and pick it up.
-        await dbCreateUserProfile(result.user.uid, result.user.email!, result.user.displayName, result.user.photoURL);
-      }
-      return null; 
+      // After successful popup sign-in, onAuthStateChanged will trigger automatically.
+      // We can await the profile fetch here to ensure the state is fully updated before returning, fixing the race condition.
+      const userWithProfile = await fetchAndSetAppProfile(result.user);
+      setCurrentUser(userWithProfile);
+      setLoading(false);
+      return userWithProfile;
     } catch (err) {
       const firebaseErr = err as AuthError;
       if (firebaseErr.code === 'auth/popup-closed-by-user') {
         setAuthError("Sign-in process cancelled by user.");
       } else if (firebaseErr.code === 'auth/account-exists-with-different-credential') {
-        setAuthError("An account already exists with the same email address but different sign-in credentials. Try signing in with the original method.");
+        setAuthError("An account already exists with this email. Try signing in with the original method.");
       } else {
         setAuthError(firebaseErr.message || "Error during Google sign in.");
       }

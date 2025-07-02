@@ -1,107 +1,11 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users Collection: Stores user profile information.
-    match /users/{userId} {
-      // Anyone can read basic user profile information (e.g., landowner name for listings).
-      allow read: if true;
-
-      // Only an authenticated user can create their own profile document.
-      // This typically happens once upon signup.
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // An authenticated user can only update their own profile information.
-      allow update: if request.auth != null && request.auth.uid == userId;
-
-      // Users generally shouldn't delete their own profiles directly through the app.
-      // This operation is typically handled by admins or support.
-      allow delete: if false;
-    }
-
-    // Listings Collection: Stores details about each land listing.
-    match /listings/{listingId} {
-      // Anyone can read listing details (they are public).
-      allow read: if true;
-
-      // To create a listing:
-      // 1. The user must be authenticated (request.auth != null).
-      // 2. The `landownerId` field in the new listing data must be the UID of the authenticated user.
-      //    This ensures users can only create listings for themselves.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.landownerId;
-
-      // To update an existing listing:
-      // 1. The user must be authenticated.
-      // 2. The UID of the authenticated user must match the `landownerId` stored in the existing listing document.
-      //    This ensures only the owner can edit their listing.
-      allow update: if request.auth != null && request.auth.uid == resource.data.landownerId;
-
-      // To delete an existing listing:
-      // 1. The user must be authenticated.
-      // 2. The UID of the authenticated user must match the `landownerId` stored in the existing listing document.
-      //    This ensures only the owner can delete their listing.
-      allow delete: if request.auth != null && request.auth.uid == resource.data.landownerId;
-    }
-
-    // Bookings Collection: Stores booking requests and their statuses.
-    match /bookings/{bookingId} {
-      // To read a booking's details:
-      // 1. The user must be authenticated.
-      // 2. The authenticated user must be either the renter or the landowner involved in that specific booking.
-      allow read: if request.auth != null &&
-                    (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
-
-      // To create a new booking request:
-      // 1. The user must be authenticated.
-      // 2. The `renterId` in the new booking data must be the UID of the authenticated user.
-      //    This ensures users can only create booking requests for themselves.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.renterId;
-
-      // To update an existing booking (e.g., change status):
-      // This rule allows specific status transitions by specific users.
-      allow update: if request.auth != null && (
-                      // Renter can cancel their own 'pending_confirmation' or 'pending_payment' booking.
-                      (request.auth.uid == resource.data.renterId &&
-                       (resource.data.status == 'pending_confirmation' || resource.data.status == 'pending_payment') &&
-                       request.resource.data.status == 'cancelled_by_renter'
-                      ) ||
-                      // Landowner can approve (to 'pending_payment') or decline a 'pending_confirmation' booking.
-                      (request.auth.uid == resource.data.landownerId &&
-                       resource.data.status == 'pending_confirmation' &&
-                       (request.resource.data.status == 'pending_payment' || request.resource.data.status == 'declined')
-                      )
-                      // IMPORTANT: Updates to 'confirmed' (after payment) or 'completed' should ideally be handled
-                      // by a trusted server environment (e.g., using Firebase Admin SDK in a webhook after Stripe payment).
-                    );
-
-      // Bookings are generally not hard-deleted by users. Status is changed (e.g., to 'cancelled').
-      allow delete: if false;
-    }
-
-    // Reviews Collection: Stores user reviews for listings.
-    match /reviews/{reviewId} {
-      // Anyone can read reviews.
-      allow read: if true;
-
-      // To create a review:
-      // 1. User must be authenticated.
-      // 2. The `userId` in the new review data must be the authenticated user's UID.
-      // 3. A booking document must exist with the `bookingId` specified in the review data.
-      // 4. The authenticated user must be the `renterId` for that booking.
-      // 5. The `listingId` in the review must match the `listingId` of that booking.
-      // 6. The status of that booking must be 'completed'.
-      allow create: if request.auth != null &&
-                       request.auth.uid == request.resource.data.userId &&
-                       exists(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)) &&
-                       get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.renterId == request.auth.uid &&
-                       get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.listingId == request.resource.data.listingId &&
-                       get(/databases/$(database)/documents/bookings/$(request.resource.data.bookingId)).data.status == 'completed';
-
-      // To update or delete a review:
-      // 1. The user must be authenticated.
-      // 2. The authenticated user's UID must match the `userId` of the existing review.
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    // For the beta testing phase, allow any authenticated user to read/write.
+    // This prevents anonymous access but allows testers full functionality.
+    // More granular rules will be applied before a public launch.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

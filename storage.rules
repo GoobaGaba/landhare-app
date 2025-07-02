@@ -1,53 +1,9 @@
 rules_version = '2';
-
 service firebase.storage {
-  match /b/{bucket}/o { // Matches all files in your bucket
-
-    // Listing Images: Stored under a path like /listings/{userId}/{imageName.jpg}
-    // This allows a user to upload images to their own "folder" before a listing document is created,
-    // which is more secure than a general "temp" folder.
-    match /listings/{userId}/{allPaths=**} {
-      // Anyone can read listing images. This is required for them to be publicly viewable.
-      allow read: if true;
-
-      // Only the authenticated user can upload images to their own folder.
-      // We also add a size limit (e.g., 5MB) and check for image content type for security.
-      allow write: if request.auth != null && request.auth.uid == userId
-                      && request.resource.size < 5 * 1024 * 1024 // 5MB limit
-                      && request.resource.contentType.matches('image/.*');
-    }
-
-    // User Avatars (for future use):
-    // Stored under a path like /avatars/{userId}/avatar.jpg
-    match /avatars/{userId}/{allPaths=**} {
-      // Anyone can read user avatars.
-      allow read: if true;
-
-      // Only an authenticated user can write (upload/update/delete) their own avatar.
-      allow write: if request.auth != null && request.auth.uid == userId
-                    && request.resource.size < 2 * 1024 * 1024 // 2MB limit
-                    && request.resource.contentType.matches('image/.*');
-    }
-
-    // Lease Contracts
-    // Stored under a path like /leaseContracts/{bookingId}/{fileName}
-    // These rules rely on custom metadata being set on the file at the time of upload.
-    // The client code MUST provide metadata: { bookingId: '...', renterId: '...', landownerId: '...' }
-    match /leaseContracts/{bookingId}/{fileName} {
-      // Allow read only if the requesting user is the renter or landowner associated with the booking.
-      allow read: if request.auth != null &&
-                    resource.metadata != null &&
-                    (request.auth.uid == resource.metadata.renterId || request.auth.uid == resource.metadata.landownerId) &&
-                    resource.metadata.bookingId == bookingId;
-
-      // Allow write (upload) by the authenticated user who is either the renter or landowner
-      // for the specified bookingId. The file must be a PDF under 5MB.
-      allow write: if request.auth != null &&
-                     request.resource.metadata != null &&
-                     (request.auth.uid == request.resource.metadata.renterId || request.auth.uid == request.resource.metadata.landownerId) &&
-                     request.resource.metadata.bookingId == bookingId &&
-                     request.resource.size < 5 * 1024 * 1024 && // Max 5MB
-                     request.resource.contentType.matches('application/pdf');
+  match /b/{bucket}/o {
+    // Allow authenticated users to read and write all files during beta testing.
+    match /{allPaths=**} {
+      allow read, write: if request.auth.uid != null;
     }
   }
 }
