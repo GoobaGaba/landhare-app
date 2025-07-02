@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { User as FirebaseUserType, AuthError } from 'firebase/auth';
@@ -74,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchAndSetAppProfile = useCallback(async (firebaseUser: FirebaseUserType | null): Promise<CurrentUser | null> => {
     // No user, no profile. End of story.
     if (!firebaseUser) {
-      setSubscriptionStatus('free'); 
+      setSubscriptionStatus('standard'); 
       return null;
     }
   
@@ -102,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
          }
       }
       
-      const currentSubStatus = appProfileData?.subscriptionStatus || 'free';
+      const currentSubStatus = appProfileData?.subscriptionStatus || 'standard';
       setSubscriptionStatus(currentSubStatus); 
       
       // We construct a final, complete user profile object, ensuring all fields have a sensible default.
@@ -123,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (profileError: any) {
       console.error("Error fetching or creating app profile:", profileError);
-      setSubscriptionStatus('free'); 
+      setSubscriptionStatus('standard'); 
       toast({ title: "Profile Error", description: "Could not load or create your user profile.", variant: "destructive"});
       
       // If all else fails, create a minimal profile to prevent the app from crashing.
@@ -131,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: firebaseUser.uid,
         name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
         email: firebaseUser.email || 'no-email@example.com',
-        subscriptionStatus: 'free',
+        subscriptionStatus: 'standard',
         createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date(),
         bookmarkedListingIds: [],
         walletBalance: 10000,
@@ -149,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If Firebase isn't configured, we immediately stop loading and signal that we're in a mock state.
     if (firebaseInitializationError) {
       setCurrentUser(null); 
-      setSubscriptionStatus('free'); 
+      setSubscriptionStatus('standard'); 
       setAuthError(firebaseInitializationError); 
       setLoading(false);
       return; 
@@ -166,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Firebase auth state error:", error);
       setAuthError(error.message || "Error in auth state listener.");
       setCurrentUser(null);
-      setSubscriptionStatus('free');
+      setSubscriptionStatus('standard');
       setLoading(false);
     });
 
@@ -193,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         appProfile: newMockAppUser,
       } as CurrentUser;
       setCurrentUser(newMockCurrentUser);
-      setSubscriptionStatus(newMockAppUser.subscriptionStatus || 'free');
+      setSubscriptionStatus(newMockAppUser.subscriptionStatus || 'standard');
       setLoading(false);
       toast({ title: "Signup Successful (Mock Mode)", description: "Account created."});
       return newMockCurrentUser;
@@ -249,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } as CurrentUser;
 
       setCurrentUser(fullMockUser);
-      setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'free');
+      setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'standard');
       setLoading(false);
       toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
       return fullMockUser;
@@ -298,7 +299,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return userWithProfile;
     } catch (err) {
       const firebaseErr = err as AuthError;
-      if (firebaseErr.code === 'auth/popup-closed-by-user') {
+      if (firebaseErr.code === 'auth/operation-not-allowed') {
+        const helpfulError = "Google Sign-In is not enabled for this project. Please enable it in your Firebase Authentication settings.";
+        setAuthError(helpfulError);
+        toast({ title: "Configuration Error", description: helpfulError, variant: "destructive", duration: 8000 });
+      } else if (firebaseErr.code === 'auth/popup-closed-by-user') {
         setAuthError("Sign-in process cancelled by user.");
       } else if (firebaseErr.code === 'auth/account-exists-with-different-credential') {
         setAuthError("An account already exists with this email. Try signing in with the original method.");
@@ -316,7 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // In mock mode, just clear the user state.
     if (firebaseInitializationError || !firebaseAuthInstance) {
       setCurrentUser(null);
-      setSubscriptionStatus('free');
+      setSubscriptionStatus('standard');
       setLoading(false);
       toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
       return;
@@ -393,7 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } as CurrentUser;
 
         setCurrentUser(newCurrentUserState); 
-        setSubscriptionStatus(updatedAppProfileFromDb.subscriptionStatus || 'free');
+        setSubscriptionStatus(updatedAppProfileFromDb.subscriptionStatus || 'standard');
         toast({ title: "Profile Updated", description: "Your profile information has been saved."});
         setLoading(false);
         return newCurrentUserState;
