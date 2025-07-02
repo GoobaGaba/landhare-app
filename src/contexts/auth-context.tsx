@@ -291,17 +291,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(firebaseAuthInstance, provider);
-      // After successful popup sign-in, onAuthStateChanged will trigger automatically.
-      // We can await the profile fetch here to ensure the state is fully updated before returning, fixing the race condition.
       const userWithProfile = await fetchAndSetAppProfile(result.user);
       setCurrentUser(userWithProfile);
       setLoading(false);
       return userWithProfile;
     } catch (err) {
       const firebaseErr = err as AuthError;
-      // Enhanced error logging
-      console.error("Google Sign-In Raw Error:", firebaseErr);
-
       let title = "Google Sign-In Failed";
       let description = "An unexpected error occurred. Please try again or contact support.";
 
