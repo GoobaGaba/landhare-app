@@ -9,7 +9,7 @@ runConfig:
   # These environment variables are available to your app's build and runtime.
   # They are the definitive source of truth for your LIVE, DEPLOYED application.
   environmentVariables:
-    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_API_KEY_HERE"
+    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_FIREBASE_SERVICES_API_KEY_HERE"
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_AUTH_DOMAIN_HERE"
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID_HERE"
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_STORAGE_BUCKET_HERE"
