@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3 } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3, Shield } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,6 @@ import { MobileThemeToggleButton } from './theme-toggle-button';
 import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_UIDS } from '@/lib/mock-data';
 import { useState } from 'react';
 
 
@@ -134,10 +133,11 @@ export default function AppHeader() {
                       <DropdownMenuLabel>
                         <div className="flex items-center gap-2">
                            <span>{currentUser.appProfile?.name || currentUser.displayName || currentUser.email}</span>
-                           {subscriptionStatus === 'premium' && <Crown className="h-4 w-4 text-premium" />}
+                           {subscriptionStatus === 'premium' && !currentUser.appProfile?.isAdmin && <Crown className="h-4 w-4 text-premium" />}
+                           {currentUser.appProfile?.isAdmin && <Shield className="h-4 w-4 text-primary" title="Administrator" />}
                         </div>
                       </DropdownMenuLabel>
-                      {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
+                      {currentUser.appProfile?.isAdmin && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
@@ -233,7 +233,7 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
 
-                  {!loading && currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
+                  {!loading && currentUser?.appProfile?.isAdmin && (
                       <SheetClose asChild>
                           <Button
                           variant={pathname === '/admin' ? 'secondary' : 'ghost'}
