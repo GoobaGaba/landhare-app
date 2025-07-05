@@ -20,7 +20,7 @@ import {
 const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3']; // <-- IMPORTANT: PASTE YOUR REAL UID HERE
+export const ADMIN_UIDS = ['ZsAXo79Wh8XEiHFrcJwlJT2h89F3']; // <-- IMPORTANT: This is your admin user ID.
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
 const PREMIUM_SERVICE_FEE_RATE = 0.0049; // 0.49%
