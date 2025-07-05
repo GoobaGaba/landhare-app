@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3, Shield } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3, Shield, Beaker } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { ADMIN_EMAILS } from '@/lib/mock-data';
+import { isPrototypeMode } from '@/lib/firebase';
 
 
 interface NavLink {
@@ -85,6 +86,12 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {isPrototypeMode && (
+         <div className="w-full bg-amber-400 text-amber-900 text-xs font-bold text-center py-1 flex items-center justify-center gap-2">
+            <Beaker className="h-3 w-3" />
+            PROTOTYPE MODE (Using Mock Data)
+        </div>
+      )}
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Left Part: Logo + Name */}
         <div className="flex items-center gap-2 shrink-0">

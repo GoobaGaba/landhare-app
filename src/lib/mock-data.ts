@@ -80,6 +80,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
         const mockUser = isAdmin ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
         return {...mockUser, id: userId, email, name: name || mockUser.name };
     }
+    
     const userRef = doc(firestoreDb, "users", userId);
     const existingUserSnap = await getDoc(userRef);
     if (existingUserSnap.exists()) {

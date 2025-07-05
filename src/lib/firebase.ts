@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,47 +16,55 @@ const firebaseConfig: FirebaseOptions = {
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 let firestoreInstance: Firestore | null = null;
+let storageInstance = null;
 let firebaseInitializationError: string | null = null;
+
+// This flag determines if we are running in a local, mocked environment.
+export let isPrototypeMode = false;
+
+// Check if any required Firebase configuration keys are missing or placeholders.
+const areAnyKeysMissing = Object.values(firebaseConfig).some(
+  (value) => !value || String(value).includes('YOUR_')
+);
 
 const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
 
-const areAnyKeysMissing = Object.values(firebaseConfig).some(value => !value || String(value).includes('...'));
-
-if (forceMockMode) {
-  firebaseInitializationError = "Mock mode is forcefully enabled.";
-} else if (areAnyKeysMissing) {
+if (areAnyKeysMissing || forceMockMode) {
+  const reason = areAnyKeysMissing ? "Firebase keys missing or placeholders" : "NEXT_PUBLIC_FORCE_MOCK_MODE is true";
   const warningMessage = `
   ***************************************************************************************************
-  ** WARNING: FIREBASE CONFIGURATION ERROR                                                         **
+  ** PROTOTYPE MODE ENABLED                                                                        **
   **-----------------------------------------------------------------------------------------------**
-  ** One or more 'NEXT_PUBLIC_FIREBASE_*' keys are MISSING or INVALID in your environment.         **
-  ** The app is running in OFFLINE/MOCK mode. Real authentication and database features are OFF.   **
-  **                                                                                               **
-  ** TO FIX THIS:                                                                                  **
-  ** 1. CHECK YOUR '.env.local' FILE in the project root. Ensure it exists and has no typos.       **
-  ** 2. VERIFY ALL KEYS are copied correctly from your Firebase project settings.                  **
-  ** 3. >>> RESTART THE SERVER <<< This step is ESSENTIAL. Next.js only reads .env.local on startup.**
-  **    (Click STOP, then RUN at the top of the editor).                                           **
+  ** Reason: ${reason}. The app is running in OFFLINE/MOCK mode.                                   **
+  ** Live features like real authentication will be disabled.                                      **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   }
-  firebaseInitializationError = "One or more Firebase config keys are missing. App is in offline mode.";
+  firebaseInitializationError = "App in offline/prototype mode.";
+  isPrototypeMode = true;
+
 } else {
+  // If all keys are present, attempt to initialize Firebase services.
   try {
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
     authInstance = initializeAuth(appInstance, {
-      persistence: browserLocalPersistence
+      persistence: browserLocalPersistence,
     });
     firestoreInstance = getFirestore(appInstance);
+    storageInstance = getStorage(appInstance);
+    isPrototypeMode = false;
+
   } catch (error: any) {
     console.error("Firebase Core App Initialization FAILED:", error);
-    firebaseInitializationError = `Firebase Core App Initialization Failed: ${error.message || "Unknown error."}. Check all config keys.`;
+    firebaseInitializationError = `Firebase Init Failed: ${error.message}.`;
     appInstance = null;
     authInstance = null;
     firestoreInstance = null;
+    storageInstance = null;
+    isPrototypeMode = true; // Fallback to prototype mode on initialization failure.
   }
 }
 
-export { appInstance as app, authInstance as auth, firestoreInstance as db, firebaseInitializationError };
+export { appInstance as app, authInstance as auth, firestoreInstance as db, storageInstance as storage, firebaseInitializationError };
