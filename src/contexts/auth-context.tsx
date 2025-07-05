@@ -26,7 +26,7 @@ import {
   MOCK_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
-  ADMIN_UIDS,
+  ADMIN_EMAILS,
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
     try {
       let appProfileData: AppUserType | undefined;
-      const isUserAdmin = ADMIN_UIDS.includes(firebaseUser.uid);
+      const isUserAdmin = firebaseUser.email ? ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
       if (firebaseInitializationError) {
           appProfileData = mockUsers.find(u => u.id === firebaseUser.uid);
@@ -126,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus('standard'); 
       toast({ title: "Profile Error", description: "Could not load or create your user profile.", variant: "destructive"});
       
-      const isUserAdmin = ADMIN_UIDS.includes(firebaseUser.uid);
+      const isUserAdmin = firebaseUser.email ? ADMIN_EMAILS.includes(firebaseUser.email) : false;
       const minimalAppProfile: AppUserType = {
         id: firebaseUser.uid,
         name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
@@ -225,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(genericError);
       }
       
-      const isUserAdmin = ADMIN_UIDS.includes(userToSignInAppProfile.id);
+      const isUserAdmin = ADMIN_EMAILS.includes(userToSignInAppProfile.email || '');
       const fullMockUser: CurrentUser = {
           uid: userToSignInAppProfile.id,
           email: userToSignInAppProfile.email,

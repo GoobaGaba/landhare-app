@@ -20,7 +20,7 @@ import {
 const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-export const ADMIN_UIDS = ['V1dnvOLOJRdQbsJao4pCr4uo9aR2']; // Set user as the single admin.
+export const ADMIN_EMAILS = ['Gabrielleunda@gmail.com']; // The correct admin email.
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
 const PREMIUM_SERVICE_FEE_RATE = 0.0049; // 0.49%
@@ -128,12 +128,20 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
-    const initialWalletBalance = ADMIN_UIDS.includes(userId) ? 10000 : 2500;
+    const isAdmin = ADMIN_EMAILS.includes(email);
+    const initialWalletBalance = isAdmin ? 10000 : 2500;
+    const subscriptionStatus: SubscriptionStatus = isAdmin ? 'premium' : 'standard';
+
     if (firebaseInitializationError) {
         const db = loadMockDb();
         const existingUser = db.users.find(u => u.id === userId);
         if (existingUser) return existingUser;
-        const newUser: User = { id: userId, email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: new Date(), bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
+        const newUser: User = { 
+            id: userId, email: email, name: name || email.split('@')[0] || 'User', 
+            avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
+            subscriptionStatus: subscriptionStatus, createdAt: new Date(), bio: "Welcome to LandShare!", 
+            bookmarkedListingIds: [], walletBalance: initialWalletBalance, isAdmin: isAdmin 
+        };
         db.users.push(newUser);
         saveMockDb(db);
         return newUser;
@@ -143,7 +151,12 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     if (existingUserSnap.exists()) {
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
+    const newUser: Omit<User, 'id'> = { 
+        email: email, name: name || email.split('@')[0] || 'User', 
+        avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
+        subscriptionStatus: subscriptionStatus, createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", 
+        bookmarkedListingIds: [], walletBalance: initialWalletBalance, isAdmin: isAdmin 
+    };
     await setDoc(userRef, newUser);
     return { ...newUser, id: userId, createdAt: new Date() };
 };
@@ -683,4 +696,5 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
 };
 
     
+
 
