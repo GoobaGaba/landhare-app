@@ -55,26 +55,31 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err: any) {
       let errorMessage = err.message || "An unexpected error occurred. Please try again.";
+      let errorDescription = errorMessage;
 
       if (err.code) { // Firebase specific errors
         switch (err.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
-            errorMessage = 'Invalid email or password. Please try again.';
+            errorMessage = 'Invalid email or password.';
+            errorDescription = 'Please check your credentials. If the issue persists, verify your NEXT_PUBLIC_FIREBASE_API_KEY in .env.local is correct and that the server has been restarted.';
             break;
           case 'auth/invalid-email':
             errorMessage = 'The email address is not valid.';
+            errorDescription = 'Please enter a valid email address.';
             break;
           default:
-            errorMessage = err.message || errorMessage;
+            errorMessage = "Login Failed";
+            errorDescription = err.message || errorMessage;
         }
       }
       setError(errorMessage);
       toast({
-        title: 'Login Failed',
-        description: errorMessage,
+        title: errorMessage,
+        description: errorDescription,
         variant: 'destructive',
+        duration: 9000
       });
     } finally {
       setIsLoading(false);
