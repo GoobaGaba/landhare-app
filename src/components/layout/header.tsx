@@ -17,6 +17,7 @@ import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { ADMIN_UIDS } from '@/lib/mock-data';
+import { useState } from 'react';
 
 
 interface NavLink {
@@ -33,6 +34,7 @@ export default function AppHeader() {
   const { theme, setTheme } = useTheme();
   const { currentUser, logoutUser, loading, subscriptionStatus } = useAuth();
   const { toast } = useToast();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -44,25 +46,21 @@ export default function AppHeader() {
     }
   };
   
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = (query: string) => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery) {
+      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+    } else {
+      router.push('/search');
+    }
+    setIsMobileMenuOpen(false); // Close mobile sheet if open
+  };
+
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const searchQuery = formData.get('q') as string;
-    if (searchQuery.trim()) {
-        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-  
-   const handleMobileSearchSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-        const searchQuery = event.currentTarget.value;
-        if (searchQuery.trim()) {
-             router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-             // Find and click the close button of the sheet
-            const closeButton = event.currentTarget.closest('[data-radix-dialog-content]')?.querySelector('[data-radix-dialog-close]') as HTMLElement;
-            closeButton?.click();
-        }
-    }
+    handleSearch(searchQuery);
   };
 
 
@@ -95,7 +93,7 @@ export default function AppHeader() {
 
         {/* Center Part (Desktop): Search Bar + Browse + List your Land */}
         <div className="hidden md:flex items-center justify-center gap-3 flex-1 min-w-0 px-4">
-          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-md">
+          <form onSubmit={handleFormSubmit} className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
@@ -193,7 +191,7 @@ export default function AppHeader() {
 
           {/* Mobile Menu Trigger */}
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon">
                   <Menu className="h-5 w-5" />
@@ -202,14 +200,14 @@ export default function AppHeader() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[calc(100vw-4rem)] max-w-sm p-0 flex flex-col">
                 <div className="p-4 border-b">
-                  <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
+                  <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage" onClick={() => setIsMobileMenuOpen(false)}>
                     <Logo className="h-10 w-10" />
                     <span className="font-headline text-xl text-title">LandHare</span>
                   </Link>
                 </div>
 
                 <div className="p-4">
-                    <form onSubmit={(e) => { e.preventDefault(); handleMobileSearchSubmit({ key: 'Enter', currentTarget: e.currentTarget.q } as any); }}>
+                    <form onSubmit={handleFormSubmit}>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -217,9 +215,9 @@ export default function AppHeader() {
                             name="q"
                             placeholder="Search land..."
                             className="pl-8 w-full bg-background h-10"
-                            onKeyDown={handleMobileSearchSubmit}
                             />
                         </div>
+                         <button type="submit" className="hidden" aria-hidden="true"></button>
                     </form>
                 </div>
 
