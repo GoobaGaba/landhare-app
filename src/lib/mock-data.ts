@@ -21,7 +21,7 @@ import {
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 export const ADMIN_UIDS = [
-  'AdminGNL6965', // Gabe's Admin ID
+  'AdminGNL6965', // Admin User ID
 ];
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
@@ -31,7 +31,7 @@ const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
 
 // --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe L (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
+const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe Leunda (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
 const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'], walletBalance: 2500 };
 
 
