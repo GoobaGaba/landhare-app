@@ -92,18 +92,8 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      let errorMessage = "Could not sign in with Google. Please try again.";
-      if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Google Sign-In cancelled.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-      toast({
-        title: 'Google Sign In Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      // Errors are now handled and toasted within the AuthContext
+      if (err.message) setError(err.message);
     } finally {
       setIsLoading(false);
     }

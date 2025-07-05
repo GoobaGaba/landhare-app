@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';

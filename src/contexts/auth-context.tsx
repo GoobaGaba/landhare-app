@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (firebaseInitializationError) {
       console.warn("Auth Provider is in MOCK MODE due to Firebase initialization error.");
-      const mockUser = ADMIN_UIDS.includes('GabeL_ADMIN') ? MOCK_USER_FOR_UI_TESTING : null;
+      const mockUser = ADMIN_UIDS.includes('gabeleunda@gmail.com') ? MOCK_USER_FOR_UI_TESTING : null;
       if (mockUser) {
         fetchAndSetAppProfile(mockUser as any).then(userWithProfile => {
             setCurrentUser(userWithProfile);
@@ -218,7 +218,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     setLoading(true);
 
-    if (firebaseInitializationError) throw new Error("Cannot sign in with Google in mock mode.");
+    if (firebaseInitializationError) {
+        // This simulates a successful Google sign-in for the admin user in mock mode
+        const adminEmail = 'gabeleunda@gmail.com';
+        toast({ title: "Mock Mode Sign-In", description: `Simulating Google Sign-In for ${adminEmail}` });
+        const adminUser = await dbCreateUserProfile('GabeL_ADMIN', adminEmail, 'Gabe L (Admin)');
+        const fullMockUser = { appProfile: adminUser } as CurrentUser;
+        setCurrentUser(fullMockUser);
+        setSubscriptionStatus('premium');
+        setLoading(false);
+        return fullMockUser;
+    }
 
     const provider = new GoogleAuthProvider();
     try {
