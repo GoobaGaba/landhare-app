@@ -14,7 +14,6 @@ runConfig:
   # more instances in response to increased traffic.
   maxInstances: 1
   # These environment variables are available to your app's build and runtime.
-<<<<<<< HEAD
   # IMPORTANT: All placeholders MUST be replaced with your actual keys and identifiers
   # for the live, deployed application to function correctly.
   environmentVariables:
@@ -26,25 +25,3 @@ runConfig:
     NEXT_PUBLIC_FIREBASE_APP_ID: "1:800704761619:web:a1e7b0a1788320715154e6"
     GEMINI_API_KEY: "AIzaSyBDf3NQ9jnkwYXgMgf35i1rLZHztVpBn6o"
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "AIzaSyCccccIOCZwkrHKp9fgFid1r82yoX6ppZ4"
-=======
-  # They are the definitive source of truth for your LIVE, DEPLOYED application.
-  environmentVariables:
-    # --- Google Service API Keys ---
-    # This is the key for Firebase services (Auth, Firestore, Storage)
-    NEXT_PUBLIC_FIREBASE_API_KEY: "AIzaSyCXNCLdVOZd4rMkcuHvW-d2qDsiQWTpJDo"
-
-    # This is the key for Google Maps Platform services (Maps, Geocoding)
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "AIzaSyCccccIOCZwkrHKp9fgFid1r82yoX6ppZ4"
-
-    # This is the key for Google AI / Gemini services
-    GEMINI_API_KEY: "AIzaSyBDf3NQ9jnkwYXgMgf35i1rLZHztVpBn6o"
-
-    # --- Firebase Project Configuration ---
-    # These values identify your Firebase project. They are not secret keys.
-    # Find them in your Firebase Console -> Project settings (gear icon) -> General tab -> Your apps -> Web app.
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "IDLandhare6569.firebaseapp.com"
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "IDLandhare6569"
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "IDLandhare6569.appspot.com"
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "800704761619"
-    NEXT_PUBLIC_FIREBASE_APP_ID: "IDLandhare6569"
->>>>>>> fb65c5c551ae3ae89ac5b33e70ee1acfce414c14
