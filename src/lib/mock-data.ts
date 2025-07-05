@@ -1,4 +1,3 @@
-
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset } from './types';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -22,7 +21,7 @@ export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 export const ADMIN_UIDS = [
   'ZsAXo79Wh8XEiHFrcJwlJT2h89F3', // This is the default mock admin user ID
-  'REPLACE_WITH_YOUR_FIREBASE_UID' // <-- IMPORTANT: PASTE YOUR REAL UID HERE AFTER LOGGING IN
+  'GabeL_ADMIN' // <-- Admin UID for gabeleunda@gmail.com
 ];
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
