@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Shield } from 'lucide-react';
 import { BacktestSimulator } from '@/components/admin/backtest-simulator';
-import { ADMIN_UIDS } from '@/lib/mock-data';
+import { ADMIN_EMAILS } from '@/lib/mock-data';
 
 export default function BacktestPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -19,7 +19,7 @@ export default function BacktestPage() {
     );
   }
 
-  if (!currentUser || !ADMIN_UIDS.includes(currentUser.uid)) {
+  if (!currentUser?.email || !ADMIN_EMAILS.includes(currentUser.email)) {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>

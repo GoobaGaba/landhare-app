@@ -20,8 +20,8 @@ import {
 // --- CONFIGURATION ---
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
-export const ADMIN_UIDS = [
-  'AdminGNL6965', // Admin User ID
+export const ADMIN_EMAILS = [
+  'gabeleunda@gmail.com', // Admin User Email
 ];
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
@@ -31,7 +31,7 @@ const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
 
 // --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe Leunda (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
+const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'mock-admin-uid-123', name: 'Gabe Leunda (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
 const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'], walletBalance: 2500 };
 
 
@@ -74,9 +74,10 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
-    const initialWalletBalance = ADMIN_UIDS.includes(userId) ? 10000 : 2500;
+    const isAdmin = ADMIN_EMAILS.includes(email);
+    const initialWalletBalance = isAdmin ? 10000 : 2500;
      if (firebaseInitializationError) {
-        const mockUser = ADMIN_UIDS.includes(userId) ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
+        const mockUser = isAdmin ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
         return {...mockUser, id: userId, email, name: name || mockUser.name };
     }
     const userRef = doc(firestoreDb, "users", userId);
@@ -84,7 +85,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     if (existingUserSnap.exists()) {
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
+    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: isAdmin ? 'premium' : 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
     await setDoc(userRef, newUser);
     return { ...newUser, id: userId, createdAt: new Date(), walletBalance: initialWalletBalance };
 };
@@ -92,7 +93,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError) {
        console.warn("User profile update skipped in mock mode.");
-       const user = ADMIN_UIDS.includes(userId) ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
+       const user = ADMIN_EMAILS.includes(data.email || '') || userId === MOCK_ADMIN_USER_FOR_UI_TESTING.id ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
        Object.assign(user, data);
        return user;
     }

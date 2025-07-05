@@ -24,7 +24,7 @@ import {
   MOCK_ADMIN_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
-  ADMIN_UIDS
+  ADMIN_EMAILS
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appProfileData: AppUserType | undefined;
 
       // In mock mode, we use the hardcoded admin profile.
-      if (firebaseInitializationError && firebaseUser.uid === ADMIN_UIDS[0]) {
+      if (firebaseInitializationError && firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email)) {
         appProfileData = MOCK_ADMIN_USER_FOR_UI_TESTING;
       }
       else if (firebaseInitializationError) {
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe; 
   }, [fetchAndSetAppProfile]); 
 
-  const signUpWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<CurrentUser | null> => {
+  const signUpWithEmailAndPassword = async (credentials: Required<AuthCredentials>): Promise<CurrentUser | null> => {
     setAuthError(null);
     setLoading(true);
     if (firebaseInitializationError) throw new Error("Cannot sign up in mock mode.");
@@ -397,7 +397,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     authError,
     subscriptionStatus,
-    signUpWithEmailPassword,
+    signUpWithEmailAndPassword,
     signInWithEmailPassword,
     signInWithGoogle,
     logoutUser,
