@@ -9,7 +9,7 @@ export default function AboutPage() {
       <header className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-headline text-title mb-4">About LandHare</h1>
         <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-          Reimagining land use and ownership for a more flexible and sustainable future.
+          Reimagining land use and the dream of ownership for a new generation.
         </p>
       </header>
 
@@ -65,7 +65,7 @@ export default function AboutPage() {
         </CardHeader>
         <CardContent>
             <p>
-                LandHare is currently in its early stages, and we are continuously working to improve the platform and add new features. We are excited about the future and the potential to create real change in the housing landscape. Thank you for being a part of our story.
+                LandHare is more than a service—it's a movement. We are continuously working to improve the platform and add new features. We are excited about the future and the potential to create real change in the housing landscape. Thank you for being a part of our story.
             </p>
         </CardContent>
        </Card>

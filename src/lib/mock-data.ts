@@ -31,7 +31,7 @@ const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
 
 // --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'mock-admin-uid-123', name: 'Gabe Leunda (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
+const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe Leunda (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Overseeing the LandHare ecosystem.', bookmarkedListingIds: [], walletBalance: 10000 };
 const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'], walletBalance: 2500 };
 
 
@@ -85,7 +85,7 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     if (existingUserSnap.exists()) {
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: isAdmin ? 'premium' : 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
+    const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: isAdmin ? 'premium' : 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandHare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
     await setDoc(userRef, newUser);
     return { ...newUser, id: userId, createdAt: new Date(), walletBalance: initialWalletBalance };
 };

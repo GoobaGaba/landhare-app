@@ -209,7 +209,7 @@ export default function HomePage() {
 
       <section className="w-full py-16 md:py-24">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">Make U.S. Housing Great Again</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">A New Era for Housing</h2>
           <div className="grid md:grid-cols-2 gap-8">
             <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
             <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandHare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>

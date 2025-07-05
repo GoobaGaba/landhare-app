@@ -95,7 +95,7 @@ export default function AdminDashboardPage() {
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       </div>
       <p className="text-muted-foreground">
-        A top-level overview of the LandShare platform's simulated economy and user activity.
+        A top-level overview of the LandHare platform's simulated economy and user activity.
       </p>
 
        <Card className="border-accent">
@@ -175,7 +175,7 @@ export default function AdminDashboardPage() {
 
        <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary"/>Landhare Backtest BETA</CardTitle>
+          <CardTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary"/>LandHare Backtest BETA</CardTitle>
           <CardDescription>
             An interactive tool to simulate business strategies and backtest economic models over time. Adjust variables and see their impact on a dynamic graph.
           </CardDescription>

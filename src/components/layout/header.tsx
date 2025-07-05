@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3 } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3, Shield } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ import { MobileThemeToggleButton } from './theme-toggle-button';
 import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { ADMIN_UIDS } from '@/lib/mock-data';
+import { ADMIN_EMAILS } from '@/lib/mock-data';
 
 
 interface NavLink {
@@ -80,6 +80,7 @@ export default function AppHeader() {
   ];
 
   const listYourLandHref = currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`;
+  const isUserAdmin = currentUser?.email ? ADMIN_EMAILS.includes(currentUser.email) : false;
 
 
   return (
@@ -139,13 +140,13 @@ export default function AppHeader() {
                            {subscriptionStatus === 'premium' && <Crown className="h-4 w-4 text-premium" />}
                         </div>
                       </DropdownMenuLabel>
-                      {currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
+                      {isUserAdmin && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
-                            <Link href="/admin" className={cn("flex items-center gap-2", pathname === "/admin" && "bg-muted")}>
-                              <BarChart3 className="h-4 w-4" />
-                              <span>Admin Dashboard</span>
+                            <Link href="/admin" className={cn("flex items-center gap-2 font-semibold text-accent", pathname.startsWith("/admin") && "bg-muted")}>
+                              <Shield className="h-4 w-4" />
+                              <span>Admin Tools</span>
                             </Link>
                           </DropdownMenuItem>
                         </>
@@ -235,16 +236,16 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
 
-                  {!loading && currentUser && ADMIN_UIDS.includes(currentUser.uid) && (
+                  {!loading && isUserAdmin && (
                       <SheetClose asChild>
                           <Button
-                          variant={pathname === '/admin' ? 'secondary' : 'ghost'}
+                          variant={pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
                           asChild
                           className="w-full justify-start text-base py-3"
                           >
                           <Link href="/admin">
-                              <BarChart3 className="mr-2 h-4 w-4" />
-                              Admin Dashboard
+                              <Shield className="mr-2 h-4 w-4" />
+                              Admin Tools
                           </Link>
                           </Button>
                       </SheetClose>
