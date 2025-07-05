@@ -220,7 +220,7 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground capitalize flex items-center gap-1.5">
             Current Plan: 
             <span className={cn(profileDisplayData.subscriptionTier === 'premium' ? "text-premium font-semibold" : "")}>
-                {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier}
+                {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : (profileDisplayData.subscriptionTier === 'premium' ? 'Premium' : 'Standard')}
             </span>
             {profileDisplayData.subscriptionTier === 'premium' && <Crown className="h-4 w-4 text-premium"/>}
           </p>
@@ -362,7 +362,7 @@ export default function ProfilePage() {
                 <h3 className="text-md font-semibold mb-1 flex items-center gap-1.5">
                     Current Plan: 
                     <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>
-                        {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : profileDisplayData.subscriptionTier} Tier
+                        {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : (profileDisplayData.subscriptionTier === 'premium' ? 'Premium' : 'Standard')} Tier
                     </span>
                     {profileDisplayData.subscriptionTier === 'premium' && <Crown className="h-4 w-4 text-premium"/>}
                 </h3>

@@ -21,7 +21,7 @@ import {
   createUserProfile as dbCreateUserProfile, 
   getUserById, 
   updateUserProfile as updateAppUserProfileDb, 
-  MOCK_USER_FOR_UI_TESTING,
+  MOCK_ADMIN_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
   ADMIN_UIDS
@@ -43,7 +43,7 @@ interface AuthContextType {
   loading: boolean;
   authError: string | null; 
   subscriptionStatus: SubscriptionStatus;
-  signUpWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<CurrentUser | null>;
+  signUpWithEmailAndPassword: (credentials: Required<AuthCredentials>) => Promise<CurrentUser | null>;
   signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<CurrentUser | null>;
   signInWithGoogle: () => Promise<CurrentUser | null>;
   logoutUser: () => Promise<void>;
@@ -80,7 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       let appProfileData: AppUserType | undefined;
 
-      if (firebaseInitializationError) {
+      // In mock mode, we use the hardcoded admin profile.
+      if (firebaseInitializationError && firebaseUser.uid === 'AdminGNL6965') {
+        appProfileData = MOCK_ADMIN_USER_FOR_UI_TESTING;
+      }
+      else if (firebaseInitializationError) {
+        // Fallback for any other potential mock user.
         appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email || '', firebaseUser.displayName);
       } else {
          appProfileData = await getUserById(firebaseUser.uid);
@@ -101,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: appProfileData?.createdAt || (firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date()),
         bio: appProfileData?.bio || '',
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
-        walletBalance: appProfileData?.walletBalance ?? 2500,
+        walletBalance: appProfileData.walletBalance ?? 2500,
       };
       
       return { ...firebaseUser, appProfile: finalAppProfile } as CurrentUser;
@@ -131,18 +136,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (firebaseInitializationError) {
       console.warn("Auth Provider is in MOCK MODE due to Firebase initialization error.");
-      const mockUser = ADMIN_UIDS.includes('gabeleunda@gmail.com') ? MOCK_USER_FOR_UI_TESTING : null;
-      if (mockUser) {
-        fetchAndSetAppProfile(mockUser as any).then(userWithProfile => {
-            setCurrentUser(userWithProfile);
-            setLoading(false);
-        });
-      } else {
-        setCurrentUser(null);
-        setSubscriptionStatus('standard');
-        setAuthError(firebaseInitializationError);
-        setLoading(false);
-      }
+      // Prioritize loading the ADMIN mock user for easier testing of admin tools.
+      const mockUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+      fetchAndSetAppProfile(mockUser as any).then(userWithProfile => {
+          setCurrentUser(userWithProfile);
+          setLoading(false);
+      });
       return;
     }
     
@@ -189,14 +188,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (firebaseInitializationError) {
         const adminEmail = 'gabeleunda@gmail.com';
         if (credentials.email === adminEmail) {
-            const adminUser = await dbCreateUserProfile('GabeL_ADMIN', adminEmail, 'Gabe L (Admin)');
-            const fullMockUser = { appProfile: adminUser } as CurrentUser;
+            const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+            const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
             setCurrentUser(fullMockUser);
             setSubscriptionStatus('premium');
             setLoading(false);
             return fullMockUser;
         } else {
-             const genericError = "Invalid credentials. This app is in preview mode and only accepts known mock user emails.";
+             const genericError = "Invalid credentials. This app is in preview mode and only accepts the admin mock user email.";
              setAuthError(genericError);
              setLoading(false);
              throw new Error(genericError);
@@ -220,10 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (firebaseInitializationError) {
         // This simulates a successful Google sign-in for the admin user in mock mode
-        const adminEmail = 'gabeleunda@gmail.com';
-        toast({ title: "Mock Mode Sign-In", description: `Simulating Google Sign-In for ${adminEmail}` });
-        const adminUser = await dbCreateUserProfile('GabeL_ADMIN', adminEmail, 'Gabe L (Admin)');
-        const fullMockUser = { appProfile: adminUser } as CurrentUser;
+        const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+        toast({ title: "Mock Mode Sign-In", description: `Simulating Google Sign-In for ${adminUser.email}` });
+        const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
         setCurrentUser(fullMockUser);
         setSubscriptionStatus('premium');
         setLoading(false);
