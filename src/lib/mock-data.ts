@@ -558,6 +558,12 @@ export const saveBacktestPreset = async (preset: Omit<BacktestPreset, 'id'>): Pr
     return { ...preset, id: newDocRef.id, createdAt: new Date() }
 };
 
+export const updateBacktestPreset = async (presetId: string, data: Partial<Omit<BacktestPreset, 'id'>>): Promise<void> => {
+    if (firebaseInitializationError) { throw new Error("Cannot update preset in mock mode."); }
+    const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
+    await updateDoc(presetRef, data);
+};
+
 export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
      if (firebaseInitializationError) { return; }
     const presetRef = doc(firestoreDb, 'backtest_presets', presetId);

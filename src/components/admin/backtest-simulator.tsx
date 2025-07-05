@@ -8,13 +8,13 @@ import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank, Calendar, Clock, Sparkles, Save, Trash2, Loader2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, DollarSign, Users, TrendingUp, TrendingDown, Percent, Target, FileJson, Briefcase, LandPlot, Ratio, Landmark, Zap, Shield, HelpCircle, PiggyBank, Calendar, Clock, Sparkles, SaveAll, Trash2, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
-import { getBacktestPresets, saveBacktestPreset, deleteBacktestPreset } from '@/lib/mock-data';
+import { getBacktestPresets, saveBacktestPreset, deleteBacktestPreset, updateBacktestPreset } from '@/lib/mock-data';
 import type { BacktestPreset } from '@/lib/types';
 
 
@@ -166,22 +166,32 @@ export function BacktestSimulator() {
   }, [fetchPresets]);
 
 
-  const handleSavePreset = async () => {
+  const handleSaveOrUpdatePreset = async () => {
     if (!presetName.trim()) {
         toast({ title: "Preset Name Required", description: "Please enter a name for your preset.", variant: "destructive" });
         return;
     }
     setIsSavingPreset(true);
     try {
-        const newPreset: Omit<BacktestPreset, 'id'> = {
-            name: presetName,
-            parameters: { ...params, name: presetName },
-            createdAt: new Date(),
-        };
-        await saveBacktestPreset(newPreset);
-        toast({ title: "Preset Saved", description: `"${presetName}" has been saved.`});
+        const existingPreset = savedPresets.find(p => p.name.toLowerCase() === presetName.trim().toLowerCase());
+        const newPresetData = { ...params, name: presetName.trim() };
+
+        if (existingPreset) {
+            // Update existing preset
+            await updateBacktestPreset(existingPreset.id, { parameters: newPresetData });
+            toast({ title: "Preset Updated", description: `"${presetName}" has been updated successfully.`});
+        } else {
+            // Save as new preset
+            const newPresetPayload: Omit<BacktestPreset, 'id'> = {
+                name: presetName.trim(),
+                parameters: newPresetData,
+                createdAt: new Date(),
+            };
+            await saveBacktestPreset(newPresetPayload);
+            toast({ title: "Preset Saved", description: `"${presetName}" has been saved.`});
+        }
         setPresetName("");
-        await fetchPresets(); // Refresh list
+        await fetchPresets(); // Refresh list to get new/updated item
     } catch (error: any) {
         toast({ title: "Error Saving Preset", description: error.message, variant: "destructive" });
     } finally {
@@ -189,10 +199,21 @@ export function BacktestSimulator() {
     }
   };
 
-  const handleDeletePreset = async (presetId: string) => {
+  const handleDeletePreset = async () => {
+    if (!presetName.trim()) {
+      toast({ title: "No Preset Selected", description: "Load a preset to delete it.", variant: "destructive" });
+      return;
+    }
+    const presetToDelete = savedPresets.find(p => p.name === presetName);
+    if (!presetToDelete) {
+       toast({ title: "Error", description: `Preset "${presetName}" not found in saved presets.`, variant: "destructive" });
+       return;
+    }
+
     try {
-      await deleteBacktestPreset(presetId);
-      toast({ title: "Preset Deleted" });
+      await deleteBacktestPreset(presetToDelete.id);
+      toast({ title: "Preset Deleted", description: `"${presetName}" was deleted.` });
+      setPresetName(""); // Clear the name field
       await fetchPresets(); // Refresh list
     } catch (error: any) {
       toast({ title: "Error Deleting Preset", description: error.message, variant: "destructive" });
@@ -334,10 +355,18 @@ export function BacktestSimulator() {
   const handleReset = useCallback(() => { pauseSimulation(); setCurrentMonth(0); }, [pauseSimulation]);
   const handleStepForward = useCallback(() => { if (isRunning) pauseSimulation(); setCurrentMonth(prev => Math.min(prev + 1, MAX_MONTHS - 1)); }, [isRunning, pauseSimulation]);
 
-  const handlePresetChange = (presetName: string) => {
+  const handleBuiltInPresetChange = (presetName: string) => {
     const preset = Object.values(presets).find(p => p.name === presetName);
     if (preset) { setParams(preset); setPresetName(preset.name); handleReset(); }
   };
+  
+  const handleSavedPresetChange = (presetId: string) => {
+      const preset = savedPresets.find(p => p.id === presetId);
+      if (preset) {
+        loadPreset(preset);
+      }
+  };
+
 
   const handleExport = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(history, null, 2));
@@ -402,30 +431,28 @@ export function BacktestSimulator() {
                 <div className="space-y-1">
                     <Label>Load Preset</Label>
                     <div className="flex gap-2">
-                        <Select onValueChange={(id) => { const p = savedPresets.find(pr => pr.id === id); if (p) loadPreset(p); }} disabled={isLoadingPresets}>
+                        <Select onValueChange={(id) => id.startsWith('saved-') ? handleSavedPresetChange(id.replace('saved-','')) : handleBuiltInPresetChange(id)} disabled={isLoadingPresets}>
                             <SelectTrigger className="flex-grow">
-                                <SelectValue placeholder={isLoadingPresets ? "Loading presets..." : "Select a saved preset"} />
+                                <SelectValue placeholder={isLoadingPresets ? "Loading presets..." : "Select a preset to load"} />
                             </SelectTrigger>
                             <SelectContent>
-                                {savedPresets.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                <Accordion type="single" collapsible className="w-full">
-                                    <AccordionItem value="built-in">
-                                        <AccordionTrigger className="text-xs px-2 py-1">Built-in Scenarios</AccordionTrigger>
-                                        <AccordionContent className="p-0">
-                                            {Object.values(presets).map(p => <SelectItem key={p.name} value={p.name} onMouseDown={() => handlePresetChange(p.name)}>{p.name}</SelectItem>)}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                </Accordion>
+                                {savedPresets.length > 0 && <Label className="px-2 text-xs text-muted-foreground">My Presets</Label>}
+                                {savedPresets.map(p => <SelectItem key={p.id} value={`saved-${p.id}`}>{p.name}</SelectItem>)}
+                                {savedPresets.length > 0 && <Accordion type="single" collapsible className="w-full">
+                                    <AccordionItem value="built-in-sep" className="border-t my-1"></AccordionItem>
+                                </Accordion>}
+                                <Label className="px-2 text-xs text-muted-foreground">Built-in Scenarios</Label>
+                                {Object.values(presets).map(p => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                         <Button variant="destructive" size="icon" onClick={() => handleDeletePreset(savedPresets.find(p => p.name === presetName)?.id || '')} disabled={!savedPresets.some(p => p.name === presetName)} title="Delete current preset"><Trash2 className="h-4 w-4"/></Button>
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <Label htmlFor="preset-name">Save Current as Preset</Label>
+                    <Label htmlFor="preset-name">Save or Update Preset</Label>
                     <div className="flex gap-2">
                         <Input id="preset-name" placeholder="Enter preset name..." value={presetName} onChange={(e) => setPresetName(e.target.value)} />
-                        <Button onClick={handleSavePreset} disabled={isSavingPreset} size="icon" title="Save preset">{isSavingPreset ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}</Button>
+                        <Button onClick={handleSaveOrUpdatePreset} disabled={isSavingPreset} size="icon" title="Save or Update Preset">{isSavingPreset ? <Loader2 className="h-4 w-4 animate-spin"/> : <SaveAll className="h-4 w-4"/>}</Button>
+                        <Button variant="destructive" size="icon" onClick={handleDeletePreset} disabled={!savedPresets.some(p => p.name === presetName)} title="Delete current preset"><Trash2 className="h-4 w-4"/></Button>
                     </div>
                 </div>
             </CardContent>
