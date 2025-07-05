@@ -26,6 +26,7 @@ import {
   MOCK_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
+  ADMIN_UIDS,
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -102,6 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.displayName, firebaseUser.photoURL);
          }
       }
+
+      // ** SELF-HEALING ADMIN STATUS CHECK **
+      // If the logged-in user is an admin but their profile doesn't reflect premium status, fix it.
+      if (firebaseUser && ADMIN_UIDS.includes(firebaseUser.uid) && appProfileData && appProfileData.subscriptionStatus !== 'premium') {
+        if (!firebaseInitializationError) {
+            console.log(`Admin user ${firebaseUser.uid} detected with non-premium status. Correcting now.`);
+            appProfileData = await updateAppUserProfileDb(firebaseUser.uid, { subscriptionStatus: 'premium' });
+            toast({ title: "Admin Status Synced", description: "Your premium admin permissions have been applied.", variant: "default" });
+        }
+      }
       
       const currentSubStatus = appProfileData?.subscriptionStatus || 'standard';
       setSubscriptionStatus(currentSubStatus); 
@@ -116,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: appProfileData?.createdAt || (firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime) : new Date()),
         bio: appProfileData?.bio || '',
         bookmarkedListingIds: appProfileData?.bookmarkedListingIds || [],
-        walletBalance: appProfileData?.walletBalance ?? 10000,
+        walletBalance: appProfileData.walletBalance ?? 10000,
       };
       
       // We combine the Firebase user object with our application-specific profile.
