@@ -21,8 +21,7 @@ import {
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 export const ADMIN_UIDS = [
-  'ZsAXo79Wh8XEiHFrcJwlJT2h89F3', // Default mock admin ID
-  'gabeleunda@gmail.com' // Your Admin UID
+  'AdminGNL6965', // Gabe's Admin ID
 ];
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
@@ -32,7 +31,7 @@ const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
 
 // --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'gabeleunda@gmail.com', name: 'Gabe L (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
+const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe L (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
 const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'], walletBalance: 2500 };
 
 
@@ -564,3 +563,6 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
     const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
+
+
+    
