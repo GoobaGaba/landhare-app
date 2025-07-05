@@ -1,9 +1,10 @@
+// IMPORTANT: THIS FILE IS NO LONGER MOCK DATA. IT IS THE LIVE DATA ACCESS LAYER.
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset } from './types';
-import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { firebaseInitializationError, db as firestoreDb } from './firebase';
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, runTransaction, Timestamp, increment
+    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, Timestamp, increment
 } from 'firebase/firestore';
 
 
@@ -16,12 +17,11 @@ import {
 
 
 // --- CONFIGURATION ---
-const DB_KEY = 'landshare_mock_db';
 export const FREE_TIER_LISTING_LIMIT = 2;
 export const FREE_TIER_BOOKMARK_LIMIT = 5;
 export const ADMIN_UIDS = [
-  'ZsAXo79Wh8XEiHFrcJwlJT2h89F3', // This is the default mock admin user ID
-  'GabeL_ADMIN' // <-- Admin UID for gabeleunda@gmail.com
+  'ZsAXo79Wh8XEiHFrcJwlJT2h89F3', // Default mock admin ID
+  'GabeL_ADMIN' // Your Admin UID
 ];
 const RENTER_FEE = 0.99; // Flat fee for non-premium renters
 const TAX_RATE = 0.05; // 5%
@@ -29,70 +29,11 @@ const PREMIUM_SERVICE_FEE_RATE = 0.0049; // 0.49%
 const STANDARD_SERVICE_FEE_RATE = 0.02; // 2%
 const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
-// --- DATABASE STRUCTURE (for mock mode) ---
-interface MockDatabase {
-  users: User[];
-  listings: Listing[];
-  bookings: Booking[];
-  reviews: Review[];
-  transactions: Transaction[];
-  metrics: PlatformMetrics;
-  adminState: {
-    launchChecklist: { checkedItems: string[] };
-    backtestPresets: BacktestPreset[];
-  }
-}
 
-// --- MOCK USER DEFINITIONS ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'ZsAXo79Wh8XEiHFrcJwlJT2h89F3', name: 'Gabrielle Unda (Admin)', email: 'gabrielleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
+// --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
+const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'GabeL_ADMIN', name: 'Gabe L (Admin)', email: 'gabeleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Platform administrator and lead visionary.', bookmarkedListingIds: [], walletBalance: 10000 };
 const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: ['listing-1-sunny-meadow', 'listing-3-desert-oasis'], walletBalance: 2500 };
-const MOCK_GOOGLE_USER_FOR_UI_TESTING: User = { id: 'mock-google-user-uid-67890', name: 'Mock Google User', email: 'mock.google.user@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-04-01T10:00:00Z'), bio: 'I am a mock user signed in via Google for testing purposes.', bookmarkedListingIds: [], walletBalance: 2500 };
 
-// --- INITIAL DEFAULT DATA ---
-const getInitialData = (): MockDatabase => {
-    const users = [MOCK_ADMIN_USER_FOR_UI_TESTING, MOCK_USER_FOR_UI_TESTING, { id: 'landowner-jane-doe', name: 'Jane Doe', email: 'jane@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-02-15T11:00:00Z'), bio: 'Experienced landowner with several plots available.', bookmarkedListingIds: [], walletBalance: 2500 }, { id: 'renter-john-smith', name: 'John Smith', email: 'john@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-03-20T12:00:00Z'), bio: 'Looking for a quiet place for my tiny home.', bookmarkedListingIds: ['listing-2-forest-retreat'], walletBalance: 2500 }, MOCK_GOOGLE_USER_FOR_UI_TESTING];
-    const listings = [ { id: 'listing-1-sunny-meadow', title: 'Sunny Meadow Plot', description: 'A beautiful sunny meadow, perfect for sustainable living. Flat land, easy access. Great for gardens.', location: 'Boulder, CO', lat: 40.0150, lng: -105.2705, sizeSqft: 5000, amenities: ['water hookup', 'road access', 'pet friendly', 'fenced'], pricingModel: 'monthly', price: 350, images: ['https://placehold.co/800x600.png?text=Sunny+Meadow', 'https://placehold.co/400x300.png?text=Meadow+View+1', 'https://placehold.co/400x300.png?text=Meadow+View+2'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.8, numberOfRatings: 15, leaseTerm: 'long-term', minLeaseDurationMonths: 6, isBoosted: false, createdAt: new Date('2024-07-01T10:00:00Z'), }, { id: 'listing-2-forest-retreat', title: 'Forest Retreat Lot (Monthly)', description: 'Secluded lot in a dense forest. Ideal for off-grid enthusiasts. Some clearing needed. Very private.', location: 'Asheville, NC', lat: 35.5951, lng: -82.5515, sizeSqft: 12000, amenities: ['septic system', 'fenced', 'fire pit'], pricingModel: 'monthly', price: 200, images: ['https://placehold.co/800x600.png?text=Forest+Retreat', 'https://placehold.co/400x300.png?text=Forest+View+1'], landownerId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.2, numberOfRatings: 8, leaseTerm: 'flexible', isBoosted: true, createdAt: new Date('2024-06-15T14:30:00Z'), }, { id: 'listing-3-desert-oasis', title: 'Desert Oasis Spot (Short-term Monthly)', description: 'Expansive desert views with stunning sunsets. Requires water hauling. Power access nearby. Stargazing paradise.', location: 'Sedona, AZ', lat: 34.8700, lng: -111.7610, sizeSqft: 25000, amenities: ['power access', 'road access'], pricingModel: 'monthly', price: 150, images: ['https://placehold.co/800x600.png?text=Desert+Oasis'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.5, numberOfRatings: 10, leaseTerm: 'short-term', minLeaseDurationMonths: 1, isBoosted: false, createdAt: new Date('2024-05-01T10:00:00Z'), }, { id: 'listing-4-riverside-haven', title: 'Riverside Haven - Monthly Lease', description: 'Peaceful plot by a gentle river. Great for nature lovers. Seasonal access. Monthly lease available for fishing cabin.', location: 'Missoula, MT', lat: 46.8721, lng: -113.9940, sizeSqft: 7500, amenities: ['water hookup', 'fire pit', 'lake access', 'pet friendly'], pricingModel: 'monthly', price: 400, images: ['https://placehold.co/800x600.png?text=Riverside+Haven', 'https://placehold.co/400x300.png?text=River+View'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.9, numberOfRatings: 22, leaseTerm: 'long-term', minLeaseDurationMonths: 12, isBoosted: false, createdAt: new Date('2024-07-10T10:00:00Z'), }, { id: 'listing-5-cozy-rv-spot', title: 'Cozy RV Spot by the Lake (Nightly)', description: 'Perfect nightly getaway for your RV. Includes full hookups and stunning lake views. Min 2 nights. Book your escape!', location: 'Lake Tahoe, CA', lat: 39.0968, lng: -120.0324, sizeSqft: 1500, amenities: ['water hookup', 'power access', 'wifi available', 'pet friendly', 'lake access', 'septic system'], pricingModel: 'nightly', price: 45, images: ['https://placehold.co/800x600.png?text=RV+Lake+Spot', 'https://placehold.co/400x300.png?text=Lake+Sunset'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.7, numberOfRatings: 12, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-06-01T09:00:00Z'), }, { id: 'listing-6-mountain-homestead-lto', title: 'Mountain Homestead - Lease to Own!', description: 'Your chance to own a piece of the mountains! This spacious lot is offered with a lease-to-own option. Build your dream cabin or sustainable farm. Terms negotiable.', location: 'Boone, NC', lat: 36.2168, lng: -81.6746, sizeSqft: 45000, amenities: ['road access', 'septic system' ], pricingModel: 'lease-to-own', price: 650, downPayment: 5000, leaseToOwnDetails: "5-year lease-to-own program. $5,000 down payment. Estimated monthly payment of $650 (PITI estimate). Final purchase price: $75,000. Subject to credit approval and LTO agreement. Owner financing available.", images: ['https://placehold.co/800x600.png?text=Mountain+LTO', 'https://placehold.co/400x300.png?text=Creek+Nearby', 'https://placehold.co/400x300.png?text=Site+Plan'], landownerId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.3, numberOfRatings: 5, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 60, createdAt: new Date('2024-05-15T11:00:00Z'), }, { id: 'listing-7-basic-rural-plot', title: 'Basic Rural Plot - Affordable Monthly!', description: 'A very basic, undeveloped plot of land in a quiet rural area. No frills, just space. Perfect for raw land camping (check local ordinances) or a very simple, self-contained setup.', location: 'Rural Plains, KS', lat: 37.7749, lng: -97.3308, sizeSqft: 22000, amenities: [], pricingModel: 'monthly', price: 75, images: ['https://placehold.co/800x600.png?text=Basic+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 2.5, numberOfRatings: 2, isBoosted: false, leaseTerm: 'flexible', createdAt: new Date('2024-04-01T16:00:00Z'), }, { id: 'listing-8-premium-view-lot-rented', title: 'Premium View Lot (Currently Rented)', description: 'Unobstructed ocean views from this premium lot. Currently under a long-term lease. Not available for new bookings.', location: 'Big Sur, CA', lat: 36.2704, lng: -121.8081, sizeSqft: 10000, amenities: ['power access', 'water hookup', 'fenced', 'wifi available', 'septic system'], pricingModel: 'monthly', price: 1200, images: ['https://placehold.co/800x600.png?text=Rented+View+Lot'], landownerId: MOCK_USER_FOR_UI_TESTING.id, isAvailable: false, rating: 4.9, numberOfRatings: 35, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 12, createdAt: new Date('2023-08-10T12:00:00Z'), }, { id: 'listing-9-miami-nightly', title: 'Miami Urban Garden Plot (Nightly)', description: 'A rare open plot in Miami, perfect for short-term events, urban gardening projects, or RV parking. Nightly rates available.', location: 'Miami, FL', lat: 25.7617, lng: -80.1918, sizeSqft: 2500, amenities: ['power access', 'water hookup', 'fenced', 'road access'], pricingModel: 'nightly', price: 75, images: ['https://placehold.co/800x600.png?text=Miami+Plot'], landownerId: 'landowner-jane-doe', isAvailable: true, rating: 4.6, numberOfRatings: 9, isBoosted: false, leaseTerm: 'short-term', createdAt: new Date('2024-07-20T10:00:00Z'), }, { id: 'listing-10-orlando-lto', title: 'Orlando LTO Opportunity near Attractions', description: 'Lease-to-own this conveniently located lot in the greater Orlando area. A great investment for a future home base.', location: 'Orlando, FL', lat: 28.5383, lng: -81.3792, sizeSqft: 6000, amenities: ['power access', 'water hookup', 'road access', 'septic system'], pricingModel: 'lease-to-own', price: 550, downPayment: 3000, leaseToOwnDetails: "3-year lease-to-own option. $3,000 down. Estimated monthly payment of $550. Final purchase price: $60,000. Close to main roads.", images: ['https://placehold.co/800x600.png?text=Orlando+LTO+Lot'], landownerId: MOCK_GOOGLE_USER_FOR_UI_TESTING.id, isAvailable: true, rating: 4.1, numberOfRatings: 3, isBoosted: true, leaseTerm: 'long-term', minLeaseDurationMonths: 36, createdAt: new Date('2024-07-18T10:00:00Z'), } ];
-    const bookings = [ { id: 'booking-1', listingId: 'listing-1-sunny-meadow', listingTitle: 'Sunny Meadow Plot', renterId: 'renter-john-smith', renterName: 'John Smith', landownerId: 'landowner-jane-doe', landownerName: 'Jane Doe', status: 'Confirmed', dateRange: { from: new Date('2024-01-01'), to: new Date('2024-06-30') }, createdAt: new Date('2023-12-15T10:00:00Z'), }, { id: 'booking-2', listingId: 'listing-2-forest-retreat', listingTitle: 'Forest Retreat Lot (Monthly)', renterId: 'renter-john-smith', renterName: 'John Smith', landownerId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, landownerName: MOCK_ADMIN_USER_FOR_UI_TESTING.name, status: 'Pending Confirmation', dateRange: { from: new Date('2024-08-01'), to: new Date('2024-09-01') }, createdAt: new Date('2024-07-20T11:00:00Z'), }, { id: 'booking-5-lto-pending', listingId: 'listing-6-mountain-homestead-lto', listingTitle: 'Mountain Homestead - Lease to Own!', renterId: 'renter-john-smith', renterName: 'John Smith', landownerId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, landownerName: MOCK_ADMIN_USER_FOR_UI_TESTING.name, status: 'Pending Confirmation', dateRange: { from: new Date('2024-09-01'), to: new Date('2029-08-31') }, createdAt: new Date('2024-07-25T10:00:00Z'), }, { id: 'booking-6-mockuser-pending', listingId: 'listing-1-sunny-meadow', listingTitle: 'Sunny Meadow Plot', renterId: MOCK_USER_FOR_UI_TESTING.id, renterName: MOCK_USER_FOR_UI_TESTING.name, landownerId: 'landowner-jane-doe', landownerName: 'Jane Doe', status: 'Pending Confirmation', dateRange: { from: new Date('2024-10-01'), to: new Date('2024-10-15') }, createdAt: new Date('2024-07-28T11:00:00Z'), }, ];
-    const reviews = [ { id: 'review-1', listingId: 'listing-1-sunny-meadow', userId: 'renter-john-smith', userName: 'John Smith', rating: 5, comment: 'Absolutely loved this spot! Jane was a great host. The meadow is beautiful and well-kept.', createdAt: new Date('2023-07-01T10:00:00Z'), }, { id: 'review-2', listingId: 'listing-2-forest-retreat', userId: 'landowner-jane-doe', userName: 'Jane Doe', rating: 4, comment: 'Nice and secluded, a bit rough around the edges but has potential. Mock Tester was responsive.', createdAt: new Date('2023-12-01T11:00:00Z'), }, { id: 'review-3-nightly', listingId: 'listing-5-cozy-rv-spot', userId: 'renter-john-smith', userName: 'John Smith', rating: 5, comment: 'Amazing RV spot, beautiful views and all hookups worked perfectly. Will be back!', createdAt: new Date('2024-07-16T10:00:00Z'), }, { id: 'review-4-lto', listingId: 'listing-6-mountain-homestead-lto', userId: 'renter-john-smith', userName: 'John Smith', rating: 4, comment: 'Interesting LTO option. Land is raw but promising. Landowner (Admin) was helpful with initial info.', createdAt: new Date('2024-05-01T10:00:00Z'), }, { id: 'review-5-basic', listingId: 'listing-7-basic-rural-plot', userId: MOCK_USER_FOR_UI_TESTING.id, userName: MOCK_USER_FOR_UI_TESTING.name, rating: 2, comment: 'It truly is basic, but the price was right for what it is. No surprises. Good for minimalists.', createdAt: new Date('2024-06-10T10:00:00Z'), }, { id: 'review-6-riverside', listingId: 'listing-4-riverside-haven', userId: 'landowner-jane-doe', userName: 'Jane Doe', rating: 5, comment: 'A truly fantastic spot for a long-term lease. Host was accommodating. River access is a huge plus.', createdAt: new Date('2024-07-15T10:00:00Z'), }, ];
-    const transactions = [ { id: 'txn2', userId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, type: 'Landowner Payout', status: 'Completed', amount: 196.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Payout for Forest Retreat Lot' }, { id: 'txn3', userId: MOCK_ADMIN_USER_FOR_UI_TESTING.id, type: 'Service Fee', status: 'Completed', amount: -4.00, currency: 'USD', date: new Date('2024-07-05T00:00:00Z'), description: 'Service Fee (2%) for Forest Retreat Lot' }, { id: 'txn4', userId: 'landowner-jane-doe', type: 'Landowner Payout', status: 'Completed', amount: 343.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Payout for Sunny Meadow Plot' }, { id: 'txn5', userId: 'landowner-jane-doe', type: 'Service Fee', status: 'Completed', amount: -7.00, currency: 'USD', date: new Date('2024-07-08T00:00:00Z'), description: 'Service Fee (2%) for Sunny Meadow Plot' }, { id: 'txn6', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Completed', amount: -2100.99, currency: 'USD', date: new Date('2023-12-15T00:00:00Z'), description: 'Payment for Sunny Meadow Plot (6 months)' }, { id: 'txn7', userId: 'renter-john-smith', type: 'Booking Payment', status: 'Pending', amount: -200.99, currency: 'USD', date: new Date('2024-07-20T00:00:00Z'), description: 'Payment for Forest Retreat Lot' }, ];
-    const metrics: PlatformMetrics = { id: 'global_metrics', totalRevenue: 11.00, totalServiceFees: 11.00, totalSubscriptionRevenue: 0.00, totalUsers: users.length, totalListings: listings.length, totalBookings: bookings.length };
-    const adminState: MockDatabase['adminState'] = { launchChecklist: { checkedItems: ['firebase_project', 'auth_flow', 'listing_flow', 'booking_flow', 'subscription_logic', 'admin_dashboard', 'bot_simulator'] }, backtestPresets: [] };
-    return { users, listings, bookings, reviews, transactions, metrics, adminState };
-};
-
-// --- MOCK MODE CORE DATABASE FUNCTIONS ---
-let localDb: MockDatabase | null = null;
-function loadMockDb(): MockDatabase {
-    if (typeof window === 'undefined') {
-        if (!localDb) { localDb = getInitialData(); }
-        return localDb;
-    }
-    try {
-        const storedDb = localStorage.getItem(DB_KEY);
-        if (storedDb) {
-            const parsed = JSON.parse(storedDb, (key, value) => {
-                if (key === 'createdAt' || key === 'from' || key === 'to' || key === 'date') {
-                    if (value) return new Date(value);
-                } return value;
-            });
-            // Ensure adminState exists
-            if (!parsed.adminState) {
-                parsed.adminState = getInitialData().adminState;
-            }
-            return parsed;
-        }
-    } catch (error) { console.error("Failed to load or parse mock DB from localStorage, resetting.", error); }
-    const initialData = getInitialData();
-    saveMockDb(initialData);
-    return initialData;
-}
-function saveMockDb(newDb: MockDatabase) {
-    if (typeof window === 'undefined') { localDb = newDb; return; }
-    localStorage.setItem(DB_KEY, JSON.stringify(newDb));
-    window.dispatchEvent(new CustomEvent('mockDataChanged'));
-}
-
-// --- DATA ACCESS & MUTATION FUNCTIONS ---
 
 /**
  * Converts a Firestore document snapshot into a usable object,
@@ -123,7 +64,9 @@ function docToObj<T>(docSnap: any): T {
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
     if (firebaseInitializationError) {
-        return loadMockDb().users.find(user => user.id === id);
+        if (id === MOCK_ADMIN_USER_FOR_UI_TESTING.id) return MOCK_ADMIN_USER_FOR_UI_TESTING;
+        if (id === MOCK_USER_FOR_UI_TESTING.id) return MOCK_USER_FOR_UI_TESTING;
+        return undefined;
     }
     const userRef = doc(firestoreDb, "users", id);
     const userSnap = await getDoc(userRef);
@@ -132,14 +75,9 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
     const initialWalletBalance = ADMIN_UIDS.includes(userId) ? 10000 : 2500;
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const existingUser = db.users.find(u => u.id === userId);
-        if (existingUser) return existingUser;
-        const newUser: User = { id: userId, email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: new Date(), bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
-        db.users.push(newUser);
-        saveMockDb(db);
-        return newUser;
+     if (firebaseInitializationError) {
+        const mockUser = ADMIN_UIDS.includes(userId) ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
+        return {...mockUser, id: userId, email, name: name || mockUser.name };
     }
     const userRef = doc(firestoreDb, "users", userId);
     const existingUserSnap = await getDoc(userRef);
@@ -148,28 +86,13 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     }
     const newUser: Omit<User, 'id'> = { email: email, name: name || email.split('@')[0] || 'User', avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, subscriptionStatus: 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", bookmarkedListingIds: [], walletBalance: initialWalletBalance };
     await setDoc(userRef, newUser);
-    return { ...newUser, id: userId, createdAt: new Date() };
+    return { ...newUser, id: userId, createdAt: new Date(), walletBalance: initialWalletBalance };
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const userIndex = db.users.findIndex(u => u.id === userId);
-        if (userIndex !== -1) {
-            const user = db.users[userIndex];
-            // Simulate subscription transaction in mock mode
-            if (data.subscriptionStatus && data.subscriptionStatus !== user.subscriptionStatus) {
-                const transactionType = data.subscriptionStatus === 'premium' ? 'Subscription' : 'Subscription Refund';
-                const amount = data.subscriptionStatus === 'premium' ? -PREMIUM_SUBSCRIPTION_PRICE : PREMIUM_SUBSCRIPTION_PRICE;
-                user.walletBalance += amount;
-                db.transactions.push({ id: `txn-sub-${Date.now()}`, userId, type: transactionType, status: 'Completed', amount, currency: 'USD', date: new Date(), description: `Simulated ${transactionType}` });
-                db.metrics.totalSubscriptionRevenue -= amount; // revenue increases on expense, decreases on refund
-            }
-            db.users[userIndex] = { ...user, ...data };
-            saveMockDb(db);
-            return db.users[userIndex];
-        }
-        return undefined;
+       console.warn("User profile update skipped in mock mode.");
+       return undefined;
     }
 
     // Live mode with subscription financial logic
@@ -228,7 +151,8 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 // --- Listing Functions ---
 export const getListings = async (): Promise<Listing[]> => {
     if (firebaseInitializationError) {
-        return loadMockDb().listings.filter(l => l.isAvailable).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+        console.warn("getListings called in mock mode. Returning empty array.");
+        return [];
     }
     const q = query(collection(firestoreDb, "listings"), where("isAvailable", "==", true), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
@@ -236,63 +160,30 @@ export const getListings = async (): Promise<Listing[]> => {
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
-    if (firebaseInitializationError) {
-        return loadMockDb().listings.find(listing => listing.id === id);
-    }
+     if (firebaseInitializationError) { return undefined; }
     const listingRef = doc(firestoreDb, "listings", id);
     const listingSnap = await getDoc(listingRef);
     return docToObj<Listing>(listingSnap);
 };
 
 export const addListing = async (data: Omit<Listing, 'id'>): Promise<Listing> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const newListing: Listing = { ...data, id: `listing-${Date.now()}-${Math.random().toString(16).slice(2)}`, isBoosted: data.isBoosted || false };
-        db.listings.unshift(newListing);
-        saveMockDb(db);
-        return newListing;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot add listing in mock mode."); }
     const listingsCollection = collection(firestoreDb, "listings");
     const newDocRef = await addDoc(listingsCollection, { ...data, createdAt: serverTimestamp() });
     return { ...data, id: newDocRef.id, createdAt: new Date() };
 };
 
 export const updateListing = async (listingId: string, data: Partial<Listing>): Promise<Listing | undefined> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const listingIndex = db.listings.findIndex(l => l.id === listingId);
-        if (listingIndex !== -1) {
-            db.listings[listingIndex] = { ...db.listings[listingIndex], ...data };
-            saveMockDb(db);
-            return db.listings[listingIndex];
-        } return undefined;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot update listing in mock mode."); }
     const listingRef = doc(firestoreDb, "listings", listingId);
     await updateDoc(listingRef, data);
     const updatedListingSnap = await getDoc(listingRef);
     return docToObj<Listing>(updatedListingSnap);
 };
 
-export const deleteListing = async (listingId: string): Promise<boolean> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const initialLength = db.listings.length;
-        db.listings = db.listings.filter(l => l.id !== listingId);
-        db.bookings = db.bookings.filter(b => b.listingId !== listingId);
-        db.reviews = db.reviews.filter(r => r.listingId !== listingId);
-        const deleted = db.listings.length < initialLength;
-        if (deleted) saveMockDb(db);
-        return deleted;
-    }
-    // Deletion is now handled in a server action for Firestore for consistency
-    throw new Error("Direct client-side deletion from mock-data is disabled. Use deleteListingAction.");
-};
-
 // --- Review Functions ---
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
-    if (firebaseInitializationError) {
-        return loadMockDb().reviews.filter(review => review.listingId === listingId).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
-    }
+    if (firebaseInitializationError) { return []; }
     const q = query(collection(firestoreDb, "reviews"), where("listingId", "==", listingId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => docToObj<Review>(doc));
@@ -300,15 +191,7 @@ export const getReviewsForListing = async (listingId: string): Promise<Review[]>
 
 // --- Booking Functions ---
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        return db.bookings.filter(b => b.renterId === userId || b.landownerId === userId).map(booking => {
-            const listing = db.listings.find(l => l.id === booking.listingId);
-            const renter = db.users.find(u => u.id === booking.renterId);
-            const landowner = db.users.find(u => u.id === booking.landownerId);
-            return { ...booking, listingTitle: listing?.title, renterName: renter?.name, landownerName: landowner?.name };
-        }).sort((a,b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
-    }
+    if (firebaseInitializationError) { return []; }
     
     const renterQuery = query(collection(firestoreDb, "bookings"), where("renterId", "==", userId));
     const landownerQuery = query(collection(firestoreDb, "bookings"), where("landownerId", "==", userId));
@@ -330,8 +213,8 @@ const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, 
       const days = differenceInDays(dateRange.to, dateRange.from) + 1;
       baseRate = (listing.price || 0) * (days > 0 ? days : 1);
   } else { // monthly or LTO
-      const days = differenceInDays(dateRange.to, dateRange.from) + 1;
-      baseRate = (listing.price / 30) * (days > 0 ? days : 1);
+      const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
+      baseRate = listing.price * (fullMonths > 0 ? fullMonths : 1);
   }
   const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
   const subtotal = baseRate + renterFee;
@@ -340,13 +223,7 @@ const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, 
 };
 
 export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>): Promise<Booking> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const newBooking: Booking = { ...data, id: `booking-${Date.now()}`, status: 'Pending Confirmation', createdAt: new Date() };
-        db.bookings.unshift(newBooking);
-        saveMockDb(db);
-        return newBooking;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot add booking in mock mode."); }
     
     return runTransaction(firestoreDb, async (transaction) => {
         const listingRef = doc(firestoreDb, "listings", data.listingId);
@@ -385,6 +262,7 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
             status: 'Pending Confirmation',
             createdAt: serverTimestamp(),
             totalPrice: totalPrice,
+            monthlyRent: listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own' ? listing.price : undefined,
             paymentTransactionId: newTxRef.id
         });
         
@@ -393,16 +271,7 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
 };
 
 export const updateBookingStatus = async (bookingId: string, newStatus: Booking['status']): Promise<Booking | undefined> => {
-    if (firebaseInitializationError) {
-        // Mock mode: Only update status, no economic logic here.
-        const db = loadMockDb();
-        const bookingIndex = db.bookings.findIndex(b => b.id === bookingId);
-        if (bookingIndex !== -1) {
-            db.bookings[bookingIndex].status = newStatus;
-            saveMockDb(db);
-            return db.bookings[bookingIndex];
-        } return undefined;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot update booking status in mock mode."); }
 
     return runTransaction(firestoreDb, async (transaction) => {
         const bookingRef = doc(firestoreDb, 'bookings', bookingId);
@@ -445,7 +314,7 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
 
             // Update landowner wallet and metrics
             transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
-            transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee) });
+            transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee), totalBookings: increment(1) });
         } 
         else if (newStatus === 'Declined' || newStatus === 'Cancelled by Renter' || newStatus === 'Refund Approved') {
             const renterRef = doc(firestoreDb, 'users', booking.renterId);
@@ -477,11 +346,7 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
 
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
-    if (firebaseInitializationError) {
-        const currentDb = loadMockDb();
-        return currentDb.transactions.filter(t => t.userId === userId)
-          .sort((a,b) => (b.date as Date).getTime() - (a.date as Date).getTime());
-    }
+    if (firebaseInitializationError) { return []; }
 
     const q = query(collection(firestoreDb, 'transactions'), where('userId', '==', userId), orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
@@ -491,21 +356,7 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
 
 // --- Bookmark Functions ---
 export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const userIndex = db.users.findIndex(u => u.id === userId);
-        if (userIndex !== -1) {
-            const user = db.users[userIndex];
-            if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
-                throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
-            }
-            if (!user.bookmarkedListingIds?.includes(listingId)) {
-                user.bookmarkedListingIds = [...(user.bookmarkedListingIds || []), listingId];
-                saveMockDb(db);
-            }
-            return user;
-        } return undefined;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot add bookmark in mock mode."); }
     const userRef = doc(firestoreDb, "users", userId);
     const user = await getUserById(userId);
     if (user) {
@@ -520,18 +371,7 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
 };
 
 export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
-    if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const userIndex = db.users.findIndex(u => u.id === userId);
-        if (userIndex !== -1) {
-            const user = db.users[userIndex];
-            if (user.bookmarkedListingIds?.includes(listingId)) {
-                user.bookmarkedListingIds = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
-                saveMockDb(db);
-            }
-            return user;
-        } return undefined;
-    }
+    if (firebaseInitializationError) { throw new Error("Cannot remove bookmark in mock mode."); }
     const userRef = doc(firestoreDb, "users", userId);
     const user = await getUserById(userId);
     if (user && user.bookmarkedListingIds?.includes(listingId)) {
@@ -542,28 +382,120 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
     return user;
 };
 
-// --- Admin & Bot Functions ---
+// --- Admin & Economic Cycle Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
     if (firebaseInitializationError) {
-        return loadMockDb().metrics;
+        // This is a fallback for UI testing and should not be relied upon for mock logic
+        return { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
     }
     const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
     const metricsSnap = await getDoc(metricsRef);
     if (metricsSnap.exists()) {
         return docToObj<PlatformMetrics>(metricsSnap);
     }
-    // Fallback if document doesn't exist
-    return { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
+    
+    // Initialize if doesn't exist
+    const initialMetrics: PlatformMetrics = { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
+    await setDoc(metricsRef, initialMetrics);
+    return initialMetrics;
 };
 
-export const runBotSimulationCycle = async (): Promise<{ message: string }> => {
-  // This will be migrated to create real Firestore data in Phase 2.
-  const currentDb = loadMockDb();
-  const botUser: User = { id: `bot-${Date.now()}`, name: 'Simulated Bot', email: `bot${Date.now()}@example.com`, subscriptionStatus: 'standard', createdAt: new Date(), walletBalance: 2500 };
-  currentDb.users.push(botUser);
-  saveMockDb(currentDb);
-  return { message: 'Ran a simple simulation cycle: created 1 new bot user.' };
+export const processMonthlyEconomicCycle = async (): Promise<{ message: string, processedBookings: number }> => {
+    if (firebaseInitializationError) {
+        return { message: "Economic cycle cannot run in mock mode.", processedBookings: 0 };
+    }
+
+    const today = new Date();
+    // Find all 'Confirmed' monthly or LTO bookings that are currently active
+    const q = query(
+        collection(firestoreDb, 'bookings'), 
+        where('status', '==', 'Confirmed'),
+        where('monthlyRent', '>', 0)
+    );
+
+    const activeBookingsSnap = await getDocs(q);
+    const activeBookings = activeBookingsSnap.docs.map(d => docToObj<Booking>(d)).filter(b => {
+        const from = (b.dateRange.from as Timestamp).toDate();
+        const to = (b.dateRange.to as Timestamp).toDate();
+        return isWithinInterval(today, { start: from, end: to });
+    });
+
+    if (activeBookings.length === 0) {
+        return { message: "No active monthly leases found to process.", processedBookings: 0 };
+    }
+
+    // Use a single transaction for all updates to ensure atomicity
+    await runTransaction(firestoreDb, async (transaction) => {
+        const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
+        let totalServiceFeesThisCycle = 0;
+
+        for (const booking of activeBookings) {
+            const rent = booking.monthlyRent || 0;
+            if (rent <= 0) continue;
+
+            const renterRef = doc(firestoreDb, 'users', booking.renterId);
+            const landownerRef = doc(firestoreDb, 'users', booking.landownerId);
+
+            const [renterSnap, landownerSnap] = await Promise.all([
+                transaction.get(renterRef),
+                transaction.get(landownerRef),
+            ]);
+            
+            if (!renterSnap.exists() || !landownerSnap.exists()) {
+                console.warn(`Skipping booking ${booking.id} due to missing user.`);
+                continue;
+            }
+
+            const renter = renterSnap.data() as User;
+            const landowner = landownerSnap.data() as User;
+
+            if ((renter.walletBalance || 0) < rent) {
+                console.warn(`Skipping booking ${booking.id}: Renter ${renter.name} has insufficient funds.`);
+                continue;
+            }
+            
+            const serviceFeeRate = landowner.subscriptionStatus === 'premium' ? PREMIUM_SERVICE_FEE_RATE : STANDARD_SERVICE_FEE_RATE;
+            const serviceFee = rent * serviceFeeRate;
+            const payoutAmount = rent - serviceFee;
+            totalServiceFeesThisCycle += serviceFee;
+
+            // 1. Debit Renter
+            transaction.update(renterRef, { walletBalance: increment(-rent) });
+            const rentTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(rentTxRef, {
+                userId: renter.id, type: 'Monthly Rent', status: 'Completed', amount: -rent, currency: 'USD',
+                date: serverTimestamp(), description: `Monthly rent for "${booking.listingTitle}"`, relatedBookingId: booking.id
+            });
+            
+            // 2. Credit Landowner
+            transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
+            const payoutTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(payoutTxRef, {
+                userId: landowner.id, type: 'Landowner Payout', status: 'Completed', amount: payoutAmount, currency: 'USD',
+                date: serverTimestamp(), description: `Monthly payout for "${booking.listingTitle}"`, relatedBookingId: booking.id
+            });
+            
+            // 3. Log Service Fee
+            const feeTxRef = doc(collection(firestoreDb, 'transactions'));
+            transaction.set(feeTxRef, {
+                userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
+                date: serverTimestamp(), description: `Service fee for "${booking.listingTitle}" rent`, relatedBookingId: booking.id
+            });
+        }
+
+        // 4. Update Global Metrics
+        transaction.update(metricsRef, {
+            totalServiceFees: increment(totalServiceFeesThisCycle),
+            totalRevenue: increment(totalServiceFeesThisCycle),
+        });
+    });
+
+    return {
+        message: `Processed ${activeBookings.length} monthly lease payments.`,
+        processedBookings: activeBookings.length,
+    };
 };
+
 
 export const getMarketInsights = async () => {
   // This will be migrated to use real data in Phase 2.
@@ -587,22 +519,17 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
 };
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
-    if (firebaseInitializationError) {
-        return loadMockDb().listings.filter(l => l.landownerId === landownerId).length;
-    }
+    if (firebaseInitializationError) { return 0; }
     const q = query(collection(firestoreDb, 'listings'), where('landownerId', '==', landownerId));
     const snapshot = await getDocs(q);
     return snapshot.size;
 };
     
-export { MOCK_USER_FOR_UI_TESTING, MOCK_GOOGLE_USER_FOR_UI_TESTING };
-export const mockUsers = getInitialData().users;
+export { MOCK_USER_FOR_UI_TESTING };
 
 // --- Admin State Functions (Checklist & Backtest Presets) ---
 export const getAdminChecklistState = async (): Promise<Set<string>> => {
-    if (firebaseInitializationError) {
-        return new Set(loadMockDb().adminState.launchChecklist.checkedItems);
-    }
+    if (firebaseInitializationError) { return new Set(); }
     const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     const docSnap = await getDoc(docRef);
     if (docSnap.exists() && docSnap.data().checkedItems) {
@@ -612,48 +539,27 @@ export const getAdminChecklistState = async (): Promise<Set<string>> => {
 };
 
 export const saveAdminChecklistState = async (checkedItems: Set<string>): Promise<void> => {
-    if (firebaseInitializationError) {
-         const db = loadMockDb();
-         db.adminState.launchChecklist.checkedItems = Array.from(checkedItems);
-         saveMockDb(db);
-        return;
-    }
+    if (firebaseInitializationError) { return; }
     const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     await setDoc(docRef, { checkedItems: Array.from(checkedItems) });
 };
 
 export const getBacktestPresets = async (): Promise<BacktestPreset[]> => {
-    if (firebaseInitializationError) {
-        return loadMockDb().adminState.backtestPresets || [];
-    }
+    if (firebaseInitializationError) { return []; }
     const presetsCollection = collection(firestoreDb, "backtest_presets");
-    const presetsSnap = await getDocs(presetsCollection);
-    return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d)).sort((a,b) => (a.name > b.name) ? 1 : -1);
+    const presetsSnap = await getDocs(query(presetsCollection, orderBy("name")));
+    return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d));
 };
 
 export const saveBacktestPreset = async (preset: Omit<BacktestPreset, 'id'>): Promise<BacktestPreset> => {
-     if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const newPreset = { ...preset, id: `preset-${Date.now()}` };
-        if (!db.adminState.backtestPresets) db.adminState.backtestPresets = [];
-        db.adminState.backtestPresets.push(newPreset);
-        saveMockDb(db);
-        return newPreset;
-    }
+     if (firebaseInitializationError) { throw new Error("Cannot save preset in mock mode."); }
     const presetsCollection = collection(firestoreDb, "backtest_presets");
     const newDocRef = await addDoc(presetsCollection, { ...preset, createdAt: serverTimestamp() });
     return { ...preset, id: newDocRef.id, createdAt: new Date() }
 };
 
 export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
-     if (firebaseInitializationError) {
-        const db = loadMockDb();
-        if (db.adminState.backtestPresets) {
-          db.adminState.backtestPresets = db.adminState.backtestPresets.filter(p => p.id !== presetId);
-          saveMockDb(db);
-        }
-        return;
-    }
+     if (firebaseInitializationError) { return; }
     const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };

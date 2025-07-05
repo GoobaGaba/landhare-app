@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getPlatformMetrics, runBotSimulationCycle, ADMIN_UIDS } from '@/lib/mock-data';
+import { getPlatformMetrics, processMonthlyEconomicCycle, ADMIN_UIDS } from '@/lib/mock-data';
 import type { PlatformMetrics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle, Rocket, FlaskConical, ExternalLink } from 'lucide-react';
+import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle, Rocket, FlaskConical, ExternalLink, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { LaunchChecklist } from '@/components/admin/launch-checklist';
@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
   const { toast } = useToast();
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSimulating, setIsSimulating] = useState(false);
+  const [isProcessingCycle, setIsProcessingCycle] = useState(false);
 
   const fetchMetrics = useCallback(async () => {
       setIsLoading(true);
@@ -41,27 +41,27 @@ export default function AdminDashboardPage() {
     fetchMetrics();
   }, [currentUser, authLoading, fetchMetrics]);
   
-  const handleRunBots = async () => {
-      setIsSimulating(true);
+  const handleRunEconomicCycle = async () => {
+      setIsProcessingCycle(true);
       toast({
-            title: "Bot Simulation Started",
-            description: "Generating new listings and booking activity... This may take a moment.",
+            title: "Economic Cycle Started",
+            description: "Processing monthly lease payments... This may take a moment.",
         });
       try {
-        const result = await runBotSimulationCycle();
+        const result = await processMonthlyEconomicCycle();
         toast({
-            title: "Bot Simulation Complete",
+            title: "Economic Cycle Complete",
             description: result.message,
         });
         await fetchMetrics(); // Re-fetch metrics to update the dashboard
       } catch (error: any) {
             toast({
-            title: "Bot Simulation Failed",
+            title: "Economic Cycle Failed",
             description: error.message || "An unexpected error occurred.",
             variant: "destructive",
         });
       } finally {
-        setIsSimulating(false);
+        setIsProcessingCycle(false);
       }
   };
 
@@ -189,18 +189,18 @@ export default function AdminDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/>Bot Simulation Controls</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/>Economic Cycle Controls</CardTitle>
           <CardDescription>
-            Generate realistic, automated activity on the platform to test its economic model and data tracking at scale. This will create real data if Firebase is configured.
+            Manually trigger the monthly processing of all active lease payments on the platform. This affects user wallets and platform revenue metrics.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            Clicking the button below will trigger a set of actions from pre-defined "bot" users. This includes creating new listings and booking existing ones, which will affect all platform metrics.
+            Clicking the button below will find all "Confirmed" monthly or lease-to-own bookings and process one month's rent payment. Renter wallets will be debited, landowner wallets credited, and service fees collected.
           </p>
-          <Button onClick={handleRunBots} disabled={isSimulating}>
-            {isSimulating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlayCircle className="mr-2 h-4 w-4"/>}
-            Run Bot Simulation Cycle
+          <Button onClick={handleRunEconomicCycle} disabled={isProcessingCycle}>
+            {isProcessingCycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
+            Process Monthly Economic Cycle
           </Button>
         </CardContent>
       </Card>
