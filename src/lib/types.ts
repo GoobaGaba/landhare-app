@@ -39,6 +39,7 @@ export interface User {
   bio?: string;
   createdAt?: Date | Timestamp;
   subscriptionStatus?: SubscriptionStatus;
+  isAdmin?: boolean;
   bookmarkedListingIds?: string[];
   walletBalance: number;
 }

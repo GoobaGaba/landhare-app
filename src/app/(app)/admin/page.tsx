@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { getPlatformMetrics, runBotSimulationCycle, ADMIN_UIDS } from '@/lib/mock-data';
+import { getPlatformMetrics, runBotSimulationCycle } from '@/lib/mock-data';
 import type { PlatformMetrics } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Users, Home, Book, DollarSign, Bot, Loader2, AlertTriangle, Shield, PlayCircle, Rocket, FlaskConical, ExternalLink } from 'lucide-react';
@@ -34,7 +34,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!currentUser || !ADMIN_UIDS.includes(currentUser.uid)) {
+    if (!currentUser?.appProfile?.isAdmin) {
       setIsLoading(false);
       return;
     }
@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (!currentUser || !ADMIN_UIDS.includes(currentUser.uid)) {
+  if (!currentUser?.appProfile?.isAdmin) {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
