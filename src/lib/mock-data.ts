@@ -92,7 +92,9 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (firebaseInitializationError) {
        console.warn("User profile update skipped in mock mode.");
-       return undefined;
+       const user = ADMIN_UIDS.includes(userId) ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
+       Object.assign(user, data);
+       return user;
     }
 
     // Live mode with subscription financial logic
@@ -525,7 +527,7 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
     return snapshot.size;
 };
     
-export { MOCK_USER_FOR_UI_TESTING };
+export { MOCK_USER_FOR_UI_TESTING, MOCK_ADMIN_USER_FOR_UI_TESTING };
 
 // --- Admin State Functions (Checklist & Backtest Presets) ---
 export const getAdminChecklistState = async (): Promise<Set<string>> => {
@@ -569,6 +571,3 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
     const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
-
-
-    

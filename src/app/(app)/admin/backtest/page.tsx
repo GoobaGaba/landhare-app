@@ -36,7 +36,7 @@ export default function BacktestPage() {
   return (
     <div className="space-y-6">
        <div>
-        <h1 className="text-3xl font-bold">Landhare Backtest BETA</h1>
+        <h1 className="text-3xl font-bold">LandShare Backtest BETA</h1>
         <p className="text-muted-foreground">
          Interactive business and economic backtesting environment.
         </p>

@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appProfileData: AppUserType | undefined;
 
       // In mock mode, we use the hardcoded admin profile.
-      if (firebaseInitializationError && firebaseUser.uid === 'AdminGNL6965') {
+      if (firebaseInitializationError && firebaseUser.uid === ADMIN_UIDS[0]) {
         appProfileData = MOCK_ADMIN_USER_FOR_UI_TESTING;
       }
       else if (firebaseInitializationError) {
@@ -186,8 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
 
     if (firebaseInitializationError) {
-        const adminEmail = 'gabeleunda@gmail.com';
-        if (credentials.email === adminEmail) {
+        if (credentials.email === MOCK_ADMIN_USER_FOR_UI_TESTING.email) {
             const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
             const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
             setCurrentUser(fullMockUser);
@@ -218,7 +217,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
 
     if (firebaseInitializationError) {
-        // This simulates a successful Google sign-in for the admin user in mock mode
         const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
         toast({ title: "Mock Mode Sign-In", description: `Simulating Google Sign-In for ${adminUser.email}` });
         const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
