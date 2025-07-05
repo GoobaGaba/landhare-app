@@ -1,6 +1,14 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# The name of the App Hosting backend that this file applies to.
+# This value is supplied by Firebase when you create a backend.
+backendId: landshare-app-backend
+
+# The region to deploy the backend to.
+# This value is supplied by Firebase when you create a backend.
+location: us-central1
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
