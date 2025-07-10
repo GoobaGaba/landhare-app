@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
@@ -40,6 +40,10 @@ export default function BookingsPage() {
   const [currentBookingForLease, setCurrentBookingForLease] = useState<Booking | null>(null);
   const { toast } = useToast();
   const router = useRouter();
+
+  // Accessibility IDs
+  const leaseDialogTitleId = useId();
+  const leaseDialogDescriptionId = useId();
 
   const loadBookings = useCallback(async () => {
     if (firebaseInitializationError && !currentUser?.appProfile) {
@@ -435,10 +439,10 @@ export default function BookingsPage() {
       )}
 
       <AlertDialog open={leaseTermsModalOpen} onOpenChange={setLeaseTermsModalOpen}>
-        <AlertDialogContent className="max-w-2xl">
+        <AlertDialogContent className="max-w-2xl" aria-labelledby={leaseDialogTitleId} aria-describedby={leaseDialogDescriptionId}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>AI Suggested Lease Terms</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle id={leaseDialogTitleId} className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/>AI Suggested Lease Terms</AlertDialogTitle>
+            <AlertDialogDescription id={leaseDialogDescriptionId}>
               This is an AI-generated lease suggestion based on the booking details.
               <strong> It is for informational purposes only and should be reviewed by legal counsel before use. Ensure compliance with all local and state laws.</strong>
             </AlertDialogDescription>

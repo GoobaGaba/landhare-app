@@ -13,7 +13,7 @@ import {
   signInWithPopup,
   getAdditionalUserInfo
 } from 'firebase/auth';
-import { auth as firebaseAuthInstance, db as firestoreInstance, firebaseInitializationError } from '@/lib/firebase'; 
+import { auth as firebaseAuthInstance, db as firestoreInstance, firebaseInitializationError, isPrototypeMode } from '@/lib/firebase'; 
 import type { ReactNode} from 'react';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -21,12 +21,10 @@ import {
   createUserProfile as dbCreateUserProfile, 
   getUserById, 
   updateUserProfile as updateAppUserProfileDb, 
-  mockUsers, 
-  MOCK_GOOGLE_USER_FOR_UI_TESTING,
-  MOCK_USER_FOR_UI_TESTING,
+  MOCK_ADMIN_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
-  ADMIN_EMAILS,
+  ADMIN_EMAILS
 } from '@/lib/mock-data'; 
 import type { User as AppUserType, SubscriptionStatus } from '@/lib/types';
 
@@ -45,7 +43,7 @@ interface AuthContextType {
   loading: boolean;
   authError: string | null; 
   subscriptionStatus: SubscriptionStatus;
-  signUpWithEmailPassword: (credentials: Required<AuthCredentials>) => Promise<CurrentUser | null>;
+  signUpWithEmailAndPassword: (credentials: Required<AuthCredentials>) => Promise<CurrentUser | null>;
   signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<CurrentUser | null>;
   signInWithGoogle: () => Promise<CurrentUser | null>;
   logoutUser: () => Promise<void>;
@@ -83,12 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let appProfileData: AppUserType | undefined;
       const isUserAdmin = firebaseUser.email ? ADMIN_EMAILS.includes(firebaseUser.email) : false;
 
-      if (firebaseInitializationError) {
-          appProfileData = mockUsers.find(u => u.id === firebaseUser.uid);
-          if (!appProfileData && firebaseUser.email) {
-            appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.displayName, firebaseUser.photoURL);
-          }
-      } else { 
+      // In prototype mode, we use the hardcoded admin profile for easier testing.
+      if (isPrototypeMode && firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email)) {
+        appProfileData = MOCK_ADMIN_USER_FOR_UI_TESTING;
+      }
+      else if (isPrototypeMode) {
+        // Fallback for any other potential mock user.
+        appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email || '', firebaseUser.displayName);
+      } else {
          appProfileData = await getUserById(firebaseUser.uid);
          if (!appProfileData && firebaseUser.email) { 
             appProfileData = await dbCreateUserProfile(firebaseUser.uid, firebaseUser.email, firebaseUser.displayName, firebaseUser.photoURL);
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (isUserAdmin && appProfileData && appProfileData.subscriptionStatus !== 'premium') {
-        if (!firebaseInitializationError) {
+        if (!isPrototypeMode) {
             console.log(`Admin user ${firebaseUser.uid} detected with non-premium status. Correcting now.`);
             appProfileData = await updateAppUserProfileDb(firebaseUser.uid, { subscriptionStatus: 'premium' });
             toast({ title: "Admin Status Synced", description: "Your premium admin permissions have been applied.", variant: "default" });
@@ -146,12 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true); 
     setAuthError(null); 
 
-    if (firebaseInitializationError) {
-      setCurrentUser(null); 
-      setSubscriptionStatus('standard'); 
-      setAuthError(firebaseInitializationError); 
-      setLoading(false);
-      return; 
+    if (isPrototypeMode) {
+      console.warn("Auth Provider is in PROTOTYPE MODE due to Firebase initialization error or force flag.");
+      const mockUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+      fetchAndSetAppProfile(mockUser as any).then(userWithProfile => {
+          setCurrentUser(userWithProfile);
+          setLoading(false);
+      });
+      return;
     }
     
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, async (user) => {
@@ -170,32 +172,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe; 
   }, [fetchAndSetAppProfile]); 
 
-  const signUpWithEmailPassword = async (credentials: Required<AuthCredentials>): Promise<CurrentUser | null> => {
+  const signUpWithEmailAndPassword = async (credentials: Required<AuthCredentials>): Promise<CurrentUser | null> => {
     setAuthError(null);
     setLoading(true);
-    if (firebaseInitializationError || !firebaseAuthInstance) {
-      const mockId = `mock-user-${Date.now()}`;
-      const newMockAppUser = await dbCreateUserProfile(mockId, credentials.email, credentials.displayName); 
-      const newMockCurrentUser: CurrentUser = {
-        uid: mockId,
-        email: credentials.email,
-        displayName: credentials.displayName,
-        emailVerified: false, isAnonymous: false, photoURL: newMockAppUser.avatarUrl || null,
-        getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
-        reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
-        metadata: { creationTime: (newMockAppUser.createdAt instanceof Date ? newMockAppUser.createdAt : new Date()).toISOString(), lastSignInTime: new Date().toISOString() },
-        providerData: [], refreshToken: 'mock-refresh-token', tenantId: null,
-        appProfile: newMockAppUser,
-      } as CurrentUser;
-      setCurrentUser(newMockCurrentUser);
-      setSubscriptionStatus(newMockAppUser.subscriptionStatus || 'standard');
-      setLoading(false);
-      toast({ title: "Signup Successful (Mock Mode)", description: "Account created."});
-      return newMockCurrentUser;
-    }
+    if (isPrototypeMode) throw new Error("Cannot sign up in prototype mode.");
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
       const firebaseUser = userCredential.user;
       await updateFirebaseProfile(firebaseUser, { 
         displayName: credentials.displayName || credentials.email.split('@')[0],
@@ -212,49 +195,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithEmailPassword = async (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>): Promise<CurrentUser | null> => {
     setAuthError(null);
     setLoading(true);
-    
-    const mockUserEmails = mockUsers.map(u => u.email);
-    const isMockLoginAttempt = mockUserEmails.includes(credentials.email);
 
-    if (isMockLoginAttempt) {
-      const userToSignInAppProfile = mockUsers.find(u => u.email === credentials.email);
-      if (!userToSignInAppProfile) {
-          const genericError = `Mock user with email ${credentials.email} not found.`;
-          setAuthError(genericError);
-          setLoading(false);
-          throw new Error(genericError);
-      }
-      
-      const isUserAdmin = ADMIN_EMAILS.includes(userToSignInAppProfile.email || '');
-      const fullMockUser: CurrentUser = {
-          uid: userToSignInAppProfile.id,
-          email: userToSignInAppProfile.email,
-          displayName: userToSignInAppProfile.name,
-          photoURL: userToSignInAppProfile.avatarUrl,
-          emailVerified: true, isAnonymous: false, 
-          getIdToken: async () => 'mock-token', getIdTokenResult: async () => ({ token: 'mock-token', claims: {}, expirationTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null}),
-          reload: async () => {}, delete: async () => {}, toJSON: () => ({}),
-          metadata: { creationTime: (userToSignInAppProfile.createdAt instanceof Date ? userToSignInAppProfile.createdAt : new Date()).toISOString(), lastSignInTime: new Date().toISOString() },
-          providerData: [], refreshToken: 'mock-refresh-token', tenantId: null,
-          appProfile: {...userToSignInAppProfile, isAdmin: isUserAdmin },
-      } as CurrentUser;
-
-      setCurrentUser(fullMockUser);
-      setSubscriptionStatus(fullMockUser.appProfile?.subscriptionStatus || 'standard');
-      setLoading(false);
-      toast({ title: "Login Successful", description: `Welcome back, ${fullMockUser.displayName}.`});
-      return fullMockUser;
-    }
-
-    if (firebaseInitializationError || !firebaseAuthInstance) {
-      const genericError = "Invalid credentials. This app is in preview mode and only accepts known mock user emails.";
-      setAuthError(genericError);
-      setLoading(false);
-      throw new Error(genericError);
+    if (isPrototypeMode) {
+        if (credentials.email === MOCK_ADMIN_USER_FOR_UI_TESTING.email) {
+            const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+            const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
+            setCurrentUser(fullMockUser);
+            setSubscriptionStatus('premium');
+            setLoading(false);
+            return fullMockUser;
+        } else {
+             const genericError = "Invalid credentials. This app is in prototype mode and only accepts the admin mock user email.";
+             setAuthError(genericError);
+             setLoading(false);
+             throw new Error(genericError);
+        }
     }
     
     try {
-      await firebaseSignInWithEmailAndPassword(firebaseAuthInstance, credentials.email, credentials.password);
+      await firebaseSignInWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
       return null;
     } catch (err) {
       const firebaseErr = err as AuthError;
@@ -268,33 +227,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     setLoading(true);
 
-    if (firebaseInitializationError || !firebaseAuthInstance) {
-      const mockUser = await fetchAndSetAppProfile(MOCK_GOOGLE_USER_FOR_UI_TESTING as any);
-      setCurrentUser(mockUser);
-      setLoading(false);
-      return mockUser;
+    if (isPrototypeMode) {
+        const adminUser = MOCK_ADMIN_USER_FOR_UI_TESTING;
+        toast({ title: "Mock Mode Sign-In", description: `Simulating Google Sign-In for ${adminUser.email}` });
+        const fullMockUser = { ...adminUser, appProfile: adminUser } as CurrentUser;
+        setCurrentUser(fullMockUser);
+        setSubscriptionStatus('premium');
+        setLoading(false);
+        return fullMockUser;
     }
 
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(firebaseAuthInstance, provider);
-      const userWithProfile = await fetchAndSetAppProfile(result.user);
-      setCurrentUser(userWithProfile);
-      setLoading(false);
-      return userWithProfile;
+      await signInWithPopup(firebaseAuthInstance!, provider);
+      return null;
     } catch (err) {
       const firebaseErr = err as AuthError;
-      if (firebaseErr.code === 'auth/operation-not-allowed') {
-        const helpfulError = "Google Sign-In is not enabled for this project. Please enable it in your Firebase Authentication settings.";
-        setAuthError(helpfulError);
-        toast({ title: "Configuration Error", description: helpfulError, variant: "destructive", duration: 8000 });
-      } else if (firebaseErr.code === 'auth/popup-closed-by-user') {
-        setAuthError("Sign-in process cancelled by user.");
-      } else if (firebaseErr.code === 'auth/account-exists-with-different-credential') {
-        setAuthError("An account already exists with this email. Try signing in with the original method.");
-      } else {
-        setAuthError(firebaseErr.message || "Error during Google sign in.");
+      let title = "Google Sign-In Failed";
+      let description = "An unexpected error occurred. Please try again or contact support.";
+
+      switch (firebaseErr.code) {
+          case 'auth/operation-not-allowed':
+              title = "Configuration Error";
+              description = "Google Sign-In is not enabled for this project. Please go to the Firebase Console -> Authentication -> Sign-in method, and enable the Google provider.";
+              break;
+          case 'auth/popup-closed-by-user':
+              title = "Sign-In Cancelled";
+              description = "You closed the Google Sign-In pop-up before completing the process.";
+              break;
+          case 'auth/unauthorized-domain':
+              title = "Configuration Error";
+              description = "This app's domain is not authorized for Google Sign-In. Please add it to the 'Authorized domains' list in your Firebase Authentication settings.";
+              break;
+          case 'auth/account-exists-with-different-credential':
+              title = "Account Exists";
+              description = "An account with this email already exists but was created with a different sign-in method (e.g., email/password). Please sign in using your original method.";
+              break;
+          case 'auth/argument-error':
+              title = "Configuration Error";
+              description = "There's a configuration problem with the authentication request. This often means a project setting is incorrect. Please double-check your Firebase project setup.";
+              break;
+          default:
+              description = firebaseErr.message || description;
+              break;
       }
+      
+      setAuthError(description);
+      toast({ title, description, variant: 'destructive', duration: 9000 });
       setLoading(false);
       throw firebaseErr;
     }
@@ -303,15 +282,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutUser = async (): Promise<void> => {
     setAuthError(null);
     setLoading(true);
-    if (firebaseInitializationError || !firebaseAuthInstance) {
+    if (isPrototypeMode) {
       setCurrentUser(null);
       setSubscriptionStatus('standard');
       setLoading(false);
-      toast({ title: 'Logged Out', description: 'You have been successfully logged out.' });
       return;
     }
     try {
-      await firebaseSignOut(firebaseAuthInstance);
+      await firebaseSignOut(firebaseAuthInstance!);
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message || "Error during logout.");
@@ -322,12 +300,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const sendPasswordReset = async (email: string): Promise<void> => {
      setAuthError(null);
-    if (firebaseInitializationError || !firebaseAuthInstance) {
-      toast({ title: "Feature Unavailable", description: "Password reset is not available in mock mode.", variant: "default"});
+    if (isPrototypeMode) {
+      toast({ title: "Feature Unavailable", description: "Password reset is not available in prototype mode.", variant: "default"});
       return;
     }
     try {
-      await sendPasswordResetEmail(firebaseAuthInstance, email);
+      await sendPasswordResetEmail(firebaseAuthInstance!, email);
       toast({ title: "Password Reset Email Sent", description: "Check your inbox for instructions."});
     } catch (err) {
        const firebaseErr = err as AuthError;
@@ -358,13 +336,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error("Failed to update user profile in the database.");
         }
         
-        if (!firebaseInitializationError && firebaseAuthInstance && firebaseAuthInstance.currentUser) {
+        if (!isPrototypeMode && firebaseAuthInstance!.currentUser) {
             const firebaseProfileUpdates: { displayName?: string; photoURL?: string } = {};
             if (data.name && currentUser.displayName !== data.name) {
                firebaseProfileUpdates.displayName = data.name;
             }
             if (Object.keys(firebaseProfileUpdates).length > 0) {
-              await updateFirebaseProfile(firebaseAuthInstance.currentUser, firebaseProfileUpdates);
+              await updateFirebaseProfile(firebaseAuthInstance!.currentUser, firebaseProfileUpdates);
             }
         }
         
@@ -427,7 +405,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     authError,
     subscriptionStatus,
-    signUpWithEmailPassword,
+    signUpWithEmailAndPassword,
     signInWithEmailPassword,
     signInWithGoogle,
     logoutUser,

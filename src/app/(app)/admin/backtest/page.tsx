@@ -5,6 +5,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Shield } from 'lucide-react';
 import { BacktestSimulator } from '@/components/admin/backtest-simulator';
+<<<<<<< HEAD
+=======
+import { ADMIN_EMAILS } from '@/lib/mock-data';
+>>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
 
 export default function BacktestPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -18,7 +22,11 @@ export default function BacktestPage() {
     );
   }
 
+<<<<<<< HEAD
   if (!currentUser?.appProfile?.isAdmin) {
+=======
+  if (!currentUser?.email || !ADMIN_EMAILS.includes(currentUser.email)) {
+>>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
@@ -35,7 +43,7 @@ export default function BacktestPage() {
   return (
     <div className="space-y-6">
        <div>
-        <h1 className="text-3xl font-bold">Landhare Backtest BETA</h1>
+        <h1 className="text-3xl font-bold">LandShare Backtest BETA</h1>
         <p className="text-muted-foreground">
          Interactive business and economic backtesting environment.
         </p>

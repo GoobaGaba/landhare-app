@@ -218,13 +218,13 @@ export default function PricingPage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>
-                    The $0.99 Per-Booking fee for Standard account renters is applied at checkout. Premium renters enjoy a $0 fee on bookings they initiate.
+                    The $0.99 Per-Booking fee for Standard Accounts is applied at checkout. Premium renters enjoy a $0 fee on bookings they initiate.
                 </p>
                 <p>
                     Service Fees (2% for Standard, 0.49% for Premium landowners) are calculated on the total lease value and deducted from the landowner's payout per booking. This applies whether the lease is short-term, long-term, or paid monthly.
                 </p>
                 <p>
-                    Please note: National or regional sales taxes may apply to transactions and are handled according to local regulations. These are separate from LandShare's fees.
+                    Please note: National or regional sales taxes may apply to transactions and are handled according to local regulations. These are separate from LandHare's fees.
                 </p>
             </CardContent>
          </Card>

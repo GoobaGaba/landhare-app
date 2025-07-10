@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type LeaseTerm = 'short-term' | 'long-term' | 'flexible';
@@ -65,6 +66,7 @@ export interface Booking {
     to: Date | Timestamp;
   };
   totalPrice?: number; // Price at the time of booking, locked in.
+  monthlyRent?: number; // For recurring payments on monthly/LTO leases
   paymentTransactionId?: string; // The renter's initial payment transaction.
   createdAt?: Date | Timestamp;
   listingTitle?: string;
@@ -96,7 +98,7 @@ export interface Conversation {
 export type Transaction = {
   id: string;
   userId: string; // The user this transaction record belongs to
-  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee' | 'Subscription Refund' | 'Booking Refund' | 'Payout Reversal';
+  type: 'Subscription' | 'Booking Payment' | 'Landowner Payout' | 'Service Fee' | 'Subscription Refund' | 'Booking Refund' | 'Payout Reversal' | 'Monthly Rent';
   status: 'Completed' | 'Pending' | 'Failed' | 'Reversed';
   amount: number; // Positive for income, negative for expense
   currency: 'USD';

@@ -14,7 +14,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "deploy": "git push origin main"
   },
   "dependencies": {
     "@genkit-ai/firebase": "^1.12.0",

@@ -64,7 +64,7 @@ export default function DowngradePage() {
       
       const downgradeResult = await updateCurrentAppUserProfile({ subscriptionStatus: 'standard' });
       if (downgradeResult) {
-        toast({ title: "Downgrade Successful", description: "Your account is now on the Free tier." });
+        toast({ title: "Downgrade Successful", description: "Your account is now on the Standard tier." });
         router.push('/profile');
       } else {
          throw new Error("Could not update your subscription status after deleting listings.");
@@ -96,7 +96,7 @@ export default function DowngradePage() {
             Manage Listings to Downgrade
           </CardTitle>
           <CardDescription>
-            Your Premium plan allows for unlimited listings. The Free tier is limited to {FREE_TIER_LISTING_LIMIT} listings. To switch to the Free plan, you must reduce your active listings.
+            Your Premium plan allows for unlimited listings. The Standard tier is limited to {FREE_TIER_LISTING_LIMIT} listings. To switch to the Standard plan, you must reduce your active listings.
           </CardDescription>
         </CardHeader>
         <CardContent>

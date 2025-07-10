@@ -12,7 +12,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
 import type { Listing, Booking, Transaction, MarketInsightsData } from '@/lib/types';
-import { ADMIN_UIDS, FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
+import { ADMIN_EMAILS, FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -45,7 +45,12 @@ export default function DashboardPage() {
   const { toast } = useToast();
   
   const isUserAdmin = useMemo(() => {
+<<<<<<< HEAD
       return currentUser?.appProfile?.isAdmin || false;
+=======
+      if (!currentUser?.email) return false;
+      return ADMIN_EMAILS.includes(currentUser.email);
+>>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
   }, [currentUser]);
 
   useEffect(() => {
