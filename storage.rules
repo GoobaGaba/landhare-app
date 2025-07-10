@@ -1,9 +1,36 @@
+
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow authenticated users to read and write all files during beta testing.
+    
+    // --- Default Security: Deny all reads and writes by default ---
     match /{allPaths=**} {
-      allow read, write: if request.auth.uid != null;
+      allow read, write: if false;
+    }
+
+    // --- Listing Images ---
+    // Anyone can read images from the 'listings' folder.
+    // This allows public viewing of listing photos.
+    match /listings/{userId}/{fileName} {
+      allow read: if true;
+      // Only an authenticated user can write to their own designated folder within 'listings'.
+      // This prevents users from uploading files to other users' folders.
+      // We also restrict file size (e.g., max 5MB) and type.
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
+    
+    // --- Lease Contracts (Example of more restricted files) ---
+    // This is a placeholder for future functionality.
+    // Assumes lease contracts are stored in a path like 'leaseContracts/{bookingId}/{fileName}'
+    // Only the renter or landowner associated with that booking should be able to read it.
+    // This requires booking data to be accessible, which can be complex.
+    // For now, we'll keep it simple: only authenticated users can read, server writes.
+    match /leaseContracts/{bookingId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false; // Assume server-side writes only
     }
   }
 }
