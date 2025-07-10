@@ -78,6 +78,11 @@ export function useChecklistState(checklistId: string) {
                 }
             } else {
                 await saveAdminChecklistState(newCheckedItems);
+                 toast({
+                    title: "Checklist Saved",
+                    description: `Your changes to the Launch Checklist have been saved to the database.`,
+                    duration: 3000,
+                });
             }
         } catch (error) {
              console.error(`Failed to save checklist state for key "${checklistId}":`, error);

@@ -179,7 +179,7 @@ export function BacktestSimulator() {
             createdAt: new Date(),
         };
         await saveBacktestPreset(newPreset);
-        toast({ title: "Preset Saved", description: `"${presetName}" has been saved.`});
+        toast({ title: "Preset Saved", description: `"${presetName}" has been saved to the database.`});
         setPresetName("");
         await fetchPresets(); // Refresh list
     } catch (error: any) {
@@ -192,7 +192,7 @@ export function BacktestSimulator() {
   const handleDeletePreset = async (presetId: string) => {
     try {
       await deleteBacktestPreset(presetId);
-      toast({ title: "Preset Deleted" });
+      toast({ title: "Preset Deleted", description: "The preset has been removed from the database." });
       await fetchPresets(); // Refresh list
     } catch (error: any) {
       toast({ title: "Error Deleting Preset", description: error.message, variant: "destructive" });
