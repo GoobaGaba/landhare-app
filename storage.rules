@@ -1,35 +1,19 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Default Deny: Disallow all reads and writes by default.
-    match /{allPaths=**} {
-      allow read, write: if false;
-    }
-
-    // Allow public read access to all listing images.
-    // This allows anyone to view the images in your app.
-    match /listings/{userId}/{fileName} {
+    // Match any file in the 'listings' folder
+    match /listings/{userId}/{allPaths=**} {
+      // Allow anyone to read images (for viewing listings)
       allow read: if true;
-    }
-
-    // Allow authenticated users to write (upload, update, delete)
-    // images, but ONLY to a path that matches their own user ID.
-    // This prevents a user from uploading files into another user's folder.
-    match /listings/{userId}/{fileName} {
+      // Allow authenticated users to write (create, update, delete) only to their own folder
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Allow public read for lease contracts. Links should be unguessable.
-    match /leaseContracts/{bookingId}/{fileName} {
-        allow read: if true;
-    }
-
-    // Allow authenticated users (landowner or renter) to write to lease contracts path
-    // In practice this is done server-side but rules provide a backup.
-    match /leaseContracts/{bookingId}/{fileName} {
-        allow write: if request.auth != null;
+    // Match any file in the 'leaseContracts' folder
+    match /leaseContracts/{bookingId}/{allPaths=**} {
+        // Only authenticated users can interact with lease contracts
+        allow read, write: if request.auth != null;
     }
   }
 }

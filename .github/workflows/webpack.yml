@@ -27,4 +27,4 @@ jobs:
       run: npm install
 
     - name: Build Next.js App
-      run: npx next build
+      run: npm run build
