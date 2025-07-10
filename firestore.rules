@@ -1,82 +1,78 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is authenticated
+  
+    // UTILITY: Check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
-
-    // Helper function to check if the user is the owner of a resource
+    
+    // UTILITY: Check if the user is the owner of the resource
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // Users collection
+    // --- Users Collection ---
+    // Anyone can read a user's public profile (name, avatar)
+    // Only the user themselves can create or update their own profile
     match /users/{userId} {
-      // Anyone can create their own user profile (on signup)
+      allow read: if true;
       allow create: if isOwner(userId);
-      // Anyone can read any user's public profile data
-      allow read: if true;
-      // Only the owner can update their own profile
       allow update: if isOwner(userId);
-      // Users cannot delete their profiles through the app
-      allow delete: if false;
+      allow delete: if false; // Users cannot delete their own profiles
     }
 
-    // Listings collection
+    // --- Listings Collection ---
+    // Anyone can read listings
+    // Only authenticated users can create listings
+    // Only the owner of a listing can update or delete it
     match /listings/{listingId} {
-      // Anyone can read listings
       allow read: if true;
-      // Only authenticated users can create listings
       allow create: if isAuthenticated();
-      // Only the owner of the listing can update or delete it
-      allow update, delete: if isAuthenticated() && isOwner(resource.data.landownerId);
+      allow update, delete: if isAuthenticated() && resource.data.landownerId == request.auth.uid;
     }
     
-    // Bookings collection
+    // --- Reviews Collection ---
+    // Anyone can read reviews
+    // Only authenticated users can create reviews
+    // Users cannot update or delete reviews to maintain integrity
+    match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow update, delete: if false;
+    }
+    
+    // --- Bookings Collection ---
+    // Bookings are private.
+    // Only the renter or the landowner involved in the booking can read it.
+    // Only the renter can create a booking request.
+    // Only the renter or landowner can update the booking (e.g., status changes).
     match /bookings/{bookingId} {
-      // Only authenticated users can create bookings
-      allow create: if isAuthenticated();
-      // Only the renter or the landowner can read a specific booking
-      allow read: if isAuthenticated() && (isOwner(resource.data.renterId) || isOwner(resource.data.landownerId));
-      // Only the renter or the landowner can update a booking's status
-      allow update: if isAuthenticated() && (isOwner(resource.data.renterId) || isOwner(resource.data.landownerId));
-      // No one can delete bookings directly to maintain history
-      allow delete: if false;
+      allow read, update: if isAuthenticated() && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.renterId);
+      allow delete: if false; // Bookings are archived, not deleted
     }
 
-    // Reviews collection
-    match /reviews/{reviewId} {
-        // Anyone can read reviews
-        allow read: if true;
-        // Only authenticated users can write reviews
-        allow create: if isAuthenticated();
-        // A user can only update or delete their own review
-        allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-    
-    // Transactions collection (highly restricted)
+    // --- Transactions Collection ---
+    // Transactions are private. Only the user can read their own transactions.
+    // Transactions are created by the backend (server-side logic), not directly by clients.
     match /transactions/{transactionId} {
-        // Users can only read their own transactions
         allow read: if isAuthenticated() && isOwner(resource.data.userId);
-        // No client-side creation, updates, or deletes. Must be done via backend logic (Cloud Functions or Server Actions).
         allow create, update, delete: if false;
     }
 
-    // Admin State collection (highly restricted)
-    match /admin_state/{docId} {
-        // Only authenticated users who are admins can read/write to admin_state documents
-        allow read, write: if isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-        // No client-side creation or deletion
-        allow create, delete: if false;
+    // --- Admin-only Collections ---
+    // Only authenticated users who are marked as admins can read/write here.
+    function isAdmin() {
+        return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
-
-    // Backtest Presets collection (admin only)
+    match /admin_state/{docId} {
+        allow read, write: if isAdmin();
+    }
     match /backtest_presets/{presetId} {
-        // Only admins can manage backtest presets
-        allow read, write, create, delete: if isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        allow read, write: if isAdmin();
     }
   }
 }
