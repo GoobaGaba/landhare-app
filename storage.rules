@@ -3,29 +3,33 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-  
-    // Default Deny: Nobody can read or write files by default.
+    // Default Deny: Disallow all reads and writes by default.
     match /{allPaths=**} {
       allow read, write: if false;
     }
-    
-    // Listings Images:
-    // Anyone can read listing images as they are public.
-    // Only the authenticated landowner can upload/delete images to their own folder.
-    // The path `listings/{userId}/{fileName}` is crucial.
+
+    // Allow public read access to all listing images.
+    // This allows anyone to view the images in your app.
     match /listings/{userId}/{fileName} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Lease Contracts:
-    // These are private. Only the renter or landowner involved in the booking can access them.
-    // This requires your frontend to pass booking details or use custom claims for full security.
-    // For this implementation, we will lock it to the user who uploaded it.
-    // A more robust rule would check a `bookings` document.
+    // Allow authenticated users to write (upload, update, delete)
+    // images, but ONLY to a path that matches their own user ID.
+    // This prevents a user from uploading files into another user's folder.
+    match /listings/{userId}/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow public read for lease contracts. Links should be unguessable.
     match /leaseContracts/{bookingId}/{fileName} {
-      allow read: if request.auth != null; // A simplified rule for now. In a real app, you'd check if auth.uid is renter or owner of the booking.
-      allow write: if request.auth != null; // Allow any logged-in user to write initially.
+        allow read: if true;
+    }
+
+    // Allow authenticated users (landowner or renter) to write to lease contracts path
+    // In practice this is done server-side but rules provide a backup.
+    match /leaseContracts/{bookingId}/{fileName} {
+        allow write: if request.auth != null;
     }
   }
 }

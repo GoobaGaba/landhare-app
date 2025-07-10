@@ -39,6 +39,7 @@ if (areAnyKeysMissing) {
   ** Action: To disable prototype mode, set all NEXT_PUBLIC_FIREBASE_* variables in your .env.local file. **
   ***************************************************************************************************
   `;
+  // This check ensures we only log this on the client-side to avoid build noise
   if (typeof window !== 'undefined') {
     console.warn(warningMessage);
   }
