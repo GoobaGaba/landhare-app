@@ -1,9 +1,27 @@
+
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow authenticated users to read and write all files during beta testing.
+
+    // Allow anyone to read images from the public 'listings' directory.
+    // This is necessary for users to see listing photos without being logged in.
+    match /listings/{allPaths=**} {
+      allow read: if true;
+    }
+
+    // IMPORTANT: Restrict write access.
+    // Only an authenticated user can write to a folder path that matches their OWN user ID.
+    // This prevents a malicious user from overwriting another user's images.
+    // Example path: /listings/USER_ID_123/image.jpg
+    match /listings/{userId}/{allPaths=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Disallow any other read/write operations on the entire bucket by default.
+    // This is a good security practice.
     match /{allPaths=**} {
-      allow read, write: if request.auth.uid != null;
+      allow read, write: if false;
     }
   }
 }

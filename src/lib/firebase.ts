@@ -20,23 +20,23 @@ let storageInstance = null;
 let firebaseInitializationError: string | null = null;
 
 // This flag determines if we are running in a local, mocked environment.
+// In production, we will no longer force mock mode. This logic is now cleaner.
 export let isPrototypeMode = false;
 
 // Check if any required Firebase configuration keys are missing or placeholders.
 const areAnyKeysMissing = Object.values(firebaseConfig).some(
-  (value) => !value || String(value).includes('YOUR_')
+  (value) => !value || String(value).includes('YOUR_') || String(value).includes('...')
 );
 
-const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
-
-if (areAnyKeysMissing || forceMockMode) {
-  const reason = areAnyKeysMissing ? "Firebase keys missing or placeholders" : "NEXT_PUBLIC_FORCE_MOCK_MODE is true";
+if (areAnyKeysMissing) {
+  const reason = "One or more Firebase environment variables are missing or are placeholders.";
   const warningMessage = `
   ***************************************************************************************************
   ** PROTOTYPE MODE ENABLED                                                                        **
   **-----------------------------------------------------------------------------------------------**
   ** Reason: ${reason}. The app is running in OFFLINE/MOCK mode.                                   **
   ** Live features like real authentication will be disabled.                                      **
+  ** Action: Ensure all NEXT_PUBLIC_FIREBASE_* variables are set in your environment.              **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
