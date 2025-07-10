@@ -20,23 +20,23 @@ let storageInstance = null;
 let firebaseInitializationError: string | null = null;
 
 // This flag determines if we are running in a local, mocked environment.
+// It is now SOLELY dependent on the validity of the environment variables.
 export let isPrototypeMode = false;
 
-// Check if any required Firebase configuration keys are missing or placeholders.
+// Check if any required Firebase configuration keys are missing or are placeholders.
 const areAnyKeysMissing = Object.values(firebaseConfig).some(
-  (value) => !value || String(value).includes('YOUR_')
+  (value) => !value || String(value).includes("YOUR_") || String(value).includes("...")
 );
 
-const forceMockMode = process.env.NEXT_PUBLIC_FORCE_MOCK_MODE === 'true';
-
-if (areAnyKeysMissing || forceMockMode) {
-  const reason = areAnyKeysMissing ? "Firebase keys missing or placeholders" : "NEXT_PUBLIC_FORCE_MOCK_MODE is true";
+if (areAnyKeysMissing) {
+  const reason = "One or more Firebase environment variables are missing or are placeholders.";
   const warningMessage = `
   ***************************************************************************************************
   ** PROTOTYPE MODE ENABLED                                                                        **
   **-----------------------------------------------------------------------------------------------**
   ** Reason: ${reason}. The app is running in OFFLINE/MOCK mode.                                   **
   ** Live features like real authentication will be disabled.                                      **
+  ** Action: To disable prototype mode, set all NEXT_PUBLIC_FIREBASE_* variables in your .env.local file. **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
@@ -49,12 +49,18 @@ if (areAnyKeysMissing || forceMockMode) {
   // If all keys are present, attempt to initialize Firebase services.
   try {
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    authInstance = initializeAuth(appInstance, {
-      persistence: browserLocalPersistence,
-    });
+    // Use initializeAuth for client-side apps to specify persistence
+    if (typeof window !== 'undefined') {
+      authInstance = initializeAuth(appInstance, {
+        persistence: browserLocalPersistence,
+      });
+    } else {
+      authInstance = getAuth(appInstance);
+    }
     firestoreInstance = getFirestore(appInstance);
     storageInstance = getStorage(appInstance);
-    isPrototypeMode = false;
+    isPrototypeMode = false; // Explicitly set to false on success
+    console.log("Firebase initialized successfully in LIVE mode.");
 
   } catch (error: any) {
     console.error("Firebase Core App Initialization FAILED:", error);
