@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,7 +18,7 @@ import { Loader2, ReceiptText, Search, UserCircle, AlertTriangle, ArrowUpCircle,
 import { cn } from '@/lib/utils';
 import { firebaseInitializationError } from '@/lib/firebase';
 
-type FilterType = 'all' | 'payouts' | 'payments' | 'fees' | 'subscriptions';
+type FilterType = 'all' | 'payouts' | 'payments' | 'fees' | 'subscriptions' | 'refunds';
 
 export default function TransactionsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -58,7 +59,8 @@ export default function TransactionsPage() {
           case 'payouts': return t.type === 'Landowner Payout';
           case 'payments': return t.type === 'Booking Payment';
           case 'fees': return t.type === 'Service Fee';
-          case 'subscriptions': return t.type === 'Subscription' || t.type === 'Subscription Refund';
+          case 'subscriptions': return t.type === 'Subscription';
+          case 'refunds': return t.type === 'Subscription Refund' || t.type === 'Booking Refund';
           default: return true; // 'all'
         }
       })
@@ -174,6 +176,7 @@ export default function TransactionsPage() {
                 <SelectItem value="payments">Payments</SelectItem>
                 <SelectItem value="fees">Service Fees</SelectItem>
                 <SelectItem value="subscriptions">Subscriptions</SelectItem>
+                <SelectItem value="refunds">Refunds</SelectItem>
               </SelectContent>
             </Select>
           </div>
