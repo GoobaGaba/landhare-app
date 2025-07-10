@@ -3,25 +3,34 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-
-    // Allow anyone to read images from the public 'listings' directory.
-    // This is necessary for users to see listing photos without being logged in.
-    match /listings/{allPaths=**} {
-      allow read: if true;
-    }
-
-    // IMPORTANT: Restrict write access.
-    // Only an authenticated user can write to a folder path that matches their OWN user ID.
-    // This prevents a malicious user from overwriting another user's images.
-    // Example path: /listings/USER_ID_123/image.jpg
-    match /listings/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
     
-    // Disallow any other read/write operations on the entire bucket by default.
-    // This is a good security practice.
+    // --- Default Security: Deny all reads and writes by default ---
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+
+    // --- Listing Images ---
+    // Anyone can read images from the 'listings' folder.
+    // This allows public viewing of listing photos.
+    match /listings/{userId}/{fileName} {
+      allow read: if true;
+      // Only an authenticated user can write to their own designated folder within 'listings'.
+      // This prevents users from uploading files to other users' folders.
+      // We also restrict file size (e.g., max 5MB) and type.
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
+    
+    // --- Lease Contracts (Example of more restricted files) ---
+    // This is a placeholder for future functionality.
+    // Assumes lease contracts are stored in a path like 'leaseContracts/{bookingId}/{fileName}'
+    // Only the renter or landowner associated with that booking should be able to read it.
+    // This requires booking data to be accessible, which can be complex.
+    // For now, we'll keep it simple: only authenticated users can read, server writes.
+    match /leaseContracts/{bookingId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if false; // Assume server-side writes only
     }
   }
 }

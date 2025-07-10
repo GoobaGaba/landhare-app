@@ -20,12 +20,12 @@ let storageInstance = null;
 let firebaseInitializationError: string | null = null;
 
 // This flag determines if we are running in a local, mocked environment.
-// In production, we will no longer force mock mode. This logic is now cleaner.
+// It is now SOLELY dependent on the validity of the environment variables.
 export let isPrototypeMode = false;
 
-// Check if any required Firebase configuration keys are missing or placeholders.
+// Check if any required Firebase configuration keys are missing or are placeholders.
 const areAnyKeysMissing = Object.values(firebaseConfig).some(
-  (value) => !value || String(value).includes('YOUR_') || String(value).includes('...')
+  (value) => !value || String(value).includes("YOUR_") || String(value).includes("...")
 );
 
 if (areAnyKeysMissing) {
@@ -36,7 +36,7 @@ if (areAnyKeysMissing) {
   **-----------------------------------------------------------------------------------------------**
   ** Reason: ${reason}. The app is running in OFFLINE/MOCK mode.                                   **
   ** Live features like real authentication will be disabled.                                      **
-  ** Action: Ensure all NEXT_PUBLIC_FIREBASE_* variables are set in your environment.              **
+  ** Action: To disable prototype mode, set all NEXT_PUBLIC_FIREBASE_* variables in your .env.local file. **
   ***************************************************************************************************
   `;
   if (typeof window !== 'undefined') {
@@ -49,12 +49,18 @@ if (areAnyKeysMissing) {
   // If all keys are present, attempt to initialize Firebase services.
   try {
     appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    authInstance = initializeAuth(appInstance, {
-      persistence: browserLocalPersistence,
-    });
+    // Use initializeAuth for client-side apps to specify persistence
+    if (typeof window !== 'undefined') {
+      authInstance = initializeAuth(appInstance, {
+        persistence: browserLocalPersistence,
+      });
+    } else {
+      authInstance = getAuth(appInstance);
+    }
     firestoreInstance = getFirestore(appInstance);
     storageInstance = getStorage(appInstance);
-    isPrototypeMode = false;
+    isPrototypeMode = false; // Explicitly set to false on success
+    console.log("Firebase initialized successfully in LIVE mode.");
 
   } catch (error: any) {
     console.error("Firebase Core App Initialization FAILED:", error);
