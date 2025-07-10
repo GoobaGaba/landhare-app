@@ -140,15 +140,17 @@ function EditListingPageContent() {
 export default function EditListingPage() {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-    if (!apiKey) {
+    if (!apiKey || apiKey.includes("...") || apiKey.length < 10) {
         return (
              <Card className="max-w-2xl mx-auto my-8">
                 <CardHeader>
-                    <CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle/> Maps API Error</CardTitle>
+                    <CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle/> Geocoding Service Error</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p>The Google Maps API key is missing. This form requires geocoding services to function.</p>
-                    <p className="text-xs text-muted-foreground mt-2">Please set <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and restart the server.</p>
+                    <p>The Google Maps API key is missing or invalid. This form requires geocoding services to verify locations.</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                        <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the development server has been fully restarted.
+                    </p>
                     <Button asChild variant="outline" className="mt-4"><Link href="/my-listings">Go Back</Link></Button>
                 </CardContent>
             </Card>

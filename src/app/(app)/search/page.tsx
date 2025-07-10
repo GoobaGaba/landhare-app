@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -228,16 +229,18 @@ function SearchPageContent() {
 export default function SearchPage() {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-    if (!apiKey) {
+    if (!apiKey || apiKey.includes("...") || apiKey.length < 10) {
         return (
             <div className="container mx-auto px-4 py-8">
-                <Card className="max-w-4xl mx-auto my-8">
+                <Card className="max-w-2xl mx-auto my-8">
                     <CardHeader>
                         <CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle/> Map Service Error</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p>The Google Maps API key is missing. The map and search functionality cannot be displayed.</p>
-                        <p className="text-xs text-muted-foreground mt-2">Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the server has been restarted.</p>
+                        <p>The Google Maps API key is missing or invalid, which is required for the Search and Map functionality.</p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                           <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the development server has been fully restarted.
+                        </p>
                         <Button asChild variant="outline" className="mt-4"><Link href="/">Go Home</Link></Button>
                     </CardContent>
                 </Card>
