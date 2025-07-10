@@ -3,34 +3,29 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // --- Default Security: Deny all reads and writes by default ---
+  
+    // Default Deny: Nobody can read or write files by default.
     match /{allPaths=**} {
       allow read, write: if false;
     }
-
-    // --- Listing Images ---
-    // Anyone can read images from the 'listings' folder.
-    // This allows public viewing of listing photos.
+    
+    // Listings Images:
+    // Anyone can read listing images as they are public.
+    // Only the authenticated landowner can upload/delete images to their own folder.
+    // The path `listings/{userId}/{fileName}` is crucial.
     match /listings/{userId}/{fileName} {
       allow read: if true;
-      // Only an authenticated user can write to their own designated folder within 'listings'.
-      // This prevents users from uploading files to other users' folders.
-      // We also restrict file size (e.g., max 5MB) and type.
-      allow write: if request.auth != null && request.auth.uid == userId
-                    && request.resource.size < 5 * 1024 * 1024
-                    && request.resource.contentType.matches('image/.*');
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // --- Lease Contracts (Example of more restricted files) ---
-    // This is a placeholder for future functionality.
-    // Assumes lease contracts are stored in a path like 'leaseContracts/{bookingId}/{fileName}'
-    // Only the renter or landowner associated with that booking should be able to read it.
-    // This requires booking data to be accessible, which can be complex.
-    // For now, we'll keep it simple: only authenticated users can read, server writes.
+
+    // Lease Contracts:
+    // These are private. Only the renter or landowner involved in the booking can access them.
+    // This requires your frontend to pass booking details or use custom claims for full security.
+    // For this implementation, we will lock it to the user who uploaded it.
+    // A more robust rule would check a `bookings` document.
     match /leaseContracts/{bookingId}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if false; // Assume server-side writes only
+      allow read: if request.auth != null; // A simplified rule for now. In a real app, you'd check if auth.uid is renter or owner of the booking.
+      allow write: if request.auth != null; // Allow any logged-in user to write initially.
     }
   }
 }

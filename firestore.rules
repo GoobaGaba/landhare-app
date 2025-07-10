@@ -3,64 +3,52 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // --- Default Security: Deny all reads and writes by default ---
+    
+    // Default Deny: By default, no one can read or write to any document.
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Users Collection ---
-    // Users can read their own profile.
-    // Users can create their own profile upon signup.
-    // Users can only update their own profile data.
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-
-    // --- Listings Collection ---
-    // Anyone can read listings (public data).
-    // Authenticated users can create new listings.
-    // Landowners can update or delete their own listings.
+    // Listings can be read by anyone, but only created/updated/deleted by the landowner.
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.resource.data.landownerId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.landownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.landownerId == request.auth.uid;
     }
 
-    // --- Reviews Collection ---
-    // Anyone can read reviews for a listing.
-    // Authenticated users can create reviews (future-proofing).
+    // Users can only read/write their own user profile document.
+    match /users/{userId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Bookings can be created by authenticated users.
+    // They can only be read or updated by the renter or the landowner involved in the booking.
+    match /bookings/{bookingId} {
+      allow create: if request.auth != null && request.resource.data.renterId == request.auth.uid;
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
+    }
+    
+    // Reviews can be created by any authenticated user.
+    // They can be read by anyone.
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Transactions can only be accessed by the user they belong to.
+    match /transactions/{transactionId} {
+        allow read, create: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Admin-specific state can only be read/written by authenticated users whose email is in the admin list.
+    // IMPORTANT: This rule requires your frontend logic to correctly identify and pass admin status.
+    // A more secure way would be to use custom claims, but this is a solid start for production.
+    match /admin_state/{docId} {
+       allow read, write: if request.auth != null && request.auth.token.email_verified && request.auth.token.email in ['Gabrielleunda@gmail.com'];
     }
 
-    // --- Bookings Collection ---
-    // Users can only read bookings where they are the renter or landowner.
-    // Authenticated users can create bookings.
-    // Users can only update bookings they are involved in.
-    match /bookings/{bookingId} {
-      allow read, update: if request.auth != null && (request.resource.data.renterId == request.auth.uid || request.resource.data.landownerId == request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.renterId == request.auth.uid;
-    }
-    
-    // --- Transactions Collection ---
-    // Users can only read their own transactions.
-    match /transactions/{transactionId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null; // Server-side logic creates these securely.
-    }
-    
-    // --- Admin-only collections ---
-    // Only admins (validated via custom claims or a user document field) should access this data.
-    // For simplicity here, we'll lock it down completely from the client.
-    // All writes should be done via a trusted backend/server function.
-    match /admin_state/{docId} {
-      allow read, write: if false; // Assume reads/writes are from a trusted server environment
-    }
-     match /backtest_presets/{docId} {
-      allow read, write: if false; // Assume reads/writes are from a trusted server environment
+    match /backtest_presets/{presetId} {
+       allow read, write: if request.auth != null && request.auth.token.email_verified && request.auth.token.email in ['Gabrielleunda@gmail.com'];
     }
   }
 }

@@ -60,7 +60,12 @@ if (areAnyKeysMissing) {
     firestoreInstance = getFirestore(appInstance);
     storageInstance = getStorage(appInstance);
     isPrototypeMode = false; // Explicitly set to false on success
-    console.log("Firebase initialized successfully in LIVE mode.");
+    
+    // Only log this message in a browser environment to avoid build log noise.
+    if (typeof window !== 'undefined') {
+        console.log("Firebase initialized successfully in LIVE mode.");
+    }
+
 
   } catch (error: any) {
     console.error("Firebase Core App Initialization FAILED:", error);
