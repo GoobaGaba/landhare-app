@@ -661,40 +661,28 @@ export const saveAdminChecklistState = async (checkedItems: Set<string>): Promis
 
 export const getBacktestPresets = async (): Promise<BacktestPreset[]> => {
     if (firebaseInitializationError) {
-        return loadMockDb().adminState.backtestPresets || [];
+        const db = loadMockDb();
+        if (!db.adminState.backtestPresets) db.adminState.backtestPresets = [];
+        return db.adminState.backtestPresets;
     }
-    const presetsCollection = collection(firestoreDb, "admin_state", "backtest_presets");
-    const presetsSnap = await getDocs(presetsCollection);
-    return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d)).sort((a,b) => (a.name > b.name) ? 1 : -1);
+    const q = query(collection(firestoreDb, "backtest_presets"), orderBy("createdAt", "desc"));
+    const presetsSnap = await getDocs(q);
+    return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d));
 };
 
 export const saveBacktestPreset = async (preset: Omit<BacktestPreset, 'id'>): Promise<BacktestPreset> => {
      if (firebaseInitializationError) {
-        const db = loadMockDb();
-        const newPreset = { ...preset, id: `preset-${Date.now()}` };
-        if (!db.adminState.backtestPresets) db.adminState.backtestPresets = [];
-        db.adminState.backtestPresets.push(newPreset);
-        saveMockDb(db);
-        return newPreset;
+        throw new Error("Cannot save preset in mock mode. Please configure Firebase.");
     }
-    const presetsCollection = collection(firestoreDb, "admin_state", "backtest_presets");
+    const presetsCollection = collection(firestoreDb, "backtest_presets");
     const newDocRef = await addDoc(presetsCollection, { ...preset, createdAt: serverTimestamp() });
     return { ...preset, id: newDocRef.id, createdAt: new Date() }
 };
 
 export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
      if (firebaseInitializationError) {
-        const db = loadMockDb();
-        if (db.adminState.backtestPresets) {
-          db.adminState.backtestPresets = db.adminState.backtestPresets.filter(p => p.id !== presetId);
-          saveMockDb(db);
-        }
-        return;
+        throw new Error("Cannot delete preset in mock mode. Please configure Firebase.");
     }
-    const presetRef = doc(firestoreDb, 'admin_state', 'backtest_presets', presetId);
+    const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
-
-    
-
-
