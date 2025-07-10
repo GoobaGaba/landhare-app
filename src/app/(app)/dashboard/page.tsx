@@ -45,12 +45,8 @@ export default function DashboardPage() {
   const { toast } = useToast();
   
   const isUserAdmin = useMemo(() => {
-<<<<<<< HEAD
-      return currentUser?.appProfile?.isAdmin || false;
-=======
       if (!currentUser?.email) return false;
       return ADMIN_EMAILS.includes(currentUser.email);
->>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
   }, [currentUser]);
 
   useEffect(() => {

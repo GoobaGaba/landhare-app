@@ -173,15 +173,6 @@ export function BacktestSimulator() {
     }
     setIsSavingPreset(true);
     try {
-<<<<<<< HEAD
-        const newPreset: Omit<BacktestPreset, 'id'> = {
-            name: presetName,
-            parameters: { ...params, name: presetName },
-            createdAt: new Date(),
-        };
-        await saveBacktestPreset(newPreset);
-        toast({ title: "Preset Saved", description: `"${presetName}" has been saved to the database.`});
-=======
         const existingPreset = savedPresets.find(p => p.name.toLowerCase() === presetName.trim().toLowerCase());
         const newPresetData = { ...params, name: presetName.trim() };
 
@@ -199,7 +190,6 @@ export function BacktestSimulator() {
             await saveBacktestPreset(newPresetPayload);
             toast({ title: "Preset Saved", description: `"${presetName}" has been saved.`});
         }
->>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
         setPresetName("");
         await fetchPresets(); // Refresh list to get new/updated item
     } catch (error: any) {
@@ -221,14 +211,9 @@ export function BacktestSimulator() {
     }
 
     try {
-<<<<<<< HEAD
-      await deleteBacktestPreset(presetId);
-      toast({ title: "Preset Deleted", description: "The preset has been removed from the database." });
-=======
       await deleteBacktestPreset(presetToDelete.id);
       toast({ title: "Preset Deleted", description: `"${presetName}" was deleted.` });
       setPresetName(""); // Clear the name field
->>>>>>> cc37e0e328cea0c8429cc806fd6d3e019bc324c2
       await fetchPresets(); // Refresh list
     } catch (error: any) {
       toast({ title: "Error Deleting Preset", description: error.message, variant: "destructive" });

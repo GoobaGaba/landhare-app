@@ -331,7 +331,7 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
 
             // Update landowner wallet and metrics
             transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
-            transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee), totalBookings: increment(1) });
+            transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee) });
         } 
         else if (newStatus === 'Declined' || newStatus === 'Cancelled by Renter' || newStatus === 'Refund Approved') {
             const renterRef = doc(firestoreDb!, 'users', booking.renterId);
