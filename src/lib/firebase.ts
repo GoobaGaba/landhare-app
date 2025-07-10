@@ -53,7 +53,7 @@ let firestoreInstance: Firestore | null = null;
 let firebaseInitializationError: string | null = null;
 
 // Proactive check to see if the API key is missing or is a placeholder.
-const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.includes("PLACEHOLDER");
+const isApiKeyEffectivelyMissing = !apiKey || apiKey.includes("AIzaSy..._YOUR_API_KEY") || apiKey.includes("PLACEHOLDER")  || apiKey.length < 10;
 
 if (isApiKeyEffectivelyMissing) {
   const warningMessage = `
@@ -68,7 +68,7 @@ if (isApiKeyEffectivelyMissing) {
   **    - Ensure a file named EXACTLY '.env.local' exists in the ROOT directory of your project.   **
   **    - This is NOT '.env'. It MUST be '.env.local'.                                             **
   ** 2. CHECK VARIABLE NAME & VALUE:                                                               **
-  **    - Inside '.env.local', copy the keys from '.env.example' and fill in your values.          **
+  **    - Inside '.env.local', copy the keys from the Firebase Console and fill in your values.    **
   **    - The value for 'NEXT_PUBLIC_FIREBASE_API_KEY' MUST be your ACTUAL API key.                **
   **    - DO NOT use placeholder values like "AIzaSy...".                                          **
   ** 3. RESTART DEVELOPMENT SERVER:                                                                **
