@@ -18,55 +18,53 @@ const firebaseConfig: FirebaseOptions = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-let storage: FirebaseStorage | null = null;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 let analytics: Analytics | null = null;
 let firebaseInitializationError: string | null = null;
 
-// This flag is now determined ONLY by the presence of valid keys.
-// If the keys are placeholders or missing, this will be true.
-const isPrototypeMode = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_API_KEY');
+// The app is now considered in "prototype mode" ONLY if the API keys are missing or invalid.
+// This logic is now robust for production.
+const isPrototypeMode = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_KEY_HERE');
 
 try {
   if (isPrototypeMode) {
-    // If keys are missing, we throw an error to signal prototype mode.
-    // The UI will show a banner, but the app won't crash.
+    // This error will be caught below and used to display the banner, but won't crash the app.
     throw new Error("Firebase configuration values are missing or are placeholders. The application is running in a limited prototype mode.");
   }
 
-  // If keys are present, initialize Firebase services.
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   
   if (typeof window !== 'undefined') {
-    // Use initializeAuth for persistence settings on the client.
     auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
     });
   } else {
-    // Use getAuth for server environments.
     auth = getAuth(app);
   }
   
   db = getFirestore(app);
   storage = getStorage(app);
   
-  // Initialize Analytics only on the client-side and if it's supported.
-  if (typeof window !== 'undefined') {
+  // Initialize Analytics only on the client-side and if it's supported and configured.
+  if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
     isAnalyticsSupported().then((supported) => {
-      if (supported && firebaseConfig.measurementId) {
+      if (supported) {
         analytics = getAnalytics(app);
       }
     });
   }
 
 } catch (error: any) {
-  // Catch the initialization error to display the prototype banner.
+  // This catch block handles the case where Firebase keys are missing.
+  // It allows the app to run in a read-only "prototype" state.
   console.error("Firebase Initialization Status:", error.message);
   firebaseInitializationError = error.message;
 }
 
+// Export the initialized services, which might be null in prototype mode.
 export { 
   app, 
   auth, 
