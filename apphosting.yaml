@@ -21,7 +21,8 @@ startCommand: npm start
 # traffic to your app.
 # The `PORT` environment variable is automatically provided by App Hosting.
 env:
-  - PORT=3000
+  - variable: PORT
+    value: "3000"
 
 runConfig:
   # Increase this value if you'd like to automatically spin up
