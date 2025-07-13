@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { ADMIN_EMAILS } from '@/lib/mock-data';
-import { firebaseInitializationError } from '@/lib/firebase';
+import { isPrototypeMode } from '@/lib/firebase';
 
 
 interface NavLink {
@@ -83,7 +83,7 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {firebaseInitializationError && (
+      {isPrototypeMode && (
          <div className="w-full bg-amber-400 text-amber-900 text-xs font-bold text-center py-1 flex items-center justify-center gap-2">
             <Beaker className="h-3 w-3" />
             PROTOTYPE MODE (Using Mock Data)

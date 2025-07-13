@@ -7,6 +7,7 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from "firebase/analytics";
 
+// This configuration is now solely dependent on the environment variables.
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -23,29 +24,35 @@ let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let analytics: Analytics | null = null;
 let firebaseInitializationError: string | null = null;
-let isPrototypeMode = false; // This will now be determined by the keys, not a manual flag.
+
+// This flag is now determined ONLY by the presence of valid keys.
+// If the keys are placeholders or missing, this will be true.
+const isPrototypeMode = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_API_KEY');
 
 try {
-  const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('YOUR_API_KEY');
-  
-  if (!isConfigured) {
-    isPrototypeMode = true;
-    throw new Error("Firebase configuration values are missing or are placeholders. The application will run in a limited prototype mode.");
+  if (isPrototypeMode) {
+    // If keys are missing, we throw an error to signal prototype mode.
+    // The UI will show a banner, but the app won't crash.
+    throw new Error("Firebase configuration values are missing or are placeholders. The application is running in a limited prototype mode.");
   }
 
+  // If keys are present, initialize Firebase services.
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   
   if (typeof window !== 'undefined') {
+    // Use initializeAuth for persistence settings on the client.
     auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
     });
   } else {
+    // Use getAuth for server environments.
     auth = getAuth(app);
   }
   
   db = getFirestore(app);
   storage = getStorage(app);
   
+  // Initialize Analytics only on the client-side and if it's supported.
   if (typeof window !== 'undefined') {
     isAnalyticsSupported().then((supported) => {
       if (supported && firebaseConfig.measurementId) {
@@ -55,7 +62,8 @@ try {
   }
 
 } catch (error: any) {
-  console.error("Firebase initialization failed:", error.message);
+  // Catch the initialization error to display the prototype banner.
+  console.error("Firebase Initialization Status:", error.message);
   firebaseInitializationError = error.message;
 }
 
@@ -65,6 +73,6 @@ export {
   db, 
   storage, 
   analytics,
-  firebaseInitializationError,
+  firebaseInitializationError, // This will be non-null in prototype mode.
   isPrototypeMode
 };

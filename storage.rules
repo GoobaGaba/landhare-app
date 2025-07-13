@@ -2,41 +2,41 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-  
-    // Helper function to check for authentication
-    function isAuthenticated() {
-      return request.auth != null;
-    }
 
-    // Helper function to check if the user is the owner of a resource
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-  
-    // LISTING IMAGES
-    // - Anyone can read listing images.
-    // - Only an authenticated user can upload an image into their own user-ID-namespaced folder.
-    // - This prevents users from uploading files into other users' folders.
-    // - We also restrict file size (e.g., max 5MB) and content type.
-    match /listings/{userId}/{fileName} {
-      allow read: if true;
-      allow write: if isAuthenticated() && isOwner(userId)
-                    && request.resource.size < 5 * 1024 * 1024 // 5MB limit
-                    && request.resource.contentType.matches('image/.*');
-    }
-    
-    // LEASE CONTRACTS
-    // - Only the landowner or renter involved in the booking should be able to read the lease.
-    // - This requires a more complex setup where file metadata stores renter/landowner IDs.
-    // - For now, we secure writing to authenticated users. Reading will rely on unguessable URLs.
-    match /leaseContracts/{bookingId}/{fileName} {
-        allow read: if isAuthenticated(); // More complex rules needed for prod, but this is a safe start
-        allow write: if isAuthenticated(); // Assuming server logic handles who can write
-    }
-    
-    // Fallback: Deny all other read/write operations
+    // --- Default Deny ---
+    // By default, no one can read or write anything.
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+
+    // --- Listing Images ---
+    // Anyone can read listing images, as they are public content.
+    // An authenticated user can only write (upload, update, delete) files to their own user-specific folder.
+    // This prevents one user from overwriting another user's images.
+    // The path `listings/{userId}/{fileName}` must match the path used in your `src/lib/storage.ts` upload function.
+    match /listings/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // --- User Avatars (Future Use) ---
+    // A common pattern would be to allow users to upload their own avatar.
+    // This rule allows a user to write to a file named after their user ID in the 'avatars' folder.
+    match /avatars/{userId} {
+       allow read: if true;
+       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // --- Lease Contracts (Secure Files) ---
+    // Lease contracts are sensitive and should only be readable by the participants.
+    // This requires storing the renterId and landownerId in the file's metadata.
+    // NOTE: This app currently uses public URLs for simplicity, but for a real-world app,
+    // you would fetch these files using a download URL requested by an authenticated user.
+    // The rule below is a more secure example.
+    match /leaseContracts/{bookingId}/{fileName} {
+      allow read: if request.auth != null && (request.auth.uid == resource.metadata.renterId || request.auth.uid == resource.metadata.landownerId);
+      // Only the landowner or renter can upload a lease for their booking.
+      allow write: if request.auth != null && (request.auth.uid == request.resource.metadata.renterId || request.auth.uid == request.resource.metadata.landownerId);
     }
   }
 }

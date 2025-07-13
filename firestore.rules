@@ -2,77 +2,75 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+  
+    // --- Default Deny ---
+    // By default, no one can read or write anything.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Helper function to check if the user is the owner of a document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // USERS collection:
-    // - Anyone can create their own user document (on signup).
-    // - Only the owner can read or write their own user data.
-    // - No one can list all users.
+    // --- User Profiles ---
+    // Anyone can create their own user profile upon signup.
+    // Users can only read/write their OWN profile data.
+    // Public read access is NOT allowed for security (e.g., to prevent scraping emails).
     match /users/{userId} {
-      allow read, update: if isAuthenticated() && isOwner(userId);
-      allow create: if isAuthenticated();
-      allow delete: if false; // Generally, don't allow users to delete their own accounts directly
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
-
-    // LISTINGS collection:
-    // - Anyone (even unauthenticated users) can read listings.
-    // - Authenticated users can create new listings.
-    // - Only the owner of a listing can update or delete it.
+    
+    // --- Listings ---
+    // Anyone (including unauthenticated users) can read listings.
+    // Only authenticated users can create listings.
+    // Users can only update or delete their OWN listings.
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && isOwner(resource.data.landownerId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.landownerId);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.landownerId;
     }
     
-    // BOOKINGS collection:
-    // - Only the renter or the landowner involved in the booking can read it.
-    // - Only an authenticated user (the renter) can create a booking.
-    // - Only the renter or landowner can update the booking status.
+    // --- Bookings ---
+    // Only the renter or the landowner involved in a booking can read it.
+    // Only authenticated users can create bookings.
+    // The involved renter or landowner can update the booking (e.g., change status).
     match /bookings/{bookingId} {
-        allow read, update: if isAuthenticated() && (isOwner(resource.data.renterId) || isOwner(resource.data.landownerId));
-        allow create: if isAuthenticated() && isOwner(request.resource.data.renterId);
-        allow delete: if false;
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.renterId;
     }
-
-    // REVIEWS collection:
-    // - Anyone can read reviews.
-    // - Authenticated users can create reviews.
-    // - Only the owner of a review can update or delete it.
+    
+    // --- Reviews ---
+    // Anyone can read reviews for a listing.
+    // Only authenticated users can create reviews.
+    // Users can only update/delete their own reviews.
     match /reviews/{reviewId} {
-        allow read: if true;
-        allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
-        allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
-    // TRANSACTIONS collection:
-    // - Only the owner of the transactions can read them.
-    // - Transactions are created by the system (via server-side logic/functions), not directly by clients.
+    // --- Transactions ---
+    // Users can only read their own transaction history.
+    // Transactions are created server-side (via security rules for bookings/subscriptions, or Cloud Functions in a full setup), so client-side creation is denied.
     match /transactions/{transactionId} {
-        allow read: if isAuthenticated() && isOwner(resource.data.userId);
-        allow create, update, delete: if false; // Must be handled server-side for security
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create, update, delete: if false;
     }
 
-    // ADMIN_STATE collection: (e.g., for metrics, checklist)
-    // - No client should be able to read or write this directly.
-    // - This should only be accessible via admin SDK on the server or cloud functions.
-    match /admin_state/{docId} {
-        allow read, write: if false;
+    // --- Admin-Only Collections ---
+    // Collections like `admin_state` and `backtest_presets` should only be accessible by your admin backend or Cloud Functions.
+    // For direct client access (as in this app), we lock it down to a specific list of admin UIDs.
+    function isAdmin() {
+      // In a real production app, you might use custom claims.
+      // For this app, we check against a hardcoded list of admin emails stored in the user's profile.
+      // This rule assumes an 'isAdmin' flag is set on the user's document.
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // BACKTEST_PRESETS collection:
-    // - Allow only authenticated users to read/write. In a real scenario, you'd lock this down to admins.
-    match /backtest_presets/{presetId} {
-        allow read, write: if isAuthenticated();
+    match /admin_state/{docId} {
+      allow read, write: if isAdmin();
+    }
+    
+     match /backtest_presets/{docId} {
+      allow read, write: if isAdmin();
     }
   }
 }

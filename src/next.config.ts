@@ -3,10 +3,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    // This is required for Next.js to work in this environment
-    allowedDevOrigins: ["https://*.cluster-joak5ukfbnbyqspg4tewa33d24.cloudworkstations.dev"],
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
