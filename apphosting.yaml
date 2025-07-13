@@ -6,7 +6,7 @@
 backendId: landshare-app-backend
 
 # The region to deploy the backend to.
-# This value is supplied by Firebase when you create a backend.
+# This value is supplied by Firebase when you for create a backend.
 location: us-central1
 
 # The command to build your app. App Hosting will run this command to build
@@ -26,17 +26,17 @@ env:
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 2
+  maxInstances: 10
   # These environment variables are available to your app's build and runtime.
   # IMPORTANT: The placeholder values for API keys MUST be replaced
   # in the Firebase Console for the live, deployed application to function correctly.
   environmentVariables:
-    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_API_KEY_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_AUTH_DOMAIN_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_STORAGE_BUCKET_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_MESSAGING_SENDER_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_APP_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "YOUR_MEASUREMENT_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    GEMINI_API_KEY: "YOUR_API_KEY_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_API_KEY_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
+    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_DOMAIN_HERE"
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_BUCKET_HERE"
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_SENDER_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_APP_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "YOUR_MEASUREMENT_ID_HERE"
+    GEMINI_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_KEY_HERE"
