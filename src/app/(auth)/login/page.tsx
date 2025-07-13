@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/dashboard';
   const { signInWithEmailPassword, signInWithGoogle, loading: authLoading } = useAuth();
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,11 +52,11 @@ export default function LoginPage() {
       await signInWithEmailPassword(data);
       toast({
         title: 'Login Successful',
-        description: "Welcome back! You're being redirected to your dashboard.",
+        description: "Welcome back! You're being redirected.",
       });
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
-      let errorMessage = err.message || "An unexpected error occurred. Please try again.";
+      let errorMessage = "An unexpected error occurred. Please try again.";
       if (err.code) { // Firebase specific errors
         switch (err.code) {
           case 'auth/user-not-found':
@@ -66,7 +68,7 @@ export default function LoginPage() {
             errorMessage = 'The email address is not valid.';
             break;
           default:
-            errorMessage = "Login Failed";
+            errorMessage = "Login Failed: " + err.code;
         }
       }
       setError(errorMessage);
@@ -84,7 +86,7 @@ export default function LoginPage() {
         title: 'Sign In Successful',
         description: "You're signed in with Google! Redirecting...",
       });
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
       // Errors are now handled and toasted within the AuthContext
       if (err.message) setError(err.message);

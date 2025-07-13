@@ -20,7 +20,6 @@ import {
   createUserProfile, 
   getUserById, 
   updateUserProfile, 
-  MOCK_ADMIN_USER_FOR_UI_TESTING,
   addBookmarkToList,
   removeBookmarkFromList,
   ADMIN_EMAILS
@@ -72,32 +71,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleAuthChange = useCallback(async (firebaseUser: FirebaseUserType | null) => {
     if (firebaseUser) {
-      let appProfile = await getUserById(firebaseUser.uid);
+      try {
+        let appProfile = await getUserById(firebaseUser.uid);
       
-      // If no profile exists, this is a new user (or first-time login for Google Auth). Create it.
-      if (!appProfile) {
-        console.log(`No app profile found for UID ${firebaseUser.uid}. Creating one.`);
-        try {
+        if (!appProfile) {
+          console.log(`No app profile found for UID ${firebaseUser.uid}. Creating one.`);
           appProfile = await createUserProfile(firebaseUser.uid, firebaseUser.email!, firebaseUser.displayName, firebaseUser.photoURL);
-        } catch (creationError: any) {
-          console.error("Critical error: Failed to create user profile in database.", creationError);
-          setAuthError("Could not create your user profile. Please contact support.");
-          setCurrentUser(null);
-          setSubscriptionStatus('standard');
-          setLoading(false);
-          await firebaseSignOut(firebaseAuthInstance!);
-          return;
+        }
+
+        const isAdmin = ADMIN_EMAILS.includes(appProfile.email);
+        if (isAdmin && (appProfile.subscriptionStatus !== 'premium' || !appProfile.isAdmin)) {
+          appProfile = await updateUserProfile(firebaseUser.uid, { subscriptionStatus: 'premium', isAdmin: true }) || appProfile;
+        }
+
+        setCurrentUser({ ...firebaseUser, appProfile });
+        setSubscriptionStatus(appProfile.subscriptionStatus || 'standard');
+
+      } catch (error: any) {
+        console.error("Critical error during authentication process:", error);
+        setAuthError("Could not load or create your user profile. Please contact support.");
+        setCurrentUser(null);
+        setSubscriptionStatus('standard');
+        if (firebaseAuthInstance) {
+          await firebaseSignOut(firebaseAuthInstance);
         }
       }
-
-      const isAdmin = ADMIN_EMAILS.includes(appProfile.email);
-      // Ensure admin status and subscription are always correct for the admin user.
-      if (isAdmin && (appProfile.subscriptionStatus !== 'premium' || !appProfile.isAdmin)) {
-        appProfile = await updateUserProfile(firebaseUser.uid, { subscriptionStatus: 'premium', isAdmin: true }) || appProfile;
-      }
-
-      setCurrentUser({ ...firebaseUser, appProfile });
-      setSubscriptionStatus(appProfile.subscriptionStatus || 'standard');
     } else {
       setCurrentUser(null);
       setSubscriptionStatus('standard');
@@ -108,16 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLoading(true);
     if (isPrototypeMode) {
-      console.warn("Auth Provider is in PROTOTYPE MODE.");
-      const mockUser = {
-        ...MOCK_ADMIN_USER_FOR_UI_TESTING,
-        // Simulate FirebaseUser properties
-        uid: MOCK_ADMIN_USER_FOR_UI_TESTING.id,
-        email: MOCK_ADMIN_USER_FOR_UI_TESTING.email,
-        displayName: MOCK_ADMIN_USER_FOR_UI_TESTING.name,
-        photoURL: null,
-      } as unknown as FirebaseUserType;
-      handleAuthChange(mockUser).finally(() => setLoading(false));
+      console.warn("Auth Provider is in PROTOTYPE MODE. Authentication is disabled.");
+      setCurrentUser(null);
+      setSubscriptionStatus('standard');
+      setLoading(false);
       return;
     }
     
@@ -139,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
       await updateFirebaseProfile(userCredential.user, { displayName: credentials.displayName });
-      // onAuthStateChanged will handle the rest.
+      // onAuthStateChanged will handle the new user creation and profile setup.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -154,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isPrototypeMode) throw new Error("Cannot sign in in prototype mode.");
     try {
       await firebaseSignInWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
-      // onAuthStateChanged will handle the rest.
+      // onAuthStateChanged will handle the successful login.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -229,7 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateUserProfile(currentUser.uid, data);
       await refreshUserProfile();
       toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-      return currentUser; // The state `currentUser` will be updated by the refresh.
+      // The state `currentUser` will be updated by the refresh. The hook will return the latest value.
+      return currentUser; 
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
       setLoading(false);
@@ -280,5 +273,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-    

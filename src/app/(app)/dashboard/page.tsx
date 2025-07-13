@@ -49,9 +49,9 @@ export default function DashboardPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser) {
-      setUserName(currentUser.appProfile?.name || "User");
-      setBookmarkedCount(currentUser.appProfile?.bookmarkedListingIds?.length || 0);
+    if (currentUser && currentUser.appProfile) {
+      setUserName(currentUser.appProfile.name || "User");
+      setBookmarkedCount(currentUser.appProfile.bookmarkedListingIds?.length || 0);
     } else {
       setUserName("Guest");
       setBookmarkedCount(0);
@@ -423,5 +423,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

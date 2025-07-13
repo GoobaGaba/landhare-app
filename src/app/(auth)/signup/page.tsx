@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,7 +40,9 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 export default function SignupPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { signUpWithEmailPassword, signInWithGoogle } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const { signUpWithEmailPassword, signInWithGoogle, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,7 +63,7 @@ export default function SignupPage() {
         title: 'Signup Successful',
         description: "Your account has been created! Redirecting to dashboard...",
       });
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
       let errorMessage = "An unexpected error occurred. Please try again.";
        if (err.code) {
@@ -99,7 +101,7 @@ export default function SignupPage() {
         title: 'Sign Up Successful',
         description: "You're signed up with Google! Redirecting...",
       });
-      router.push('/dashboard');
+      router.push(redirectPath);
     } catch (err: any) {
       let errorMessage = "Could not sign up with Google. Please try again.";
       if (err.code === 'auth/popup-closed-by-user') {

@@ -125,6 +125,7 @@ function SearchPageContent() {
   };
 
   const listingsForMap = useMemo(() => {
+    // Show all filtered listings on the map, not just the paginated ones
     return filteredListings.filter(l => l.lat != null && l.lng != null);
   }, [filteredListings]);
 
@@ -242,5 +243,3 @@ export default function SearchPage() {
         </APIProvider>
     )
 }
-
-    
