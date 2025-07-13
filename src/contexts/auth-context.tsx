@@ -71,7 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleAuthChange = useCallback(async (firebaseUser: FirebaseUserType | null) => {
     if (firebaseUser) {
+      setLoading(true);
       try {
+        // This is the critical change: We attempt to get the profile, but if it fails,
+        // we create it. This robustly handles both new sign-ups and existing logins.
         let appProfile = await getUserById(firebaseUser.uid);
       
         if (!appProfile) {
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const isAdmin = ADMIN_EMAILS.includes(appProfile.email);
         if (isAdmin && (appProfile.subscriptionStatus !== 'premium' || !appProfile.isAdmin)) {
+          // Silently upgrade admin accounts to premium for full testing access
           appProfile = await updateUserProfile(firebaseUser.uid, { subscriptionStatus: 'premium', isAdmin: true }) || appProfile;
         }
 
@@ -92,16 +96,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError("Could not load or create your user profile. Please contact support.");
         setCurrentUser(null);
         setSubscriptionStatus('standard');
+        // If profile creation fails, we must sign the user out to prevent a broken state.
         if (firebaseAuthInstance) {
           await firebaseSignOut(firebaseAuthInstance);
         }
+      } finally {
+        setLoading(false);
       }
     } else {
+      // User is logged out
       setCurrentUser(null);
       setSubscriptionStatus('standard');
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
+
 
   useEffect(() => {
     setLoading(true);
@@ -113,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+    // This listener is the entry point for all auth changes.
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, handleAuthChange, (error) => {
       console.error("Firebase onAuthStateChanged error:", error);
       setAuthError("An error occurred with your session. Please try logging in again.");
@@ -124,14 +134,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [handleAuthChange]);
 
+
   const signUpWithEmailAndPassword = async (credentials: Required<AuthCredentials>) => {
     setLoading(true);
     setAuthError(null);
     if (isPrototypeMode) throw new Error("Cannot sign up in prototype mode.");
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
+      // We only update the Firebase Auth display name here.
+      // The robust `handleAuthChange` listener will create the full Firestore profile.
       await updateFirebaseProfile(userCredential.user, { displayName: credentials.displayName });
-      // onAuthStateChanged will handle the new user creation and profile setup.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -204,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUserProfile = useCallback(async () => {
+    if (isPrototypeMode) return;
     if (currentUser) {
       setLoading(true);
       await handleAuthChange(currentUser);
@@ -227,6 +240,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
       setLoading(false);
       return null;
+    } finally {
+        setLoading(false);
     }
   };
 
