@@ -77,10 +77,11 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     const initialWalletBalance = isAdmin ? 10000 : 2500;
     
     const newUser: Omit<User, 'id' | 'createdAt'> = { 
-        email: email, name: name || email.split('@')[0] || 'User', 
+        email: email, 
+        name: name || email.split('@')[0] || 'New User', 
         avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
         subscriptionStatus: isAdmin ? 'premium' : 'standard', 
-        bio: "Welcome to LandHare!", 
+        bio: "Welcome to my LandHare profile!", 
         bookmarkedListingIds: [], 
         walletBalance: initialWalletBalance, 
         isAdmin: isAdmin 
@@ -90,9 +91,10 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     
     // Also update platform metrics for new user count
     const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
-    await updateDoc(metricsRef, { totalUsers: increment(1) });
+    await updateDoc(metricsRef, { totalUsers: increment(1) }).catch(err => console.error("Could not update user count metric", err));
     
-    return { ...newUser, id: userId, createdAt: new Date() };
+    const createdProfile = await getDoc(userRef);
+    return docToObj<User>(createdProfile);
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
@@ -428,8 +430,8 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
 
     const activeBookingsSnap = await getDocs(q);
     const activeBookings = activeBookingsSnap.docs.map(d => docToObj<Booking>(d)).filter(b => {
-        const from = (b.dateRange.from as Timestamp).toDate();
-        const to = (b.dateRange.to as Timestamp).toDate();
+        const from = b.dateRange.from instanceof Date ? b.dateRange.from : (b.dateRange.from as any).toDate();
+        const to = b.dateRange.to instanceof Date ? b.dateRange.to : (b.dateRange.to as any).toDate();
         return isWithinInterval(today, { start: from, end: to });
     });
 
