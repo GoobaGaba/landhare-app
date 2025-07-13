@@ -29,12 +29,6 @@ const PREMIUM_SERVICE_FEE_RATE = 0.0049; // 0.49%
 const STANDARD_SERVICE_FEE_RATE = 0.02; // 2%
 const PREMIUM_SUBSCRIPTION_PRICE = 5.00;
 
-
-// --- MOCK USER DEFINITIONS (only used if Firebase fails) ---
-const MOCK_ADMIN_USER_FOR_UI_TESTING: User = { id: 'AdminGNL6965', name: 'Gabe Leunda (Admin)', email: 'Gabrielleunda@gmail.com', subscriptionStatus: 'premium', createdAt: new Date('2023-01-01T09:00:00Z'), bio: 'Overseeing the LandHare ecosystem.', bookmarkedListingIds: [], walletBalance: 10000, isAdmin: true };
-const MOCK_USER_FOR_UI_TESTING: User = { id: 'mock-user-uid-12345', name: 'Mock UI Tester', email: 'mocktester@example.com', subscriptionStatus: 'standard', createdAt: new Date('2023-01-01T10:00:00Z'), bio: 'I am a standard mock user for testing purposes.', bookmarkedListingIds: [], walletBalance: 2500, isAdmin: false };
-
-
 /**
  * Converts a Firestore document snapshot into a usable object,
  * handling Timestamps and ensuring the document ID is included.
@@ -48,13 +42,13 @@ function docToObj<T>(docSnap: any): T {
     const data = docSnap.data();
     // Convert Firestore Timestamps to JS Dates
     for (const key in data) {
-        if (data[key]?.toDate instanceof Function) {
+        if (data[key] instanceof Timestamp) {
             data[key] = data[key].toDate();
         }
-        if(key === 'dateRange' && data[key]?.from?.toDate instanceof Function) {
+        if(key === 'dateRange' && data[key]?.from instanceof Timestamp) {
             data.dateRange.from = data.dateRange.from.toDate();
         }
-        if(key === 'dateRange' && data[key]?.to?.toDate instanceof Function) {
+        if(key === 'dateRange' && data[key]?.to instanceof Timestamp) {
             data.dateRange.to = data.dateRange.to.toDate();
         }
     }
@@ -63,45 +57,48 @@ function docToObj<T>(docSnap: any): T {
 
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
-    if (isPrototypeMode) {
-        if (id === MOCK_ADMIN_USER_FOR_UI_TESTING.id) return MOCK_ADMIN_USER_FOR_UI_TESTING;
-        if (id === MOCK_USER_FOR_UI_TESTING.id) return MOCK_USER_FOR_UI_TESTING;
-        return undefined;
-    }
+    if (isPrototypeMode) return undefined;
     const userRef = doc(firestoreDb!, "users", id);
     const userSnap = await getDoc(userRef);
     return docToObj<User>(userSnap);
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
-    const isAdmin = ADMIN_EMAILS.includes(email);
-    const initialWalletBalance = isAdmin ? 10000 : 2500;
-     if (isPrototypeMode) {
-        const mockUser = isAdmin ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
-        return {...mockUser, id: userId, email, name: name || mockUser.name };
-    }
+    if (isPrototypeMode) throw new Error("Cannot create user profile in prototype mode.");
     
     const userRef = doc(firestoreDb!, "users", userId);
     const existingUserSnap = await getDoc(userRef);
     if (existingUserSnap.exists()) {
+        console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { 
+
+    const isAdmin = ADMIN_EMAILS.includes(email);
+    const initialWalletBalance = isAdmin ? 10000 : 2500;
+    
+    const newUser: Omit<User, 'id' | 'createdAt'> = { 
         email: email, name: name || email.split('@')[0] || 'User', 
         avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
-        subscriptionStatus: isAdmin ? 'premium' : 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", 
-        bookmarkedListingIds: [], walletBalance: initialWalletBalance, isAdmin: isAdmin 
+        subscriptionStatus: isAdmin ? 'premium' : 'standard', 
+        bio: "Welcome to LandHare!", 
+        bookmarkedListingIds: [], 
+        walletBalance: initialWalletBalance, 
+        isAdmin: isAdmin 
     };
-    await setDoc(userRef, newUser);
-    return { ...newUser, id: userId, createdAt: new Date(), walletBalance: initialWalletBalance, isAdmin };
+
+    await setDoc(userRef, { ...newUser, createdAt: serverTimestamp() });
+    
+    // Also update platform metrics for new user count
+    const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
+    await updateDoc(metricsRef, { totalUsers: increment(1) });
+    
+    return { ...newUser, id: userId, createdAt: new Date() };
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (isPrototypeMode) {
        console.warn("User profile update skipped in prototype mode.");
-       const user = ADMIN_EMAILS.includes(data.email || '') || userId === MOCK_ADMIN_USER_FOR_UI_TESTING.id ? MOCK_ADMIN_USER_FOR_UI_TESTING : MOCK_USER_FOR_UI_TESTING;
-       Object.assign(user, data);
-       return user;
+       return undefined;
     }
 
     // Live mode with subscription financial logic
@@ -380,7 +377,7 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
         if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
             throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
         }
-        const updatedBookmarks = [...(user.bookmarkedListingIds || []), listingId];
+        const updatedBookmarks = [...new Set([...(user.bookmarkedListingIds || []), listingId])];
         await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
         return { ...user, bookmarkedListingIds: updatedBookmarks };
     }
@@ -542,8 +539,6 @@ export const getListingsByLandownerCount = async (landownerId: string): Promise<
     return snapshot.size;
 };
     
-export { MOCK_USER_FOR_UI_TESTING, MOCK_ADMIN_USER_FOR_UI_TESTING };
-
 // --- Admin State Functions (Checklist & Backtest Presets) ---
 export const getAdminChecklistState = async (): Promise<Set<string>> => {
     if (isPrototypeMode) { return new Set(); }
