@@ -166,5 +166,3 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
     </Card>
   );
 }
-
-    

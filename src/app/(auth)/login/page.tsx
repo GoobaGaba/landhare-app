@@ -152,6 +152,9 @@ export default function LoginPage() {
             <Link href="/signup">Sign up</Link>
           </Button>
         </p>
+         <Button variant="link" asChild className="p-0 h-auto text-xs">
+            <Link href="/forgot-password">Forgot Password?</Link>
+        </Button>
       </CardFooter>
     </Card>
   );
