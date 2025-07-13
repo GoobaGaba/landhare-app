@@ -22,6 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
@@ -31,8 +32,9 @@ function SearchPageContent() {
   const { allAvailableListings, isLoading: listingsLoading, error: listingsError } = useListingsData();
   const { toast } = useToast();
   const { subscriptionStatus, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [priceRange, setPriceRange] = useState<[number, number]>(initialPriceRange);
   const [sizeRange, setSizeRange] = useState<[number, number]>(initialSizeRange);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
@@ -127,6 +129,10 @@ function SearchPageContent() {
   const listingsForMap = useMemo(() => {
     return allAvailableListings.filter(l => l.lat != null && l.lng != null);
   }, [allAvailableListings]);
+  
+  const filteredMapIds = useMemo(() => {
+      return new Set(filteredListings.map(l => l.id));
+  }, [filteredListings]);
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
     return (
@@ -204,7 +210,7 @@ function SearchPageContent() {
         <aside className="hidden lg:block w-1/3 xl:w-2/5 h-full">
             <MapView 
                 listings={listingsForMap}
-                filteredListingIds={filteredListings.map(l => l.id)}
+                filteredListingIds={Array.from(filteredMapIds)}
                 selectedId={selectedListingId} 
                 onMarkerClick={setSelectedListingId}
                 onMapClick={() => setSelectedListingId(null)}
@@ -243,3 +249,5 @@ export default function SearchPage() {
         </APIProvider>
     )
 }
+
+    

@@ -170,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
       await updateFirebaseProfile(userCredential.user, { displayName: credentials.displayName });
+      // The onAuthStateChanged listener will handle the rest of the profile creation.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -264,12 +265,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      await updateUserProfile(currentUser.uid, data);
-      await refreshUserProfile();
-      toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-      // The state `currentUser` will be updated by the refresh. The hook will return the latest value.
-      const updatedUser = await getUserById(currentUser.uid);
-      return updatedUser ? { ...currentUser, appProfile: updatedUser } : null;
+      const updatedProfile = await updateUserProfile(currentUser.uid, data);
+      if (updatedProfile) {
+        setCurrentUser(prev => prev ? ({ ...prev, appProfile: updatedProfile }) : null);
+        setSubscriptionStatus(updatedProfile.subscriptionStatus || 'standard');
+        toast({ title: "Profile Updated", description: "Your profile information has been saved." });
+        return { ...currentUser, appProfile: updatedProfile };
+      }
+      return null;
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
       return null;
@@ -284,9 +287,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      await addBookmarkToList(currentUser.uid, listingId);
-      await refreshUserProfile();
-      toast({ title: "Bookmarked!", description: "Listing added to your bookmarks." });
+      const updatedProfile = await addBookmarkToList(currentUser.uid, listingId);
+      if (updatedProfile) {
+          setCurrentUser(prev => prev ? ({...prev, appProfile: updatedProfile}) : null);
+          toast({ title: "Bookmarked!", description: "Listing added to your bookmarks." });
+      }
     } catch (error: any)
        {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -297,9 +302,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const removeBookmark = async (listingId: string) => {
     if (!currentUser?.uid) return;
     try {
-      await removeBookmarkFromList(currentUser.uid, listingId);
-      await refreshUserProfile();
-      toast({ title: "Bookmark Removed" });
+      const updatedProfile = await removeBookmarkFromList(currentUser.uid, listingId);
+      if (updatedProfile) {
+        setCurrentUser(prev => prev ? ({...prev, appProfile: updatedProfile}) : null);
+        toast({ title: "Bookmark Removed" });
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -323,3 +330,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+
+    

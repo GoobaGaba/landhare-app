@@ -67,43 +67,48 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     if (!firestoreDb) throw new Error("Database not available.");
     
     const userRef = doc(firestoreDb, "users", userId);
-    const existingUserSnap = await getDoc(userRef);
-    if (existingUserSnap.exists()) {
-        console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
-        return docToObj<User>(existingUserSnap);
-    }
+    
+    // Using a transaction to ensure atomic read/write and prevent race conditions.
+    return runTransaction(firestoreDb, async (transaction) => {
+        const existingUserSnap = await transaction.get(userRef);
+        if (existingUserSnap.exists()) {
+            console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
+            return docToObj<User>(existingUserSnap);
+        }
 
-    const isAdmin = ADMIN_EMAILS.includes(email);
-    const initialWalletBalance = isAdmin ? 10000 : 2500;
-    
-    const newUser: Omit<User, 'id' | 'createdAt'> = { 
-        email: email, 
-        name: name || email.split('@')[0] || 'New User', 
-        avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
-        subscriptionStatus: isAdmin ? 'premium' : 'standard', 
-        bio: "Welcome to my LandHare profile!", 
-        bookmarkedListingIds: [], 
-        walletBalance: initialWalletBalance, 
-        isAdmin: isAdmin 
-    };
+        const isAdmin = ADMIN_EMAILS.includes(email);
+        const initialWalletBalance = isAdmin ? 10000 : 2500;
+        
+        const newUser: Omit<User, 'id' | 'createdAt'> = { 
+            email: email, 
+            name: name || email.split('@')[0] || 'New User', 
+            avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
+            subscriptionStatus: isAdmin ? 'premium' : 'standard', 
+            bio: "Welcome to my LandHare profile!", 
+            bookmarkedListingIds: [], 
+            walletBalance: initialWalletBalance, 
+            isAdmin: isAdmin 
+        };
 
-    await setDoc(userRef, { ...newUser, createdAt: serverTimestamp() });
-    
-    const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
-    try {
-        await updateDoc(metricsRef, { totalUsers: increment(1) });
-    } catch {
-        // If metrics don't exist, create them
-        await setDoc(metricsRef, { totalUsers: 1, totalListings: 0, totalBookings: 0, totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0 });
-    }
-    
-    const createdProfile = await getDoc(userRef);
-    return docToObj<User>(createdProfile);
+        transaction.set(userRef, { ...newUser, createdAt: serverTimestamp() });
+
+        const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
+        const metricsSnap = await transaction.get(metricsRef);
+        if (metricsSnap.exists()) {
+            transaction.update(metricsRef, { totalUsers: increment(1) });
+        } else {
+            // If metrics don't exist, create them
+            transaction.set(metricsRef, { totalUsers: 1, totalListings: 0, totalBookings: 0, totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0 });
+        }
+        
+        return { ...newUser, id: userId, createdAt: new Date() };
+    });
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (!firestoreDb) throw new Error("Database not available.");
 
+    // Handle subscription changes within a transaction for atomicity
     if (data.subscriptionStatus) {
         return runTransaction(firestoreDb, async (transaction) => {
             const userRef = doc(firestoreDb!, "users", userId);
@@ -356,28 +361,38 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
 export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
     if (!firestoreDb) throw new Error("Database not available.");
     const userRef = doc(firestoreDb, "users", userId);
-    const user = await getUserById(userId);
-    if (user) {
+    
+    return runTransaction(firestoreDb, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found.");
+        
+        const user = userSnap.data() as User;
+        
         if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
             throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
         }
         const updatedBookmarks = [...new Set([...(user.bookmarkedListingIds || []), listingId])];
-        await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
+        transaction.update(userRef, { bookmarkedListingIds: updatedBookmarks });
         return { ...user, bookmarkedListingIds: updatedBookmarks };
-    }
-    return undefined;
+    });
 };
 
 export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
     if (!firestoreDb) throw new Error("Database not available.");
     const userRef = doc(firestoreDb, "users", userId);
-    const user = await getUserById(userId);
-    if (user && user.bookmarkedListingIds?.includes(listingId)) {
-        const updatedBookmarks = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
-        await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
-        return { ...user, bookmarkedListingIds: updatedBookmarks };
-    }
-    return user;
+    
+    return runTransaction(firestoreDb, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found.");
+
+        const user = userSnap.data() as User;
+        if (user.bookmarkedListingIds?.includes(listingId)) {
+            const updatedBookmarks = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
+            transaction.update(userRef, { bookmarkedListingIds: updatedBookmarks });
+            return { ...user, bookmarkedListingIds: updatedBookmarks };
+        }
+        return user;
+    });
 };
 
 // --- Admin & Economic Cycle Functions ---
@@ -557,3 +572,5 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
     const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
+
+    

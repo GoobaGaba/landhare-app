@@ -26,7 +26,7 @@ const GoogleIcon = () => (
 );
 
 const signupSchema = z.object({
-  displayName: z.string().min(2, { message: 'Name must be at least 2 characters.' }).optional(),
+  displayName: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   confirmPassword: z.string().min(6, { message: 'Please confirm your password.' }),
@@ -42,7 +42,7 @@ export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
-  const { signUpWithEmailPassword, signInWithGoogle, loading: authLoading } = useAuth();
+  const { signUpWithEmailAndPassword, signInWithGoogle, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,10 +54,10 @@ export default function SignupPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await signUpWithEmailPassword({ 
+      await signUpWithEmailAndPassword({ 
         email: data.email, 
         password: data.password, 
-        displayName: data.displayName || data.email.split('@')[0] 
+        displayName: data.displayName
       });
       toast({
         title: 'Signup Successful',
@@ -143,7 +143,7 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="displayName">Full Name (Optional)</Label>
+            <Label htmlFor="displayName">Full Name</Label>
             <Input id="displayName" type="text" placeholder="John Doe" {...register('displayName')} disabled={isLoading} />
             {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
           </div>
@@ -179,3 +179,5 @@ export default function SignupPage() {
     </Card>
   );
 }
+
+    

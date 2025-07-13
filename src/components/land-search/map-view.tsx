@@ -28,8 +28,8 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
       const selectedListing = listings.find(l => l.id === selectedId);
       if (selectedListing && selectedListing.lat != null && selectedListing.lng != null) {
         map.panTo({ lat: selectedListing.lat, lng: selectedListing.lng });
-        if (map.getZoom() < 12) {
-          map.setZoom(12);
+        if (map.getZoom()! < 12) {
+            map.setZoom(12);
         }
         return;
       }
@@ -43,7 +43,7 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
         return;
     }
 
-    const bounds = new google.maps.LatLngBounds();
+    const bounds = new window.google.maps.LatLngBounds();
     listingsToShow.forEach(listing => {
         if (listing.lat != null && listing.lng != null) {
             bounds.extend({ lat: listing.lat, lng: listing.lng });
@@ -73,24 +73,24 @@ const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean
 
     if (isSelected) {
         return {
-            background: '#CC6633', // Burnt Orange (Accent color)
-            glyphColor: darkDotColor,
-            borderColor: '#FFFFFF',
+            background: 'hsl(var(--accent))', // Accent color from theme
+            glyphColor: 'hsl(var(--accent-foreground))',
+            borderColor: 'hsl(var(--background))',
             opacity: 1
         };
     }
     if (listing.isBoosted) {
         return {
-            background: '#8B5CF6', // Vibrant Purple for Premium/Boosted
-            glyphColor: darkDotColor,
-            borderColor: '#FFFFFF',
+            background: 'hsl(var(--premium))', // Premium color from theme
+            glyphColor: 'hsl(var(--premium-foreground))',
+            borderColor: 'hsl(var(--background))',
             opacity: 1
         };
     }
     return {
-        background: '#336633', // Forest Green (Primary color)
-        glyphColor: darkDotColor,
-        borderColor: '#FFFFFF',
+        background: 'hsl(var(--primary))', // Primary color from theme
+        glyphColor: 'hsl(var(--primary-foreground))',
+        borderColor: 'hsl(var(--background))',
         opacity: 1
     };
 };
@@ -166,3 +166,5 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
     </Card>
   );
 }
+
+    
