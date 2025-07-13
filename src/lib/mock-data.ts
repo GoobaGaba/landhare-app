@@ -48,13 +48,13 @@ function docToObj<T>(docSnap: any): T {
     const data = docSnap.data();
     // Convert Firestore Timestamps to JS Dates
     for (const key in data) {
-        if (data[key]?.toDate instanceof Function) {
+        if (data[key] instanceof Timestamp) {
             data[key] = data[key].toDate();
         }
-        if(key === 'dateRange' && data[key]?.from?.toDate instanceof Function) {
+        if(key === 'dateRange' && data[key]?.from instanceof Timestamp) {
             data.dateRange.from = data.dateRange.from.toDate();
         }
-        if(key === 'dateRange' && data[key]?.to?.toDate instanceof Function) {
+        if(key === 'dateRange' && data[key]?.to instanceof Timestamp) {
             data.dateRange.to = data.dateRange.to.toDate();
         }
     }
@@ -84,16 +84,20 @@ export const createUserProfile = async (userId: string, email: string, name?: st
     const userRef = doc(firestoreDb!, "users", userId);
     const existingUserSnap = await getDoc(userRef);
     if (existingUserSnap.exists()) {
+        console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
         return docToObj<User>(existingUserSnap);
     }
-    const newUser: Omit<User, 'id'> = { 
+    const newUser: Omit<User, 'id' | 'createdAt'> = { 
         email: email, name: name || email.split('@')[0] || 'User', 
         avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
-        subscriptionStatus: isAdmin ? 'premium' : 'standard', createdAt: serverTimestamp() as any, bio: "Welcome to LandShare!", 
-        bookmarkedListingIds: [], walletBalance: initialWalletBalance, isAdmin: isAdmin 
+        subscriptionStatus: isAdmin ? 'premium' : 'standard', 
+        bio: "Welcome to LandShare!", 
+        bookmarkedListingIds: [], 
+        walletBalance: initialWalletBalance, 
+        isAdmin: isAdmin 
     };
-    await setDoc(userRef, newUser);
-    return { ...newUser, id: userId, createdAt: new Date(), walletBalance: initialWalletBalance, isAdmin };
+    await setDoc(userRef, { ...newUser, createdAt: serverTimestamp() });
+    return { ...newUser, id: userId, createdAt: new Date() };
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
@@ -380,7 +384,7 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
         if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
             throw new Error(`Bookmark limit of ${FREE_TIER_BOOKMARK_LIMIT} reached.`);
         }
-        const updatedBookmarks = [...(user.bookmarkedListingIds || []), listingId];
+        const updatedBookmarks = [...new Set([...(user.bookmarkedListingIds || []), listingId])];
         await updateDoc(userRef, { bookmarkedListingIds: updatedBookmarks });
         return { ...user, bookmarkedListingIds: updatedBookmarks };
     }
@@ -586,3 +590,5 @@ export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
     const presetRef = doc(firestoreDb!, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };
+
+    

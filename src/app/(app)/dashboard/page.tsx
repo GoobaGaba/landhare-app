@@ -32,13 +32,12 @@ const chartConfig = {
 
 export default function DashboardPage() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
-  const { allAvailableListings, myListings, isLoading: listingsLoading } = useListingsData();
+  const { myListings, isLoading: listingsLoading } = useListingsData();
   const [userName, setUserName] = useState("Guest");
-  const [bookmarkedItems, setBookmarkedItems] = useState<Listing[]>([]);
+  const [bookmarkedCount, setBookmarkedCount] = useState<number>(0);
   const [bookingCount, setBookingCount] = useState<number>(0);
-  const [isBookingCountLoading, setIsBookingCountLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isTransactionsLoading, setIsTransactionsLoading] = useState(true);
   const [marketInsights, setMarketInsights] = useState<MarketInsightsData | null>(null);
   const [isInsightsLoading, setIsInsightsLoading] = useState(false);
   const router = useRouter();
@@ -51,33 +50,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (currentUser) {
-      setUserName(currentUser.displayName || currentUser.appProfile?.name || currentUser.email || "User");
+      setUserName(currentUser.appProfile?.name || "User");
+      setBookmarkedCount(currentUser.appProfile?.bookmarkedListingIds?.length || 0);
     } else {
       setUserName("Guest");
+      setBookmarkedCount(0);
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (currentUser?.appProfile?.bookmarkedListingIds && allAvailableListings.length > 0) {
-      const userBookmarkIds = currentUser.appProfile.bookmarkedListingIds;
-      const filtered = allAvailableListings.filter(listing => userBookmarkIds.includes(listing.id));
-      setBookmarkedItems(filtered);
-    } else {
-      setBookmarkedItems([]);
-    }
-  }, [currentUser, allAvailableListings]);
 
   useEffect(() => {
     async function fetchData() {
       if (!currentUser) {
         setBookingCount(0);
         setTransactions([]);
-        setIsBookingCountLoading(false);
-        setIsTransactionsLoading(false);
+        setIsDataLoading(false);
         return;
       }
-      setIsBookingCountLoading(true);
-      setIsTransactionsLoading(true);
+      setIsDataLoading(true);
       try {
         const [bookings, userTransactions] = await Promise.all([
           getBookingsForUser(currentUser.uid),
@@ -92,8 +82,7 @@ export default function DashboardPage() {
         setTransactions([]);
         toast({ title: "Error", description: "Could not load dashboard data."});
       } finally {
-        setIsBookingCountLoading(false);
-        setIsTransactionsLoading(false);
+        setIsDataLoading(false);
       }
     }
     fetchData();
@@ -124,7 +113,7 @@ export default function DashboardPage() {
   const chartData = useMemo(() => {
     const last6Months = Array.from({ length: 6 }, (_, i) => subMonths(new Date(), i)).reverse();
     
-    const monthlyEarnings = last6Months.map(monthDate => {
+    return last6Months.map(monthDate => {
       const monthStart = startOfMonth(monthDate);
       const monthEnd = endOfMonth(monthDate);
       
@@ -142,12 +131,10 @@ export default function DashboardPage() {
       };
     });
 
-    return monthlyEarnings;
-
   }, [transactions]);
 
 
-  if (authLoading || subscriptionStatus === 'loading' || (currentUser && listingsLoading)) {
+  if (authLoading || (currentUser && (listingsLoading || isDataLoading))) {
      return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -177,7 +164,7 @@ export default function DashboardPage() {
   const currentMonthEarnings = chartData[chartData.length - 1]?.earnings || 0;
   const isPremiumUser = subscriptionStatus === 'premium';
   const atListingLimit = !isPremiumUser && myListings.length >= FREE_TIER_LISTING_LIMIT;
-  const atBookmarkLimit = !isPremiumUser && bookmarkedItems.length >= FREE_TIER_BOOKMARK_LIMIT;
+  const atBookmarkLimit = !isPremiumUser && bookmarkedCount >= FREE_TIER_BOOKMARK_LIMIT;
 
   const handleCreateListingClick = () => {
     if (atListingLimit) {
@@ -186,10 +173,7 @@ export default function DashboardPage() {
         description: `Standard accounts can create ${FREE_TIER_LISTING_LIMIT} listing. Upgrade to Premium for more.`,
         action: <ToastAction altText="Upgrade" onClick={() => router.push('/pricing')}>Upgrade</ToastAction>,
       });
-    } else if (firebaseInitializationError && !currentUser.appProfile) {
-        toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
-    }
-    else {
+    } else {
       router.push('/listings/new');
     }
   };
@@ -258,7 +242,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="h-[250px] w-full">
-                {isTransactionsLoading ? (
+                {isDataLoading ? (
                     <div className="flex justify-center items-center h-full">
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       <p className="ml-2 text-sm text-muted-foreground">Loading earnings data...</p>
@@ -355,10 +339,10 @@ export default function DashboardPage() {
           <CardContent className="space-y-3">
             <p>You have <strong>{myListings.length} active listing{myListings.length === 1 ? '' : 's'}</strong>.</p> 
             <div className="flex flex-col gap-2">
-              <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+              <Button asChild variant="outline" className="w-full">
                 <Link href="/my-listings">View My Listings</Link>
               </Button>
-              <Button onClick={handleCreateListingClick} className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+              <Button onClick={handleCreateListingClick} className="w-full">
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New Listing
               </Button>
             </div>
@@ -376,12 +360,12 @@ export default function DashboardPage() {
             <CardDescription>View and manage your land rental bookings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {isBookingCountLoading ? (
+            {isDataLoading ? (
                <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Loading bookings...</div>
             ) : (
                <p>You have <strong>{bookingCount} active bookings/requests</strong>.</p>
             )}
-            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+            <Button asChild variant="outline" className="w-full">
               <Link href="/bookings">View Bookings</Link>
             </Button>
           </CardContent>
@@ -394,7 +378,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">This feature is currently using placeholder data.</p>
-            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+            <Button asChild variant="outline" className="w-full">
               <Link href="/messages">Go to Messages</Link>
             </Button>
           </CardContent>
@@ -406,14 +390,14 @@ export default function DashboardPage() {
             <CardDescription>Access your saved land listings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {listingsLoading && !bookmarkedItems.length ? (
+            {isDataLoading ? (
               <div className="flex items-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading bookmarks...
               </div>
             ) : (
-              <p>You have <strong>{bookmarkedItems.length} bookmarked listing{bookmarkedItems.length === 1 ? '' : 's'}</strong>.</p>
+              <p>You have <strong>{bookmarkedCount} bookmarked listing{bookmarkedCount === 1 ? '' : 's'}</strong>.</p>
             )}
-            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+            <Button asChild variant="outline" className="w-full">
               <Link href="/bookmarks">View All Bookmarks</Link>
             </Button>
             {atBookmarkLimit && (
@@ -430,7 +414,7 @@ export default function DashboardPage() {
             <CardDescription>Update your personal information and preferences.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full" disabled={(firebaseInitializationError !== null && !currentUser.appProfile)}>
+            <Button asChild variant="outline" className="w-full">
               <Link href="/profile">Edit Profile</Link>
             </Button>
           </CardContent>
@@ -439,3 +423,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

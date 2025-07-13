@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ListingCard } from "@/components/land-search/listing-card";
 import { FilterPanel } from "@/components/land-search/filter-panel";
@@ -28,7 +28,7 @@ const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
 
 function SearchPageContent() {
-  const { allAvailableListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
+  const { allAvailableListings, isLoading: listingsLoading, error: listingsError } = useListingsData();
   const { toast } = useToast();
   const { subscriptionStatus, loading: authLoading } = useAuth();
 
@@ -37,7 +37,6 @@ function SearchPageContent() {
   const [sizeRange, setSizeRange] = useState<[number, number]>(initialSizeRange);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedLeaseTerm, setSelectedLeaseTerm] = useState<LeaseTerm | 'any'>('any');
-  const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>('rating_desc');
@@ -58,14 +57,10 @@ function SearchPageContent() {
     setSelectedAmenities([]);
     setSelectedLeaseTerm('any');
     setSortBy('rating_desc');
+    setCurrentPage(1);
   };
 
-  useEffect(() => {
-    if (listingsLoading) {
-      setFilteredListings([]); 
-      return;
-    }
-
+  const filteredListings = useMemo(() => {
     let listingsToFilter = [...allAvailableListings];
 
     if (searchTerm) {
@@ -92,33 +87,27 @@ function SearchPageContent() {
         listingsToFilter = listingsToFilter.filter(l => l.leaseTerm === selectedLeaseTerm);
     }
 
-    listingsToFilter = [...listingsToFilter].sort((a, b) => {
-      // Primary sort: Boosted listings always come first.
+    return [...listingsToFilter].sort((a, b) => {
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
 
-      // Secondary sort: Based on user's selection.
       let comparison = 0;
-      const priceA = a.price ?? 0;
-      const priceB = b.price ?? 0;
-
       switch (sortBy) {
-        case 'price_asc': comparison = priceA - priceB; break;
-        case 'price_desc': comparison = priceB - priceA; break;
+        case 'price_asc': comparison = (a.price ?? 0) - (b.price ?? 0); break;
+        case 'price_desc': comparison = (b.price ?? 0) - (a.price ?? 0); break;
         case 'size_asc': comparison = a.sizeSqft - b.sizeSqft; break;
         case 'size_desc': comparison = b.sizeSqft - a.sizeSqft; break;
         case 'rating_desc': 
-        default:
-          comparison = (b.rating || 0) - (a.rating || 0);
-          break;
+        default: comparison = (b.rating || 0) - (a.rating || 0); break;
       }
       return comparison;
     });
-    
-    setFilteredListings(listingsToFilter);
+  }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allAvailableListings]);
+
+  useEffect(() => {
     setCurrentPage(1);
     setSelectedListingId(null);
-  }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy, allAvailableListings, listingsLoading]);
+  }, [filteredListings]);
 
   const paginatedListings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -136,9 +125,8 @@ function SearchPageContent() {
   };
 
   const listingsForMap = useMemo(() => {
-    return paginatedListings.filter(l => l.lat != null && l.lng != null);
-  }, [paginatedListings]);
-
+    return filteredListings.filter(l => l.lat != null && l.lng != null);
+  }, [filteredListings]);
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
     return (
@@ -239,7 +227,7 @@ export default function SearchPage() {
                     <CardContent>
                         <p>The Google Maps API key is missing or invalid, which is required for the Search and Map functionality.</p>
                         <p className="text-sm text-muted-foreground mt-2">
-                           <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the development server has been fully restarted.
+                           <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set for your deployed application.
                         </p>
                         <Button asChild variant="outline" className="mt-4"><Link href="/">Go Home</Link></Button>
                     </CardContent>
@@ -254,3 +242,5 @@ export default function SearchPage() {
         </APIProvider>
     )
 }
+
+    

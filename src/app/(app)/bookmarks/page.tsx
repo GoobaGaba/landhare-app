@@ -10,17 +10,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { useListingsData } from '@/hooks/use-listings-data';
 import type { Listing } from '@/lib/types';
 import { ListingCard } from '@/components/land-search/listing-card';
-import { useEffect, useMemo, useState } from 'react';
-import { firebaseInitializationError } from '@/lib/firebase';
+import { useEffect, useMemo } from 'react';
 import { FREE_TIER_BOOKMARK_LIMIT } from '@/lib/mock-data';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ToastAction } from '@/components/ui/toast';
 
 export default function MyBookmarksPage() {
   const { currentUser, loading: authLoading, subscriptionStatus } = useAuth();
   const { allAvailableListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
   const { toast } = useToast();
-  const [bookmarkedListings, setBookmarkedListings] = useState<Listing[]>([]);
 
   useEffect(() => {
     if (listingsError) {
@@ -28,14 +25,12 @@ export default function MyBookmarksPage() {
     }
   }, [listingsError, toast]);
 
-  useEffect(() => {
+  const bookmarkedListings = useMemo(() => {
     if (currentUser?.appProfile?.bookmarkedListingIds && allAvailableListings.length > 0) {
-      const userBookmarks = currentUser.appProfile.bookmarkedListingIds;
-      const filtered = allAvailableListings.filter(listing => userBookmarks.includes(listing.id));
-      setBookmarkedListings(filtered);
-    } else {
-      setBookmarkedListings([]);
+      const userBookmarkIds = new Set(currentUser.appProfile.bookmarkedListingIds);
+      return allAvailableListings.filter(listing => userBookmarkIds.has(listing.id));
     }
+    return [];
   }, [currentUser, allAvailableListings]);
 
   const atBookmarkLimit = subscriptionStatus === 'standard' && bookmarkedListings.length >= FREE_TIER_BOOKMARK_LIMIT;
@@ -111,7 +106,6 @@ export default function MyBookmarksPage() {
           <CardContent>
             <p className="text-muted-foreground">
               You haven't bookmarked any listings yet. Start exploring to find land you love!
-              {firebaseInitializationError && " (Note: Firebase features may be limited if not configured.)"}
             </p>
             <Button asChild className="mt-4">
                 <Link href="/search">Explore Land</Link>
@@ -128,3 +122,5 @@ export default function MyBookmarksPage() {
     </div>
   );
 }
+
+    
