@@ -125,7 +125,7 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
                     background={pinColors.background}
                     borderColor={pinColors.borderColor}
                     glyphColor={pinColors.glyphColor}
-                    scale={isSelected ? 1.5 : 1}
+                    scale={isSelected ? 1.5 : (listing.isBoosted ? 1.2 : 1)}
                   />
                 </div>
               </AdvancedMarker>
@@ -146,7 +146,7 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
                  <div className="p-2">
                     <h4 className="font-headline text-base text-primary mb-1 truncate">{selectedListing.title}</h4>
                     <p className="text-xs text-muted-foreground flex items-center">
-                        <DollarSign className="h-3 w-3 mr-1"/>{selectedListing.price} / {selectedListing.pricingModel}
+                        <DollarSign className="h-3 w-3 mr-1"/>{selectedListing.price} / {selectedListing.pricingModel === 'nightly' ? 'night' : 'month'}
                     </p>
                     <Button asChild variant="link" size="sm" className="p-0 h-auto text-xs mt-1">
                       <Link href={`/listings/${selectedListing.id}`}>View Details</Link>

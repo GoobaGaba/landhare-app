@@ -175,6 +175,7 @@ function LoadingFallback() {
     )
 }
 
+// This is the main page component that now correctly uses Suspense
 export default function LoginPage() {
     return (
         <Suspense fallback={<LoadingFallback />}>
