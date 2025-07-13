@@ -1,4 +1,6 @@
 
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Home, Users, Feather, ShieldCheck } from "lucide-react";
 import Image from 'next/image';
