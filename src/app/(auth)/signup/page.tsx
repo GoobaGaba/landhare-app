@@ -1,6 +1,7 @@
 
 'use client';
 
+import { Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,7 +38,7 @@ const signupSchema = z.object({
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-export default function SignupPage() {
+function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -178,4 +179,26 @@ export default function SignupPage() {
       </CardFooter>
     </Card>
   );
+}
+
+function LoadingFallback() {
+    return (
+        <Card className="w-full max-w-sm shadow-xl">
+            <CardHeader className="space-y-1 text-center">
+                <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
+                <CardDescription>Join LandHare to find or list land.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense fallback={<LoadingFallback />}>
+            <SignupForm />
+        </Suspense>
+    )
 }

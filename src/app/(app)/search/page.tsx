@@ -1,6 +1,8 @@
 
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ListingCard } from "@/components/land-search/listing-card";
@@ -22,7 +24,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 
 const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
@@ -217,6 +218,14 @@ function SearchPageContent() {
   );
 }
 
+function SearchPageFallback() {
+    return (
+      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+}
+
 export default function SearchPage() {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -241,7 +250,9 @@ export default function SearchPage() {
 
     return (
         <APIProvider apiKey={apiKey}>
-            <SearchPageContent />
+            <Suspense fallback={<SearchPageFallback />}>
+                <SearchPageContent />
+            </Suspense>
         </APIProvider>
     )
 }
