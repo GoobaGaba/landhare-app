@@ -82,11 +82,6 @@ export default function SignupPage() {
         }
       }
       setError(errorMessage);
-      toast({
-        title: 'Signup Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
     } finally {
       setIsLoading(false);
     }
@@ -110,11 +105,6 @@ export default function SignupPage() {
         errorMessage = err.message;
       }
       setError(errorMessage);
-      toast({
-        title: 'Google Sign Up Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
     } finally {
       setIsLoading(false);
     }
