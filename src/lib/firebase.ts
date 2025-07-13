@@ -4,9 +4,8 @@
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from "firebase/analytics";
-
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,61 +14,57 @@ const firebaseConfig: FirebaseOptions = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Added for Analytics
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let appInstance: FirebaseApp;
-let authInstance: Auth;
-let firestoreInstance: Firestore;
-let storageInstance = null;
-let analyticsInstance: Analytics | null = null;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
+let analytics: Analytics | null = null;
 let firebaseInitializationError: string | null = null;
-
-// This flag is now permanently false. The app's mode is determined by the presence of valid keys.
-export const isPrototypeMode = false;
+let isPrototypeMode = false; // This will now be determined by the keys, not a manual flag.
 
 try {
-  // Check for placeholder values to determine if Firebase is configured.
-  const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('...');
+  const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('YOUR_API_KEY');
   
   if (!isConfigured) {
-    throw new Error("Firebase configuration values are missing or are placeholders. Please check your .env.local file or App Hosting environment variables.");
+    isPrototypeMode = true;
+    throw new Error("Firebase configuration values are missing or are placeholders. The application will run in a limited prototype mode.");
   }
 
-  appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   
-  // Initialize Auth differently for client/server
   if (typeof window !== 'undefined') {
-    authInstance = initializeAuth(appInstance, {
+    auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
     });
   } else {
-    authInstance = getAuth(appInstance);
+    auth = getAuth(app);
   }
   
-  firestoreInstance = getFirestore(appInstance);
-  storageInstance = getStorage(appInstance);
+  db = getFirestore(app);
+  storage = getStorage(app);
   
-  // Initialize Analytics only on the client side where it is supported
   if (typeof window !== 'undefined') {
     isAnalyticsSupported().then((supported) => {
       if (supported && firebaseConfig.measurementId) {
-        analyticsInstance = getAnalytics(appInstance);
-        console.log("Firebase Analytics initialized.");
+        analytics = getAnalytics(app);
       }
     });
   }
 
 } catch (error: any) {
-  console.error("CRITICAL: Firebase initialization failed.", error);
+  console.error("Firebase initialization failed:", error.message);
   firebaseInitializationError = error.message;
 }
 
 export { 
-  appInstance as app, 
-  authInstance as auth, 
-  firestoreInstance as db, 
-  storageInstance as storage, 
-  analyticsInstance as analytics,
-  firebaseInitializationError 
+  app, 
+  auth, 
+  db, 
+  storage, 
+  analytics,
+  firebaseInitializationError,
+  isPrototypeMode
 };
