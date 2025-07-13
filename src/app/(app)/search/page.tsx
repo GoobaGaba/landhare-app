@@ -107,7 +107,7 @@ function SearchPageContent() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedListingId(null);
-  }, [filteredListings]);
+  }, [searchTerm, priceRange, sizeRange, selectedAmenities, selectedLeaseTerm, sortBy]);
 
   const paginatedListings = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -125,9 +125,8 @@ function SearchPageContent() {
   };
 
   const listingsForMap = useMemo(() => {
-    // Show all filtered listings on the map, not just the paginated ones
-    return filteredListings.filter(l => l.lat != null && l.lng != null);
-  }, [filteredListings]);
+    return allAvailableListings.filter(l => l.lat != null && l.lng != null);
+  }, [allAvailableListings]);
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
     return (
@@ -204,7 +203,8 @@ function SearchPageContent() {
       {showMap && (
         <aside className="hidden lg:block w-1/3 xl:w-2/5 h-full">
             <MapView 
-                listings={listingsForMap} 
+                listings={listingsForMap}
+                filteredListingIds={filteredListings.map(l => l.id)}
                 selectedId={selectedListingId} 
                 onMarkerClick={setSelectedListingId}
                 onMapClick={() => setSelectedListingId(null)}

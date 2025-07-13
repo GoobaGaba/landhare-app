@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
 import { Map, AdvancedMarker, Pin, InfoWindow, useMap } from '@vis.gl/react-google-maps';
@@ -11,12 +12,13 @@ import Image from 'next/image';
 
 interface MapViewProps {
   listings: Listing[];
+  filteredListingIds: string[];
   selectedId: string | null;
   onMarkerClick: (id: string | null) => void;
   onMapClick: () => void;
 }
 
-const MapController = ({ listings, selectedId }: { listings: Listing[], selectedId: string | null }) => {
+const MapController = ({ listings, filteredIds, selectedId }: { listings: Listing[], filteredIds: string[], selectedId: string | null }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -26,18 +28,23 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
       const selectedListing = listings.find(l => l.id === selectedId);
       if (selectedListing && selectedListing.lat != null && selectedListing.lng != null) {
         map.panTo({ lat: selectedListing.lat, lng: selectedListing.lng });
+        if (map.getZoom() < 12) {
+          map.setZoom(12);
+        }
         return;
       }
     }
     
-    if (listings.length === 0) {
+    const listingsToShow = listings.filter(l => filteredIds.includes(l.id));
+
+    if (listingsToShow.length === 0) {
         map.panTo({ lat: 39.8283, lng: -98.5795 });
         map.setZoom(4);
         return;
     }
 
     const bounds = new google.maps.LatLngBounds();
-    listings.forEach(listing => {
+    listingsToShow.forEach(listing => {
         if (listing.lat != null && listing.lng != null) {
             bounds.extend({ lat: listing.lat, lng: listing.lng });
         }
@@ -47,36 +54,48 @@ const MapController = ({ listings, selectedId }: { listings: Listing[], selected
       map.fitBounds(bounds, 100);
     }
 
-  }, [map, listings, selectedId]);
+  }, [map, listings, filteredIds, selectedId]);
 
   return null;
 };
 
-// This new function uses direct hex codes to avoid CSS variable issues with the map overlay.
-const getPinColors = (listing: Listing, isSelected: boolean) => {
-    const darkDotColor = '#1A1A1A'; // 90% black for the pin's dot.
+const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
+    const darkDotColor = '#1A1A1A';
+    
+    if (!isFiltered) {
+        return {
+            background: '#A1A1AA', // Gray (Muted color)
+            glyphColor: '#FFFFFF',
+            borderColor: '#71717A',
+            opacity: 0.6
+        };
+    }
+
     if (isSelected) {
         return {
             background: '#CC6633', // Burnt Orange (Accent color)
             glyphColor: darkDotColor,
-            borderColor: '#FFFFFF' // White border for selected to make it pop
+            borderColor: '#FFFFFF',
+            opacity: 1
         };
     }
     if (listing.isBoosted) {
         return {
             background: '#8B5CF6', // Vibrant Purple for Premium/Boosted
             glyphColor: darkDotColor,
-            borderColor: '#FFFFFF'
+            borderColor: '#FFFFFF',
+            opacity: 1
         };
     }
     return {
         background: '#336633', // Forest Green (Primary color)
         glyphColor: darkDotColor,
-        borderColor: '#FFFFFF'
+        borderColor: '#FFFFFF',
+        opacity: 1
     };
 };
 
-export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
+export function MapView({ listings, filteredListingIds, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
 
@@ -95,21 +114,24 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
             if (listing.lat == null || listing.lng == null) return null;
             
             const isSelected = selectedId === listing.id;
-            const pinColors = getPinColors(listing, isSelected);
+            const isFiltered = filteredListingIds.includes(listing.id);
+            const pinColors = getPinColors(listing, isSelected, isFiltered);
 
             return (
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => onMarkerClick(listing.id)}
-                zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : 1)}
+                zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : (isFiltered ? 2 : 1))}
               >
-                <Pin 
-                  background={pinColors.background}
-                  borderColor={pinColors.borderColor}
-                  glyphColor={pinColors.glyphColor}
-                  scale={isSelected ? 1.5 : 1}
-                />
+                <div style={{ opacity: pinColors.opacity }}>
+                  <Pin 
+                    background={pinColors.background}
+                    borderColor={pinColors.borderColor}
+                    glyphColor={pinColors.glyphColor}
+                    scale={isSelected ? 1.5 : 1}
+                  />
+                </div>
               </AdvancedMarker>
             )
           })}
@@ -138,7 +160,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
             </InfoWindow>
           )}
 
-          <MapController listings={listings} selectedId={selectedId} />
+          <MapController listings={listings} filteredIds={filteredListingIds} selectedId={selectedId} />
 
         </Map>
     </Card>
