@@ -35,7 +35,7 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
       }
     }
     
-    const listingsToShow = listings.filter(l => filteredIds.includes(l.id));
+    const listingsToShow = listings.filter(l => filteredIds.includes(l.id) && l.lat != null && l.lng != null);
 
     if (listingsToShow.length === 0) {
         map.panTo({ lat: 39.8283, lng: -98.5795 });
@@ -45,9 +45,7 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
 
     const bounds = new window.google.maps.LatLngBounds();
     listingsToShow.forEach(listing => {
-        if (listing.lat != null && listing.lng != null) {
-            bounds.extend({ lat: listing.lat, lng: listing.lng });
-        }
+        bounds.extend({ lat: listing.lat!, lng: listing.lng! });
     });
     
     if (!bounds.isEmpty()) {
@@ -60,14 +58,12 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
 };
 
 const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
-    const darkDotColor = '#1A1A1A';
-    
     if (!isFiltered) {
         return {
             background: '#A1A1AA', // Gray (Muted color)
             glyphColor: '#FFFFFF',
             borderColor: '#71717A',
-            opacity: 0.6
+            opacity: 0.5
         };
     }
 

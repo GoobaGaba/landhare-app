@@ -70,14 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const handleAuthChange = useCallback(async (firebaseUser: FirebaseUserType | null) => {
+    setLoading(true);
     if (firebaseUser) {
-      setLoading(true);
       try {
         let appProfile = await getUserById(firebaseUser.uid);
       
         if (!appProfile) {
           console.log(`No app profile found for UID ${firebaseUser.uid}. Creating one.`);
-          appProfile = await createUserProfile(firebaseUser.uid, firebaseUser.email!, firebaseUser.displayName, firebaseUser.photoURL);
+          appProfile = await createUserProfile(firebaseUser);
         }
 
         const isAdmin = ADMIN_EMAILS.includes(appProfile.email);
@@ -96,24 +96,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (firebaseAuthInstance) {
           await firebaseSignOut(firebaseAuthInstance);
         }
-      } finally {
-        setLoading(false);
       }
     } else {
       setCurrentUser(null);
       setSubscriptionStatus('standard');
-      setLoading(false);
     }
+    setLoading(false);
   }, []);
 
 
   useEffect(() => {
     setLoading(true);
     if (isPrototypeMode) {
-      console.warn("Auth Provider is in PROTOTYPE MODE. Authentication is disabled.");
+      console.warn("Auth Provider is in PROTOTYPE MODE. Using mock user.");
       const mockUser: CurrentUser = {
           uid: 'mock-user-uid-12345',
-          email: 'goobagaba@example.com',
+          email: 'Gabrielleunda@gmail.com',
           displayName: 'GoobaGaba',
           photoURL: null,
           emailVerified: true,
@@ -130,20 +128,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           appProfile: {
             id: 'mock-user-uid-12345',
             name: 'GoobaGaba',
-            email: 'goobagaba@example.com',
+            email: 'Gabrielleunda@gmail.com',
             isAdmin: true,
             subscriptionStatus: 'premium',
             walletBalance: 10000,
             bookmarkedListingIds: [],
           }
       };
-      
-      if (ADMIN_EMAILS.includes('Gabrielleunda@gmail.com')) {
-          mockUser.email = 'Gabrielleunda@gmail.com';
-          mockUser.displayName = 'Gabrielle G.';
-          mockUser.appProfile.email = 'Gabrielleunda@gmail.com';
-          mockUser.appProfile.name = 'Gabrielle G.';
-      }
       
       setCurrentUser(mockUser);
       setSubscriptionStatus('premium');
@@ -256,7 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, isPrototypeMode]);
 
   const updateCurrentAppUserProfile = async (data: Partial<AppUserType>): Promise<CurrentUser | null> => {
     if (!currentUser?.uid) {

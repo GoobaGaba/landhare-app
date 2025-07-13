@@ -125,10 +125,6 @@ function SearchPageContent() {
       window.scrollTo(0, 0);
     }
   };
-
-  const listingsForMap = useMemo(() => {
-    return allAvailableListings.filter(l => l.lat != null && l.lng != null);
-  }, [allAvailableListings]);
   
   const filteredMapIds = useMemo(() => {
       return new Set(filteredListings.map(l => l.id));
@@ -209,7 +205,7 @@ function SearchPageContent() {
       {showMap && (
         <aside className="hidden lg:block w-1/3 xl:w-2/5 h-full">
             <MapView 
-                listings={listingsForMap}
+                listings={allAvailableListings}
                 filteredListingIds={Array.from(filteredMapIds)}
                 selectedId={selectedListingId} 
                 onMarkerClick={setSelectedListingId}

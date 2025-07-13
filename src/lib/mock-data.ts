@@ -1,7 +1,8 @@
 
-// IMPORTANT: THIS FILE IS NO LONGER MOCK DATA. IT IS THE LIVE DATA ACCESS LAYER.
+// IMPORTANT: THIS FILE IS THE LIVE DATA ACCESS LAYER.
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset } from './types';
+import type { User as FirebaseUser } from 'firebase/auth';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { isPrototypeMode, db as firestoreDb } from './firebase';
 import { 
@@ -11,9 +12,8 @@ import {
 
 /**
  * @fileOverview
- * This file serves as the primary data access layer for the application.
- * It intelligently switches between a live Firestore backend and a mock in-memory database
- * based on whether Firebase is properly configured.
+ * This file serves as the primary data access layer for the application,
+ * interacting directly with a live Firestore backend.
  */
 
 
@@ -63,26 +63,27 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     return docToObj<User>(userSnap);
 };
 
-export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
+export const createUserProfile = async (firebaseUser: FirebaseUser): Promise<User> => {
     if (!firestoreDb) throw new Error("Database not available.");
     
-    const userRef = doc(firestoreDb, "users", userId);
+    const userRef = doc(firestoreDb, "users", firebaseUser.uid);
     
-    // Using a transaction to ensure atomic read/write and prevent race conditions.
     return runTransaction(firestoreDb, async (transaction) => {
         const existingUserSnap = await transaction.get(userRef);
         if (existingUserSnap.exists()) {
-            console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
+            console.warn(`Profile for ${firebaseUser.uid} already exists. Returning existing profile.`);
             return docToObj<User>(existingUserSnap);
         }
 
+        const email = firebaseUser.email!;
+        const name = firebaseUser.displayName || email.split('@')[0] || 'New User';
         const isAdmin = ADMIN_EMAILS.includes(email);
         const initialWalletBalance = isAdmin ? 10000 : 2500;
         
         const newUser: Omit<User, 'id' | 'createdAt'> = { 
             email: email, 
-            name: name || email.split('@')[0] || 'New User', 
-            avatarUrl: avatarUrl || `https://placehold.co/100x100.png?text=${(name || email.split('@')[0] || 'U').charAt(0).toUpperCase()}`, 
+            name: name, 
+            avatarUrl: firebaseUser.photoURL || `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`, 
             subscriptionStatus: isAdmin ? 'premium' : 'standard', 
             bio: "Welcome to my LandHare profile!", 
             bookmarkedListingIds: [], 
@@ -97,18 +98,16 @@ export const createUserProfile = async (userId: string, email: string, name?: st
         if (metricsSnap.exists()) {
             transaction.update(metricsRef, { totalUsers: increment(1) });
         } else {
-            // If metrics don't exist, create them
             transaction.set(metricsRef, { totalUsers: 1, totalListings: 0, totalBookings: 0, totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0 });
         }
         
-        return { ...newUser, id: userId, createdAt: new Date() };
+        return { ...newUser, id: firebaseUser.uid, createdAt: new Date() };
     });
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
     if (!firestoreDb) throw new Error("Database not available.");
 
-    // Handle subscription changes within a transaction for atomicity
     if (data.subscriptionStatus) {
         return runTransaction(firestoreDb, async (transaction) => {
             const userRef = doc(firestoreDb!, "users", userId);
@@ -127,7 +126,7 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
             if (newStatus === 'premium') {
                 transactionAmount = -PREMIUM_SUBSCRIPTION_PRICE;
                 transactionType = 'Subscription';
-            } else { // Downgrading to standard
+            } else {
                 transactionAmount = PREMIUM_SUBSCRIPTION_PRICE;
                 transactionType = 'Subscription Refund';
             }
@@ -504,6 +503,7 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
 
 export const getMarketInsights = async () => {
   if (!firestoreDb) throw new Error("Market insights unavailable without database.");
+  // This can be expanded to do real aggregations in a production environment
   return {
     avgPricePerSqftMonthly: 0.08,
     avgPricePerSqftNightly: 0.03,
@@ -515,6 +515,9 @@ export const getMarketInsights = async () => {
 
 export const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
     if (!firestoreDb) return booking;
+    if (booking.listingTitle && booking.renterName && booking.landownerName) {
+        return booking; // Already populated
+    }
     const [listing, renter, landowner] = await Promise.all([
         getListingById(booking.listingId),
         getUserById(booking.renterId),
