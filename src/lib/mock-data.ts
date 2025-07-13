@@ -57,16 +57,16 @@ function docToObj<T>(docSnap: any): T {
 
 // --- User Functions ---
 export const getUserById = async (id: string): Promise<User | undefined> => {
-    if (isPrototypeMode) return undefined;
-    const userRef = doc(firestoreDb!, "users", id);
+    if (!firestoreDb) return undefined;
+    const userRef = doc(firestoreDb, "users", id);
     const userSnap = await getDoc(userRef);
     return docToObj<User>(userSnap);
 };
 
 export const createUserProfile = async (userId: string, email: string, name?: string | null, avatarUrl?: string | null): Promise<User> => {
-    if (isPrototypeMode) throw new Error("Cannot create user profile in prototype mode.");
+    if (!firestoreDb) throw new Error("Database not available.");
     
-    const userRef = doc(firestoreDb!, "users", userId);
+    const userRef = doc(firestoreDb, "users", userId);
     const existingUserSnap = await getDoc(userRef);
     if (existingUserSnap.exists()) {
         console.warn(`Profile for ${userId} already exists. Returning existing profile.`);
@@ -89,23 +89,23 @@ export const createUserProfile = async (userId: string, email: string, name?: st
 
     await setDoc(userRef, { ...newUser, createdAt: serverTimestamp() });
     
-    // Also update platform metrics for new user count
-    const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
-    await updateDoc(metricsRef, { totalUsers: increment(1) }).catch(err => console.error("Could not update user count metric", err));
+    const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
+    try {
+        await updateDoc(metricsRef, { totalUsers: increment(1) });
+    } catch {
+        // If metrics don't exist, create them
+        await setDoc(metricsRef, { totalUsers: 1, totalListings: 0, totalBookings: 0, totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0 });
+    }
     
     const createdProfile = await getDoc(userRef);
     return docToObj<User>(createdProfile);
 };
 
 export const updateUserProfile = async (userId: string, data: Partial<User>): Promise<User | undefined> => {
-    if (isPrototypeMode) {
-       console.warn("User profile update skipped in prototype mode.");
-       return undefined;
-    }
+    if (!firestoreDb) throw new Error("Database not available.");
 
-    // Live mode with subscription financial logic
     if (data.subscriptionStatus) {
-        return runTransaction(firestoreDb!, async (transaction) => {
+        return runTransaction(firestoreDb, async (transaction) => {
             const userRef = doc(firestoreDb!, "users", userId);
             const userSnap = await transaction.get(userRef);
             if (!userSnap.exists()) throw new Error("User not found for subscription change.");
@@ -127,7 +127,6 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
                 transactionType = 'Subscription Refund';
             }
 
-            // Create transaction record
             const newTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(newTxRef, {
                 userId, type: transactionType, status: 'Completed',
@@ -135,20 +134,17 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
                 description: `${transactionType} - ${newStatus} tier`,
             });
             
-            // Update user wallet and subscription status
             const finalData = { ...data, walletBalance: increment(transactionAmount) };
             transaction.update(userRef, finalData);
 
-            // Update platform metrics
             transaction.update(metricsRef, {
-                totalSubscriptionRevenue: increment(-transactionAmount) // a refund is negative revenue
+                totalSubscriptionRevenue: increment(-transactionAmount) 
             });
             
             return { ...currentUserData, ...data, walletBalance: (currentUserData.walletBalance || 0) + transactionAmount };
         });
     } else {
-        // Standard non-financial profile update
-        const userRef = doc(firestoreDb!, "users", userId);
+        const userRef = doc(firestoreDb, "users", userId);
         await updateDoc(userRef, data);
         const updatedUserSnap = await getDoc(userRef);
         return docToObj<User>(updatedUserSnap);
@@ -158,27 +154,24 @@ export const updateUserProfile = async (userId: string, data: Partial<User>): Pr
 
 // --- Listing Functions ---
 export const getListings = async (): Promise<Listing[]> => {
-    if (isPrototypeMode) {
-        console.warn("getListings called in prototype mode. Returning empty array.");
-        return [];
-    }
-    const q = query(collection(firestoreDb!, "listings"), where("isAvailable", "==", true), orderBy("createdAt", "desc"));
+    if (!firestoreDb) return [];
+    const q = query(collection(firestoreDb, "listings"), where("isAvailable", "==", true), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => docToObj<Listing>(doc));
 };
 
 export const getListingById = async (id: string): Promise<Listing | undefined> => {
-     if (isPrototypeMode) { return undefined; }
-    const listingRef = doc(firestoreDb!, "listings", id);
+    if (!firestoreDb) return undefined;
+    const listingRef = doc(firestoreDb, "listings", id);
     const listingSnap = await getDoc(listingRef);
     return docToObj<Listing>(listingSnap);
 };
 
 export const addListing = async (data: Omit<Listing, 'id'>): Promise<Listing> => {
-    if (isPrototypeMode) { throw new Error("Cannot add listing in prototype mode."); }
-    const listingsCollection = collection(firestoreDb!, "listings");
+    if (!firestoreDb) throw new Error("Database not available.");
+    const listingsCollection = collection(firestoreDb, "listings");
     const newDocRef = await addDoc(listingsCollection, { ...data, createdAt: serverTimestamp() });
-    await runTransaction(firestoreDb!, async (transaction) => {
+    await runTransaction(firestoreDb, async (transaction) => {
         const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
         transaction.update(metricsRef, { totalListings: increment(1) });
     });
@@ -186,8 +179,8 @@ export const addListing = async (data: Omit<Listing, 'id'>): Promise<Listing> =>
 };
 
 export const updateListing = async (listingId: string, data: Partial<Listing>): Promise<Listing | undefined> => {
-    if (isPrototypeMode) { throw new Error("Cannot update listing in prototype mode."); }
-    const listingRef = doc(firestoreDb!, "listings", listingId);
+    if (!firestoreDb) throw new Error("Database not available.");
+    const listingRef = doc(firestoreDb, "listings", listingId);
     await updateDoc(listingRef, data);
     const updatedListingSnap = await getDoc(listingRef);
     return docToObj<Listing>(updatedListingSnap);
@@ -195,18 +188,18 @@ export const updateListing = async (listingId: string, data: Partial<Listing>): 
 
 // --- Review Functions ---
 export const getReviewsForListing = async (listingId: string): Promise<Review[]> => {
-    if (isPrototypeMode) { return []; }
-    const q = query(collection(firestoreDb!, "reviews"), where("listingId", "==", listingId), orderBy("createdAt", "desc"));
+    if (!firestoreDb) return [];
+    const q = query(collection(firestoreDb, "reviews"), where("listingId", "==", listingId), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => docToObj<Review>(doc));
 };
 
 // --- Booking Functions ---
 export const getBookingsForUser = async (userId: string): Promise<Booking[]> => {
-    if (isPrototypeMode) { return []; }
+    if (!firestoreDb) return [];
     
-    const renterQuery = query(collection(firestoreDb!, "bookings"), where("renterId", "==", userId));
-    const landownerQuery = query(collection(firestoreDb!, "bookings"), where("landownerId", "==", userId));
+    const renterQuery = query(collection(firestoreDb, "bookings"), where("renterId", "==", userId));
+    const landownerQuery = query(collection(firestoreDb, "bookings"), where("landownerId", "==", userId));
 
     const [renterBookingsSnap, landownerBookingsSnap] = await Promise.all([ getDocs(renterQuery), getDocs(landownerQuery) ]);
     const bookingsMap = new Map<string, Booking>();
@@ -235,9 +228,9 @@ const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, 
 };
 
 export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>): Promise<Booking> => {
-    if (isPrototypeMode) { throw new Error("Cannot add booking in prototype mode."); }
+    if (!firestoreDb) throw new Error("Database not available.");
     
-    return runTransaction(firestoreDb!, async (transaction) => {
+    return runTransaction(firestoreDb, async (transaction) => {
         const listingRef = doc(firestoreDb!, "listings", data.listingId);
         const renterRef = doc(firestoreDb!, "users", data.renterId);
 
@@ -257,7 +250,6 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
         const newBookingRef = doc(collection(firestoreDb!, "bookings"));
         const newTxRef = doc(collection(firestoreDb!, 'transactions'));
         
-        // 1. Create Pending Payment Transaction for Renter
         transaction.set(newTxRef, {
             userId: data.renterId, type: 'Booking Payment', status: 'Pending',
             amount: -totalPrice, currency: 'USD', date: serverTimestamp(),
@@ -265,10 +257,8 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
             relatedBookingId: newBookingRef.id, relatedListingId: data.listingId
         });
 
-        // 2. Debit Renter's Wallet
         transaction.update(renterRef, { walletBalance: increment(-totalPrice) });
         
-        // 3. Create Booking Document
         transaction.set(newBookingRef, {
             ...data,
             status: 'Pending Confirmation',
@@ -278,7 +268,6 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
             paymentTransactionId: newTxRef.id
         });
         
-        // 4. Update platform metrics
         const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
         transaction.update(metricsRef, { totalBookings: increment(1) });
         
@@ -287,14 +276,14 @@ export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'c
 };
 
 export const updateBookingStatus = async (bookingId: string, newStatus: Booking['status']): Promise<Booking | undefined> => {
-    if (isPrototypeMode) { throw new Error("Cannot update booking status in prototype mode."); }
+    if (!firestoreDb) throw new Error("Database not available.");
 
-    return runTransaction(firestoreDb!, async (transaction) => {
+    return runTransaction(firestoreDb, async (transaction) => {
         const bookingRef = doc(firestoreDb!, 'bookings', bookingId);
         const bookingSnap = await transaction.get(bookingRef);
         if (!bookingSnap.exists()) throw new Error("Booking not found.");
         
-        const booking = docToObj<Booking>(bookingSnap);
+        const booking = await populateBookingDetails(docToObj<Booking>(bookingSnap));
         const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
 
         if (newStatus === 'Confirmed' && booking.status === 'Pending Confirmation') {
@@ -307,13 +296,11 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
             const serviceFee = (booking.totalPrice || 0) * serviceFeeRate;
             const payoutAmount = (booking.totalPrice || 0) - serviceFee;
 
-            // Mark original payment as completed
             if (booking.paymentTransactionId) {
                 const paymentTxRef = doc(firestoreDb!, 'transactions', booking.paymentTransactionId);
                 transaction.update(paymentTxRef, { status: 'Completed' });
             }
             
-            // Create payout and fee transactions
             const payoutTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(payoutTxRef, {
                 userId: booking.landownerId, type: 'Landowner Payout', status: 'Completed', amount: payoutAmount,
@@ -328,23 +315,19 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
                 relatedBookingId: booking.id, relatedListingId: booking.listingId
             });
 
-            // Update landowner wallet and metrics
             transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
             transaction.update(metricsRef, { totalServiceFees: increment(serviceFee), totalRevenue: increment(serviceFee) });
         } 
         else if (newStatus === 'Declined' || newStatus === 'Cancelled by Renter' || newStatus === 'Refund Approved') {
             const renterRef = doc(firestoreDb!, 'users', booking.renterId);
             
-            // Refund renter
             transaction.update(renterRef, { walletBalance: increment(booking.totalPrice || 0) });
             
-            // Mark original payment as reversed
             if (booking.paymentTransactionId) {
                 const paymentTxRef = doc(firestoreDb!, 'transactions', booking.paymentTransactionId);
                 transaction.update(paymentTxRef, { status: 'Reversed' });
             }
             
-            // Create refund transaction record
             const refundTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(refundTxRef, {
                 userId: booking.renterId, type: 'Booking Refund', status: 'Completed', amount: booking.totalPrice || 0,
@@ -353,7 +336,6 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
             });
         }
 
-        // Finally, update the booking status itself
         transaction.update(bookingRef, { status: newStatus });
         return { ...booking, status: newStatus };
     });
@@ -362,9 +344,9 @@ export const updateBookingStatus = async (bookingId: string, newStatus: Booking[
 
 // --- Transaction Functions ---
 export const getTransactionsForUser = async (userId: string): Promise<Transaction[]> => {
-    if (isPrototypeMode) { return []; }
+    if (!firestoreDb) return [];
 
-    const q = query(collection(firestoreDb!, 'transactions'), where('userId', '==', userId), orderBy('date', 'desc'));
+    const q = query(collection(firestoreDb, 'transactions'), where('userId', '==', userId), orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(d => docToObj<Transaction>(d));
 };
@@ -372,8 +354,8 @@ export const getTransactionsForUser = async (userId: string): Promise<Transactio
 
 // --- Bookmark Functions ---
 export const addBookmarkToList = async (userId: string, listingId: string): Promise<User | undefined> => {
-    if (isPrototypeMode) { throw new Error("Cannot add bookmark in prototype mode."); }
-    const userRef = doc(firestoreDb!, "users", userId);
+    if (!firestoreDb) throw new Error("Database not available.");
+    const userRef = doc(firestoreDb, "users", userId);
     const user = await getUserById(userId);
     if (user) {
         if (user.subscriptionStatus === 'standard' && (user.bookmarkedListingIds?.length || 0) >= FREE_TIER_BOOKMARK_LIMIT) {
@@ -387,8 +369,8 @@ export const addBookmarkToList = async (userId: string, listingId: string): Prom
 };
 
 export const removeBookmarkFromList = async (userId: string, listingId: string): Promise<User | undefined> => {
-    if (isPrototypeMode) { throw new Error("Cannot remove bookmark in prototype mode."); }
-    const userRef = doc(firestoreDb!, "users", userId);
+    if (!firestoreDb) throw new Error("Database not available.");
+    const userRef = doc(firestoreDb, "users", userId);
     const user = await getUserById(userId);
     if (user && user.bookmarkedListingIds?.includes(listingId)) {
         const updatedBookmarks = (user.bookmarkedListingIds || []).filter(id => id !== listingId);
@@ -400,30 +382,28 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
 
 // --- Admin & Economic Cycle Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {
-    if (isPrototypeMode) {
+    if (!firestoreDb) {
         return { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
     }
-    const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
+    const metricsRef = doc(firestoreDb, 'admin_state', 'platform_metrics');
     const metricsSnap = await getDoc(metricsRef);
     if (metricsSnap.exists()) {
         return docToObj<PlatformMetrics>(metricsSnap);
     }
     
-    // Initialize if doesn't exist
     const initialMetrics: PlatformMetrics = { id: 'platform_metrics', totalRevenue: 0, totalServiceFees: 0, totalSubscriptionRevenue: 0, totalUsers: 0, totalListings: 0, totalBookings: 0 };
     await setDoc(metricsRef, initialMetrics);
     return initialMetrics;
 };
 
 export const processMonthlyEconomicCycle = async (): Promise<{ message: string, processedBookings: number }> => {
-    if (isPrototypeMode) {
-        return { message: "Economic cycle cannot run in prototype mode.", processedBookings: 0 };
+    if (!firestoreDb) {
+        return { message: "Economic cycle cannot run without a database.", processedBookings: 0 };
     }
 
     const today = new Date();
-    // Find all 'Confirmed' monthly or LTO bookings that are currently active
     const q = query(
-        collection(firestoreDb!, 'bookings'), 
+        collection(firestoreDb, 'bookings'), 
         where('status', '==', 'Confirmed'),
         where('monthlyRent', '>', 0)
     );
@@ -439,8 +419,7 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
         return { message: "No active monthly leases found to process.", processedBookings: 0 };
     }
 
-    // Use a single transaction for all updates to ensure atomicity
-    await runTransaction(firestoreDb!, async (transaction) => {
+    await runTransaction(firestoreDb, async (transaction) => {
         const metricsRef = doc(firestoreDb!, 'admin_state', 'platform_metrics');
         let totalServiceFeesThisCycle = 0;
 
@@ -474,7 +453,6 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
             const payoutAmount = rent - serviceFee;
             totalServiceFeesThisCycle += serviceFee;
 
-            // 1. Debit Renter
             transaction.update(renterRef, { walletBalance: increment(-rent) });
             const rentTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(rentTxRef, {
@@ -482,7 +460,6 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
                 date: serverTimestamp(), description: `Monthly rent for "${booking.listingTitle}"`, relatedBookingId: booking.id
             });
             
-            // 2. Credit Landowner
             transaction.update(landownerRef, { walletBalance: increment(payoutAmount) });
             const payoutTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(payoutTxRef, {
@@ -490,7 +467,6 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
                 date: serverTimestamp(), description: `Monthly payout for "${booking.listingTitle}"`, relatedBookingId: booking.id
             });
             
-            // 3. Log Service Fee
             const feeTxRef = doc(collection(firestoreDb!, 'transactions'));
             transaction.set(feeTxRef, {
                 userId: landowner.id, type: 'Service Fee', status: 'Completed', amount: -serviceFee, currency: 'USD',
@@ -498,7 +474,6 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
             });
         }
 
-        // 4. Update Global Metrics
         transaction.update(metricsRef, {
             totalServiceFees: increment(totalServiceFeesThisCycle),
             totalRevenue: increment(totalServiceFeesThisCycle),
@@ -513,8 +488,7 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
 
 
 export const getMarketInsights = async () => {
-  if (isPrototypeMode) { throw new Error("Market insights unavailable in prototype mode."); }
-  // This will be migrated to use real data in Phase 2.
+  if (!firestoreDb) throw new Error("Market insights unavailable without database.");
   return {
     avgPricePerSqftMonthly: 0.08,
     avgPricePerSqftNightly: 0.03,
@@ -525,7 +499,7 @@ export const getMarketInsights = async () => {
 };
 
 export const populateBookingDetails = async (booking: Booking): Promise<Booking> => {
-    // This helper function enriches a booking object with names, which is useful for the UI.
+    if (!firestoreDb) return booking;
     const [listing, renter, landowner] = await Promise.all([
         getListingById(booking.listingId),
         getUserById(booking.renterId),
@@ -535,16 +509,16 @@ export const populateBookingDetails = async (booking: Booking): Promise<Booking>
 };
 
 export const getListingsByLandownerCount = async (landownerId: string): Promise<number> => {
-    if (isPrototypeMode) { return 0; }
-    const q = query(collection(firestoreDb!, 'listings'), where('landownerId', '==', landownerId));
+    if (!firestoreDb) return 0;
+    const q = query(collection(firestoreDb, 'listings'), where('landownerId', '==', landownerId));
     const snapshot = await getDocs(q);
     return snapshot.size;
 };
     
 // --- Admin State Functions (Checklist & Backtest Presets) ---
 export const getAdminChecklistState = async (): Promise<Set<string>> => {
-    if (isPrototypeMode) { return new Set(); }
-    const docRef = doc(firestoreDb!, 'admin_state', 'launchChecklist');
+    if (!firestoreDb) return new Set();
+    const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     const docSnap = await getDoc(docRef);
     if (docSnap.exists() && docSnap.data().checkedItems) {
         return new Set(docSnap.data().checkedItems);
@@ -553,33 +527,33 @@ export const getAdminChecklistState = async (): Promise<Set<string>> => {
 };
 
 export const saveAdminChecklistState = async (checkedItems: Set<string>): Promise<void> => {
-    if (isPrototypeMode) { return; }
-    const docRef = doc(firestoreDb!, 'admin_state', 'launchChecklist');
+    if (!firestoreDb) return;
+    const docRef = doc(firestoreDb, 'admin_state', 'launchChecklist');
     await setDoc(docRef, { checkedItems: Array.from(checkedItems) });
 };
 
 export const getBacktestPresets = async (): Promise<BacktestPreset[]> => {
-    if (isPrototypeMode) { return []; }
-    const presetsCollection = collection(firestoreDb!, "backtest_presets");
+    if (!firestoreDb) return [];
+    const presetsCollection = collection(firestoreDb, "backtest_presets");
     const presetsSnap = await getDocs(query(presetsCollection, orderBy("name")));
     return presetsSnap.docs.map(d => docToObj<BacktestPreset>(d));
 };
 
 export const saveBacktestPreset = async (preset: Omit<BacktestPreset, 'id'>): Promise<BacktestPreset> => {
-     if (isPrototypeMode) { throw new Error("Cannot save preset in prototype mode."); }
-    const presetsCollection = collection(firestoreDb!, "backtest_presets");
+     if (!firestoreDb) throw new Error("Database not available.");
+    const presetsCollection = collection(firestoreDb, "backtest_presets");
     const newDocRef = await addDoc(presetsCollection, { ...preset, createdAt: serverTimestamp() });
     return { ...preset, id: newDocRef.id, createdAt: new Date() }
 };
 
 export const updateBacktestPreset = async (presetId: string, data: Partial<Omit<BacktestPreset, 'id'>>): Promise<void> => {
-    if (isPrototypeMode) { throw new Error("Cannot update preset in prototype mode."); }
-    const presetRef = doc(firestoreDb!, 'backtest_presets', presetId);
+    if (!firestoreDb) throw new Error("Database not available.");
+    const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await updateDoc(presetRef, data);
 };
 
 export const deleteBacktestPreset = async (presetId: string): Promise<void> => {
-     if (isPrototypeMode) { return; }
-    const presetRef = doc(firestoreDb!, 'backtest_presets', presetId);
+     if (!firestoreDb) return;
+    const presetRef = doc(firestoreDb, 'backtest_presets', presetId);
     await deleteDoc(presetRef);
 };

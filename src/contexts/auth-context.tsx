@@ -73,8 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (firebaseUser) {
       setLoading(true);
       try {
-        // This is the critical change: We attempt to get the profile, but if it fails,
-        // we create it. This robustly handles both new sign-ups and existing logins.
         let appProfile = await getUserById(firebaseUser.uid);
       
         if (!appProfile) {
@@ -84,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const isAdmin = ADMIN_EMAILS.includes(appProfile.email);
         if (isAdmin && (appProfile.subscriptionStatus !== 'premium' || !appProfile.isAdmin)) {
-          // Silently upgrade admin accounts to premium for full testing access
           appProfile = await updateUserProfile(firebaseUser.uid, { subscriptionStatus: 'premium', isAdmin: true }) || appProfile;
         }
 
@@ -96,7 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError("Could not load or create your user profile. Please contact support.");
         setCurrentUser(null);
         setSubscriptionStatus('standard');
-        // If profile creation fails, we must sign the user out to prevent a broken state.
         if (firebaseAuthInstance) {
           await firebaseSignOut(firebaseAuthInstance);
         }
@@ -104,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     } else {
-      // User is logged out
       setCurrentUser(null);
       setSubscriptionStatus('standard');
       setLoading(false);
@@ -116,13 +111,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     if (isPrototypeMode) {
       console.warn("Auth Provider is in PROTOTYPE MODE. Authentication is disabled.");
-      setCurrentUser(null);
-      setSubscriptionStatus('standard');
+      const mockUser: CurrentUser = {
+          uid: 'mock-user-uid-12345',
+          email: 'goobagaba@example.com',
+          displayName: 'GoobaGaba',
+          photoURL: null,
+          emailVerified: true,
+          isAnonymous: false,
+          metadata: {} as any,
+          providerData: [],
+          providerId: 'mock',
+          tenantId: null,
+          delete: async () => {},
+          getIdToken: async () => 'mock-token',
+          getIdTokenResult: async () => ({ token: 'mock-token' } as any),
+          reload: async () => {},
+          toJSON: () => ({}),
+          appProfile: {
+            id: 'mock-user-uid-12345',
+            name: 'GoobaGaba',
+            email: 'goobagaba@example.com',
+            isAdmin: true,
+            subscriptionStatus: 'premium',
+            walletBalance: 10000,
+            bookmarkedListingIds: [],
+          }
+      };
+      
+      if (ADMIN_EMAILS.includes('Gabrielleunda@gmail.com')) {
+          mockUser.email = 'Gabrielleunda@gmail.com';
+          mockUser.displayName = 'Gabrielle G.';
+          mockUser.appProfile.email = 'Gabrielleunda@gmail.com';
+          mockUser.appProfile.name = 'Gabrielle G.';
+      }
+      
+      setCurrentUser(mockUser);
+      setSubscriptionStatus('premium');
       setLoading(false);
       return;
     }
     
-    // This listener is the entry point for all auth changes.
     const unsubscribe = onAuthStateChanged(firebaseAuthInstance!, handleAuthChange, (error) => {
       console.error("Firebase onAuthStateChanged error:", error);
       setAuthError("An error occurred with your session. Please try logging in again.");
@@ -141,8 +169,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isPrototypeMode) throw new Error("Cannot sign up in prototype mode.");
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
-      // We only update the Firebase Auth display name here.
-      // The robust `handleAuthChange` listener will create the full Firestore profile.
       await updateFirebaseProfile(userCredential.user, { displayName: credentials.displayName });
     } catch (err) {
       const firebaseErr = err as AuthError;
@@ -158,7 +184,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isPrototypeMode) throw new Error("Cannot sign in in prototype mode.");
     try {
       await firebaseSignInWithEmailAndPassword(firebaseAuthInstance!, credentials.email, credentials.password);
-      // onAuthStateChanged will handle the successful login.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -174,9 +199,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(firebaseAuthInstance!, provider);
-      // onAuthStateChanged will handle the rest.
     } catch (err) {
       const firebaseErr = err as AuthError;
+      toast({
+        title: "Google Sign-In Failed",
+        description: firebaseErr.code === 'auth/popup-closed-by-user' ? "The sign-in popup was closed." : firebaseErr.message,
+        variant: "destructive",
+      });
       setAuthError(firebaseErr.message);
       setLoading(false);
       throw firebaseErr;
@@ -191,7 +220,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       await firebaseSignOut(firebaseAuthInstance!);
-      // onAuthStateChanged will handle the rest.
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
@@ -211,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       const firebaseErr = err as AuthError;
       setAuthError(firebaseErr.message);
+      toast({ title: "Password Reset Failed", description: firebaseErr.message, variant: "destructive"});
       throw firebaseErr;
     }
   };
@@ -219,10 +248,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isPrototypeMode) return;
     if (currentUser) {
       setLoading(true);
-      await handleAuthChange(currentUser);
+      const user = await getUserById(currentUser.uid);
+      if(user) {
+        setCurrentUser(prev => prev ? ({ ...prev, appProfile: user }) : null);
+        setSubscriptionStatus(user.subscriptionStatus || 'standard');
+      }
       setLoading(false);
     }
-  }, [currentUser, handleAuthChange]);
+  }, [currentUser]);
 
   const updateCurrentAppUserProfile = async (data: Partial<AppUserType>): Promise<CurrentUser | null> => {
     if (!currentUser?.uid) {
@@ -235,10 +268,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await refreshUserProfile();
       toast({ title: "Profile Updated", description: "Your profile information has been saved." });
       // The state `currentUser` will be updated by the refresh. The hook will return the latest value.
-      return currentUser; 
+      const updatedUser = await getUserById(currentUser.uid);
+      return updatedUser ? { ...currentUser, appProfile: updatedUser } : null;
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message, variant: "destructive" });
-      setLoading(false);
       return null;
     } finally {
         setLoading(false);
@@ -254,8 +287,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await addBookmarkToList(currentUser.uid, listingId);
       await refreshUserProfile();
       toast({ title: "Bookmarked!", description: "Listing added to your bookmarks." });
-    } catch (error: any) {
+    } catch (error: any)
+       {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      throw error;
     }
   };
 
