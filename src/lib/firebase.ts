@@ -4,72 +4,75 @@
 import { initializeApp, getApps, getApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, initializeAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, isSupported as isAnalyticsSupported, type Analytics } from "firebase/analytics";
 
-
+// This configuration is now solely dependent on the environment variables.
 const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.AIzaSyBveb_bw0HDWXh-P4IpFfgtPAlLhkliEZM,
-  authDomain: process.env.landshare-connect.firebaseapp.com,
-  projectId: process.env.landshare-connect,
-  storageBucket: process.env.landshare-connect.firebasestorage.app,
-  messagingSenderId: process.env.800704761619,
-  appId: process.env.1:800704761619:web:a1e7b0a1788320715154e6,
-  measurementId: process.env.G-5F4384ZEEV, // Added for Analytics
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let appInstance: FirebaseApp;
-let authInstance: Auth;
-let firestoreInstance: Firestore;
-let storageInstance = null;
-let analyticsInstance: Analytics | null = null;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
+let analytics: Analytics | null = null;
 let firebaseInitializationError: string | null = null;
 
-// This flag is now permanently false. The app's mode is determined by the presence of valid keys.
-export const isPrototypeMode = false;
+// This flag is now determined ONLY by the presence of valid keys.
+// If the keys are placeholders or missing, this will be true.
+const isPrototypeMode = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_API_KEY');
 
 try {
-  // Check for placeholder values to determine if Firebase is configured.
-  const isConfigured = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes('...');
-  
-  if (!isConfigured) {
-    throw new Error("Firebase configuration values are missing or are placeholders. Please check your .env.local file or App Hosting environment variables.");
+  if (isPrototypeMode) {
+    // If keys are missing, we throw an error to signal prototype mode.
+    // The UI will show a banner, but the app won't crash.
+    throw new Error("Firebase configuration values are missing or are placeholders. The application is running in a limited prototype mode.");
   }
 
-  appInstance = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  // If keys are present, initialize Firebase services.
+  app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   
-  // Initialize Auth differently for client/server
   if (typeof window !== 'undefined') {
-    authInstance = initializeAuth(appInstance, {
+    // Use initializeAuth for persistence settings on the client.
+    auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
     });
   } else {
-    authInstance = getAuth(appInstance);
+    // Use getAuth for server environments.
+    auth = getAuth(app);
   }
   
-  firestoreInstance = getFirestore(appInstance);
-  storageInstance = getStorage(appInstance);
+  db = getFirestore(app);
+  storage = getStorage(app);
   
-  // Initialize Analytics only on the client side where it is supported
+  // Initialize Analytics only on the client-side and if it's supported.
   if (typeof window !== 'undefined') {
     isAnalyticsSupported().then((supported) => {
       if (supported && firebaseConfig.measurementId) {
-        analyticsInstance = getAnalytics(appInstance);
-        console.log("Firebase Analytics initialized.");
+        analytics = getAnalytics(app);
       }
     });
   }
 
 } catch (error: any) {
-  console.error("CRITICAL: Firebase initialization failed.", error);
+  // Catch the initialization error to display the prototype banner.
+  console.error("Firebase Initialization Status:", error.message);
   firebaseInitializationError = error.message;
 }
 
 export { 
-  appInstance as app, 
-  authInstance as auth, 
-  firestoreInstance as db, 
-  storageInstance as storage, 
-  analyticsInstance as analytics,
-  firebaseInitializationError 
+  app, 
+  auth, 
+  db, 
+  storage, 
+  analytics,
+  firebaseInitializationError, // This will be non-null in prototype mode.
+  isPrototypeMode
 };
