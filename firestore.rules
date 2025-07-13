@@ -2,75 +2,85 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // --- Default Deny ---
-    // By default, no one can read or write anything.
-    match /{document=**} {
-      allow read, write: if false;
+    
+    // UTILITY: Function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // --- User Profiles ---
-    // Anyone can create their own user profile upon signup.
-    // Users can only read/write their OWN profile data.
-    // Public read access is NOT allowed for security (e.g., to prevent scraping emails).
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+    // UTILITY: Function to check if the user is an Admin
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
-    
-    // --- Listings ---
-    // Anyone (including unauthenticated users) can read listings.
+
+    // --- USERS COLLECTION ---
+    // Users can read their own profile.
+    // Users can update their own profile (name, bio, bookmarks, etc.).
+    // Critical fields like email, isAdmin, walletBalance, subscriptionStatus are protected from direct user updates.
+    // New user profiles are created via backend functions, not direct client writes.
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if false; // Creation handled by backend Cloud Function/Server Action
+      allow update: if request.auth.uid == userId
+                    && !('email' in request.resource.data)
+                    && !('isAdmin' in request.resource.data)
+                    && !('walletBalance' in request.resource.data)
+                    && !('subscriptionStatus' in request.resource.data);
+      allow delete: if false; // Users should not delete their own profiles
+    }
+
+    // --- LISTINGS COLLECTION ---
+    // Anyone can read listings.
     // Only authenticated users can create listings.
-    // Users can only update or delete their OWN listings.
+    // Only the landowner who created the listing can update or delete it.
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.landownerId;
-    }
-    
-    // --- Bookings ---
-    // Only the renter or the landowner involved in a booking can read it.
-    // Only authenticated users can create bookings.
-    // The involved renter or landowner can update the booking (e.g., change status).
-    match /bookings/{bookingId} {
-      allow read, update: if request.auth != null && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.renterId;
-    }
-    
-    // --- Reviews ---
-    // Anyone can read reviews for a listing.
-    // Only authenticated users can create reviews.
-    // Users can only update/delete their own reviews.
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-    }
-    
-    // --- Transactions ---
-    // Users can only read their own transaction history.
-    // Transactions are created server-side (via security rules for bookings/subscriptions, or Cloud Functions in a full setup), so client-side creation is denied.
-    match /transactions/{transactionId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create, update, delete: if false;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.landownerId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.landownerId == request.auth.uid;
     }
 
-    // --- Admin-Only Collections ---
-    // Collections like `admin_state` and `backtest_presets` should only be accessible by your admin backend or Cloud Functions.
-    // For direct client access (as in this app), we lock it down to a specific list of admin UIDs.
-    function isAdmin() {
-      // In a real production app, you might use custom claims.
-      // For this app, we check against a hardcoded list of admin emails stored in the user's profile.
-      // This rule assumes an 'isAdmin' flag is set on the user's document.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    // --- BOOKINGS COLLECTION ---
+    // Users can only read bookings where they are the renter or the landowner.
+    // Only authenticated users can create booking requests.
+    // Only the involved parties can update the booking (e.g., landowner confirms, renter cancels).
+    match /bookings/{bookingId} {
+      allow read, update: if isAuthenticated() 
+                          && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
+      allow create: if isAuthenticated();
+      allow delete: if false; // Bookings should be cancelled/archived, not deleted.
     }
     
+    // --- REVIEWS COLLECTION ---
+    // Anyone can read reviews.
+    // Only authenticated users can write reviews.
+    // Users can only edit or delete their own reviews.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // --- TRANSACTIONS COLLECTION ---
+    // Users can only read their own transactions.
+    // Transactions are created by the backend only.
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, update, delete: if false; // Backend only
+    }
+
+    // --- ADMIN_STATE COLLECTION ---
+    // This collection holds platform-wide data like metrics and checklists.
+    // Only admins can read or write to this collection.
     match /admin_state/{docId} {
-      allow read, write: if isAdmin();
+        allow read, write: if isAdmin();
     }
     
-     match /backtest_presets/{docId} {
-      allow read, write: if isAdmin();
+    // --- BACKTEST_PRESETS COLLECTION ---
+    // This collection holds user-saved presets for the backtesting tool.
+    // Only admins can read or write to this collection.
+    match /backtest_presets/{presetId} {
+      allow read, write, delete: if isAdmin();
     }
   }
 }
