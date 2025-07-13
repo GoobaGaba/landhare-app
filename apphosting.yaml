@@ -9,10 +9,24 @@ backendId: landshare-app-backend
 # This value is supplied by Firebase when you create a backend.
 location: us-central1
 
+# The command to build your app. App Hosting will run this command to build
+# your app before deploying it.
+buildCommand: npm run build
+
+# The command to start your app. App Hosting will run this command to start
+# your app in production.
+startCommand: npm start
+
+# The port that your app will listen on. App Hosting will use this to route
+# traffic to your app.
+# The `PORT` environment variable is automatically provided by App Hosting.
+env:
+  - PORT=3000
+
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
-  maxInstances: 1
+  maxInstances: 2
   # These environment variables are available to your app's build and runtime.
   # IMPORTANT: The placeholder values for API keys MUST be replaced
   # in the Firebase Console for the live, deployed application to function correctly.
@@ -23,6 +37,6 @@ runConfig:
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_STORAGE_BUCKET_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_MESSAGING_SENDER_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
     NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_APP_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
-    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "G-5F4384ZEEV"
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "YOUR_MEASUREMENT_ID_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
     GEMINI_API_KEY: "YOUR_API_KEY_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_API_KEY_NEEDS_TO_BE_SET_IN_FIREBASE_CONSOLE"
