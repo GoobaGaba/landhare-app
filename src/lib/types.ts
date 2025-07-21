@@ -90,8 +90,9 @@ export interface Message {
 export interface Conversation {
   id:string;
   participantIds: string[];
-  lastMessage?: Message;
+  lastMessage?: Pick<Message, 'senderId' | 'content' | 'timestamp' | 'isRead'>;
   listingId?: string;
+  createdAt?: Date | Timestamp;
   updatedAt?: Date | Timestamp;
 }
 

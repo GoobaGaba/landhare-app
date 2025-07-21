@@ -1,12 +1,12 @@
 
 // IMPORTANT: THIS FILE IS THE LIVE DATA ACCESS LAYER.
 'use client';
-import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset } from './types';
+import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset, Conversation, Message } from './types';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { differenceInDays, differenceInCalendarMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { isPrototypeMode, db as firestoreDb } from './firebase';
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, Timestamp, increment, runTransaction
+    doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, Timestamp, increment, runTransaction, onSnapshot
 } from 'firebase/firestore';
 
 
@@ -393,6 +393,103 @@ export const removeBookmarkFromList = async (userId: string, listingId: string):
         return user;
     });
 };
+
+// --- Messaging Functions ---
+export const getConversationsForUser = async (userId: string): Promise<any[]> => {
+    if (!firestoreDb) return [];
+    const q = query(collection(firestoreDb, 'conversations'), where('participantIds', 'array-contains', userId), orderBy('updatedAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    const conversations = await Promise.all(snapshot.docs.map(async (docSnap) => {
+        const convo = docToObj<Conversation>(docSnap);
+        const otherParticipantId = convo.participantIds.find(id => id !== userId);
+        const [otherParticipant, listing] = await Promise.all([
+            otherParticipantId ? getUserById(otherParticipantId) : Promise.resolve(undefined),
+            convo.listingId ? getListingById(convo.listingId) : Promise.resolve(undefined)
+        ]);
+
+        return {
+            ...convo,
+            otherParticipant,
+            listingTitle: listing?.title
+        };
+    }));
+
+    return conversations;
+};
+
+export const getMessagesForConversation = (conversationId: string, callback: (messages: Message[]) => void): (() => void) => {
+    if (!firestoreDb) return () => {};
+    const messagesQuery = query(collection(firestoreDb, 'conversations', conversationId, 'messages'), orderBy('timestamp', 'asc'));
+    
+    const unsubscribe = onSnapshot(messagesQuery, (querySnapshot) => {
+        const messages = querySnapshot.docs.map(doc => docToObj<Message>(doc));
+        callback(messages);
+    });
+
+    return unsubscribe;
+};
+
+export const sendMessage = async (conversationId: string, senderId: string, receiverId: string, content: string, listingId?: string) => {
+    if (!firestoreDb) throw new Error("Database not connected.");
+    
+    const conversationRef = doc(firestoreDb, 'conversations', conversationId);
+    const messagesCollectionRef = collection(conversationRef, 'messages');
+    
+    const newMessage: Omit<Message, 'id'> = {
+        conversationId,
+        senderId,
+        receiverId,
+        content,
+        timestamp: serverTimestamp(),
+        isRead: false,
+    };
+
+    const batch = writeBatch(firestoreDb);
+    
+    batch.add(messagesCollectionRef, newMessage);
+    
+    batch.update(conversationRef, {
+        lastMessage: {
+            senderId,
+            content,
+            timestamp: serverTimestamp(),
+            isRead: false
+        },
+        updatedAt: serverTimestamp()
+    });
+    
+    await batch.commit();
+};
+
+export const getOrCreateConversation = async (participantIds: string[], listingId: string): Promise<string> => {
+    if (!firestoreDb) throw new Error("Database not connected.");
+    
+    const sortedIds = [...participantIds].sort();
+
+    const q = query(
+        collection(firestoreDb, 'conversations'),
+        where('participantIds', '==', sortedIds),
+        where('listingId', '==', listingId),
+        limit(1)
+    );
+
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        return snapshot.docs[0].id;
+    } else {
+        const newConversationRef = doc(collection(firestoreDb, 'conversations'));
+        await setDoc(newConversationRef, {
+            participantIds: sortedIds,
+            listingId: listingId,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+        return newConversationRef.id;
+    }
+};
+
+
 
 // --- Admin & Economic Cycle Functions ---
 export const getPlatformMetrics = async (): Promise<PlatformMetrics> => {

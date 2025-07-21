@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, SubscriptionStatus } from '@/lib/types';
-import { getListingById, getUserById, getReviewsForListing, addBookingRequest } from '@/lib/mock-data';
+import { getListingById, getUserById, getReviewsForListing, addBookingRequest, getOrCreateConversation } from '@/lib/mock-data';
 import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -109,32 +109,25 @@ export default function ListingDetailPage() {
 
       setIsLoading(true);
       try {
-        // Step 1: Fetch the critical listing data. This is public.
         const listingData = await getListingById(id);
         setListing(listingData || null);
 
         if (listingData) {
-          // Step 2: Fetch public review data.
           const reviewsData = await getReviewsForListing(listingData.id);
           setReviews(reviewsData);
 
-          // Step 3: Attempt to fetch protected landowner data.
-          // This will fail for public users, which is expected.
           try {
             const landownerData = await getUserById(listingData.landownerId);
             setLandowner(landownerData || null);
           } catch (landownerError) {
-            // This is an expected failure for non-authenticated users due to security rules.
-            // We can safely ignore it and the UI will adapt.
             console.warn(`Could not fetch landowner profile. This is expected for public viewers.`);
             setLandowner(null);
           }
         }
       } catch (error: any) {
-        // This outer catch now only handles the critical failure of fetching the listing itself.
         console.error(`[ListingDetailPage] CRITICAL Error fetching listing data for ID ${id}:`, error);
         toast({ title: "Loading Error", description: "Could not load the main listing details.", variant: "destructive" });
-        setListing(null); // Ensure listing is null on critical failure
+        setListing(null);
       } finally {
         setIsLoading(false);
       }
@@ -175,8 +168,8 @@ export default function ListingDetailPage() {
   }, [listing, dateRange, subscriptionStatus]);
 
   // Event Handlers
-  const handleContactLandowner = useCallback(() => {
-    if (!currentUser) {
+  const handleContactLandowner = async () => {
+    if (!currentUser || !listing) {
       toast({ title: "Login Required", description: "Please log in to contact the landowner.", variant: "default" });
       router.push(`/login?redirect=${encodeURIComponent(pathname)}`);
       return;
@@ -185,8 +178,13 @@ export default function ListingDetailPage() {
       toast({ title: "Action Not Available", description: "You cannot contact yourself.", variant: "default" });
       return;
     }
-    router.push(`/messages?contact=${listing?.landownerId}&listing=${listing?.id}`);
-  }, [currentUser, derivedData.isCurrentUserLandowner, listing?.id, listing?.landownerId, pathname, router, toast]);
+    try {
+      const conversationId = await getOrCreateConversation([currentUser.uid, listing.landownerId], listing.id);
+      router.push(`/messages?conversationId=${conversationId}`);
+    } catch (error: any) {
+      toast({ title: "Error", description: `Could not start conversation: ${error.message}`, variant: 'destructive'});
+    }
+  };
 
   const handleBookmarkToggle = useCallback(async () => {
     if (!currentUser) {
