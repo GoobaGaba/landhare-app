@@ -95,6 +95,10 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
 
+  // Convert the array of filtered IDs to a Set for efficient lookup.
+  // This is a more performant way to check if a listing is in the filtered list.
+  const filteredIdSet = useMemo(() => new Set(filteredListingIds), [filteredListingIds]);
+
   return (
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
         <Map
@@ -110,7 +114,8 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
             if (listing.lat == null || listing.lng == null) return null;
             
             const isSelected = selectedId === listing.id;
-            const isFiltered = filteredListingIds.includes(listing.id);
+            // The crucial fix: Use the Set for checking if a pin should be active.
+            const isFiltered = filteredIdSet.has(listing.id);
             const pinColors = getPinColors(listing, isSelected, isFiltered);
 
             return (
@@ -118,14 +123,14 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => onMarkerClick(listing.id)}
-                zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : (isFiltered ? 2 : 1))}
+                zIndex={isSelected ? 10 : (listing.isBoosted && isFiltered ? 5 : (isFiltered ? 2 : 1))}
               >
                 <div style={{ opacity: pinColors.opacity }}>
                   <Pin 
                     background={pinColors.background}
                     borderColor={pinColors.borderColor}
                     glyphColor={pinColors.glyphColor}
-                    scale={isSelected ? 1.5 : (listing.isBoosted ? 1.2 : 1)}
+                    scale={isSelected ? 1.5 : (listing.isBoosted && isFiltered ? 1.2 : 1)}
                   />
                 </div>
               </AdvancedMarker>
