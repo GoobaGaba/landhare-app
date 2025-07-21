@@ -87,7 +87,7 @@ export default function HomePage() {
       
       <section 
         className="w-full py-16 md:py-24 relative bg-cover bg-center bg-fixed"
-        style={{ backgroundImage: "url('/Landhare Vision 2 photo.png')" }}
+        style={{ backgroundImage: "url('/Landhare Vision 3 photo.png')" }}
       >
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
         <div className="container mx-auto px-4 relative">
