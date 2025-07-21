@@ -18,7 +18,7 @@ import { Loader2, ReceiptText, Search, UserCircle, AlertTriangle, ArrowUpCircle,
 import { cn } from '@/lib/utils';
 import { firebaseInitializationError } from '@/lib/firebase';
 
-type FilterType = 'all' | 'payouts' | 'payments' | 'fees' | 'subscriptions' | 'refunds';
+type FilterType = 'all' | 'payouts' | 'payments' | 'fees' | 'subscriptions' | 'refunds' | 'rent';
 
 export default function TransactionsPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -58,6 +58,7 @@ export default function TransactionsPage() {
         switch (filterType) {
           case 'payouts': return t.type === 'Landowner Payout';
           case 'payments': return t.type === 'Booking Payment';
+          case 'rent': return t.type === 'Monthly Rent';
           case 'fees': return t.type === 'Service Fee';
           case 'subscriptions': return t.type === 'Subscription';
           case 'refunds': return t.type === 'Subscription Refund' || t.type === 'Booking Refund';
@@ -74,7 +75,7 @@ export default function TransactionsPage() {
     return transactions.reduce((acc, t) => {
         if (t.status !== 'Completed') return acc; // Only count completed transactions for summary
         if (t.type === 'Landowner Payout' || t.type === 'Subscription Refund' || t.type === 'Booking Refund') acc.income += t.amount;
-        if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee' || t.type === 'Payout Reversal') acc.expenses += Math.abs(t.amount);
+        if (t.type === 'Booking Payment' || t.type === 'Subscription' || t.type === 'Service Fee' || t.type === 'Payout Reversal' || t.type === 'Monthly Rent') acc.expenses += Math.abs(t.amount);
         return acc;
     }, { income: 0, expenses: 0 });
   }, [transactions]);
@@ -173,7 +174,8 @@ export default function TransactionsPage() {
               <SelectContent>
                 <SelectItem value="all">All Transactions</SelectItem>
                 <SelectItem value="payouts">Payouts</SelectItem>
-                <SelectItem value="payments">Payments</SelectItem>
+                <SelectItem value="payments">Initial Payments</SelectItem>
+                <SelectItem value="rent">Monthly Rent</SelectItem>
                 <SelectItem value="fees">Service Fees</SelectItem>
                 <SelectItem value="subscriptions">Subscriptions</SelectItem>
                 <SelectItem value="refunds">Refunds</SelectItem>
@@ -210,6 +212,7 @@ export default function TransactionsPage() {
                      switch(t.type) {
                         case 'Landowner Payout': typeVariant = 'default'; break;
                         case 'Booking Payment': typeVariant = 'secondary'; break;
+                        case 'Monthly Rent': typeVariant = 'secondary'; break;
                         case 'Subscription': typeVariant = 'secondary'; break;
                         case 'Subscription Refund': typeVariant = 'default'; break;
                         case 'Booking Refund': typeVariant = 'default'; break;

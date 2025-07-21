@@ -447,12 +447,13 @@ export const sendMessage = async (conversationId: string, senderId: string, rece
 
     const batch = writeBatch(firestoreDb);
     
-    batch.add(messagesCollectionRef, newMessage);
+    const newDocRef = doc(messagesCollectionRef); // Create a new doc ref for the message
+    batch.set(newDocRef, newMessage); // Use the new ref
     
     batch.update(conversationRef, {
         lastMessage: {
-            senderId,
             content,
+            senderId,
             timestamp: serverTimestamp(),
             isRead: false
         },
