@@ -46,15 +46,19 @@ body {
     --chart-5: 30 55% 55%;
 
     /* Premium Purple - Light Mode (Vibrant) */
-    --premium-feature-h: 275;
-    --premium-feature-s: 90%;
-    --premium-feature-l: 60%;
-    --premium-feature-foreground-h: 275;
-    --premium-feature-foreground-s: 80%;
-    --premium-feature-foreground-l: 95%;
+    --premium: 275 90% 60%;
+    --premium-foreground: 275 80% 95%;
     
-    --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
-    --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
+    /* CSS variables for sidebar (used by map pins too) */
+    --sidebar-background: hsl(var(--background));
+    --sidebar-foreground: hsl(var(--foreground));
+    --sidebar-border: hsl(var(--border));
+    --sidebar-ring: hsl(var(--ring));
+    --sidebar-primary: hsl(var(--primary));
+    --sidebar-primary-foreground: hsl(var(--primary-foreground));
+    --sidebar-accent: hsl(var(--premium));
+    --sidebar-accent-foreground: hsl(var(--premium-foreground));
+
 
     --title-foreground: 120 25% 8%; /* Very Dark Green (for Light Mode) */
   }
@@ -95,17 +99,18 @@ body {
     --chart-5: 30 55% 70%;
     
     /* Premium Purple - Dark Mode (Softer Lavender) */
-    --premium-feature-h: 270;   /* Adjusted Hue */
-    --premium-feature-s: 65%;   /* Adjusted Saturation */
-    --premium-feature-l: 75%;   /* Adjusted Lightness */
-
-    /* Foreground for premium can remain the same, as it's very light */
-    --premium-feature-foreground-h: 275;
-    --premium-feature-foreground-s: 80%;
-    --premium-feature-foreground-l: 97%;
+    --premium: 270 65% 75%;
+    --premium-foreground: 275 80% 97%;
     
-    --premium: hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l));
-    --premium-foreground: hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l));
+    /* CSS variables for sidebar (dark mode) */
+    --sidebar-background: hsl(var(--background));
+    --sidebar-foreground: hsl(var(--foreground));
+    --sidebar-border: hsl(var(--border));
+    --sidebar-ring: hsl(var(--ring));
+    --sidebar-primary: hsl(var(--primary));
+    --sidebar-primary-foreground: hsl(var(--primary-foreground));
+    --sidebar-accent: hsl(var(--premium));
+    --sidebar-accent-foreground: hsl(var(--premium-foreground));
     
     --title-foreground: 60 40% 98%; /* Snow White (for Dark Mode) */
   }
