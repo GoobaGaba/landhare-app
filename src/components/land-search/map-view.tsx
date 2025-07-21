@@ -58,33 +58,39 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
 };
 
 const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
+    // A listing not in the current filter is always greyed out.
     if (!isFiltered) {
         return {
-            background: '#A1A1AA', // Gray (Muted color)
+            background: '#A1A1AA', // Tailwind gray-400
             glyphColor: '#FFFFFF',
-            borderColor: '#71717A',
+            borderColor: '#71717A', // Tailwind gray-500
             opacity: 0.5
         };
     }
 
+    // A selected pin is always the accent color. This takes top priority.
     if (isSelected) {
         return {
-            background: 'hsl(var(--accent))', // Accent color from theme
+            background: 'hsl(var(--accent))',
             glyphColor: 'hsl(var(--accent-foreground))',
             borderColor: 'hsl(var(--background))',
             opacity: 1
         };
     }
+    
+    // An active (filtered) pin that is boosted is premium purple.
     if (listing.isBoosted) {
         return {
-            background: 'hsl(var(--premium))', // Premium color from theme
+            background: 'hsl(var(--premium))',
             glyphColor: 'hsl(var(--premium-foreground))',
             borderColor: 'hsl(var(--background))',
             opacity: 1
         };
     }
+    
+    // A standard active (filtered) pin is the primary color.
     return {
-        background: 'hsl(var(--primary))', // Primary color from theme
+        background: 'hsl(var(--primary))',
         glyphColor: 'hsl(var(--primary-foreground))',
         borderColor: 'hsl(var(--background))',
         opacity: 1
@@ -95,8 +101,6 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
 
-  // Convert the array of filtered IDs to a Set for efficient lookup.
-  // This is a more performant way to check if a listing is in the filtered list.
   const filteredIdSet = useMemo(() => new Set(filteredListingIds), [filteredListingIds]);
 
   return (
@@ -114,7 +118,6 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
             if (listing.lat == null || listing.lng == null) return null;
             
             const isSelected = selectedId === listing.id;
-            // The crucial fix: Use the Set for checking if a pin should be active.
             const isFiltered = filteredIdSet.has(listing.id);
             const pinColors = getPinColors(listing, isSelected, isFiltered);
 
