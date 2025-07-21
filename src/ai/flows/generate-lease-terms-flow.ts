@@ -8,7 +8,7 @@
  * - GenerateLeaseTermsOutput - The return type for the generateLeaseTerms function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateLeaseTermsInputSchema = z.object({
@@ -29,14 +29,12 @@ const GenerateLeaseTermsOutputSchema = z.object({
 export type GenerateLeaseTermsOutput = z.infer<typeof GenerateLeaseTermsOutputSchema>;
 
 export async function generateLeaseTerms(input: GenerateLeaseTermsInput): Promise<GenerateLeaseTermsOutput> {
-  return generateLeaseTermsFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateLeaseTermsPrompt',
-  input: {schema: GenerateLeaseTermsInputSchema},
-  output: {schema: GenerateLeaseTermsOutputSchema},
-  prompt: `You are an AI assistant helping to draft a simple lease agreement for a land rental.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'generateLeaseTermsPrompt',
+    input: {schema: GenerateLeaseTermsInputSchema},
+    output: {schema: GenerateLeaseTermsOutputSchema},
+    prompt: `You are an AI assistant helping to draft a simple lease agreement for a land rental.
 **IMPORTANT: This is a DRAFT agreement for informational purposes ONLY.**
 **It is CRUCIAL to have this document reviewed by legal counsel before use.**
 **Ensure all terms comply with local and state laws, including any applicable zoning regulations for the specified listingType and listingAddress.**
@@ -78,31 +76,30 @@ Example for a clause:
 "**5. Use of Premises**
 The Renter shall use the Property solely for the purpose of [e.g., 'placement and use of a tiny home for residential purposes' or 'short-term RV parking and camping' - be specific based on {{{listingType}}}] and for no other purpose without the prior written consent of the Landowner."
 `,
-});
+  });
 
-const generateLeaseTermsFlow = ai.defineFlow(
-  {
-    name: 'generateLeaseTermsFlow',
-    inputSchema: GenerateLeaseTermsInputSchema,
-    outputSchema: GenerateLeaseTermsOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    if (!output || !output.leaseAgreementText || output.summaryPoints.length === 0) {
-        // Fallback or more specific error based on what's missing
-        let errorMsg = "The AI failed to generate complete lease terms. ";
-        if (!output) errorMsg += "No output received. ";
-        if (output && !output.leaseAgreementText) errorMsg += "Lease agreement text is missing. ";
-        if (output && output.summaryPoints?.length === 0) errorMsg += "Summary points are missing. ";
-        console.error("AI Lease Generation Error:", errorMsg, "Input:", input);
-        // Consider throwing, or returning a structured error that the client can display.
-        // For now, returning fallback text.
-        return {
-            leaseAgreementText: output?.leaseAgreementText || "Error: Could not generate lease agreement text. Please check inputs and try again. This is a template and requires legal review.",
-            summaryPoints: output?.summaryPoints?.length > 0 ? output.summaryPoints : ["Error: Could not generate summary points. Legal review of any terms is essential."],
-        };
+  const generateLeaseTermsFlow = ai.defineFlow(
+    {
+      name: 'generateLeaseTermsFlow',
+      inputSchema: GenerateLeaseTermsInputSchema,
+      outputSchema: GenerateLeaseTermsOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      if (!output || !output.leaseAgreementText || output.summaryPoints.length === 0) {
+          let errorMsg = "The AI failed to generate complete lease terms. ";
+          if (!output) errorMsg += "No output received. ";
+          if (output && !output.leaseAgreementText) errorMsg += "Lease agreement text is missing. ";
+          if (output && output.summaryPoints?.length === 0) errorMsg += "Summary points are missing. ";
+          console.error("AI Lease Generation Error:", errorMsg, "Input:", input);
+          return {
+              leaseAgreementText: output?.leaseAgreementText || "Error: Could not generate lease agreement text. Please check inputs and try again. This is a template and requires legal review.",
+              summaryPoints: output?.summaryPoints?.length > 0 ? output.summaryPoints : ["Error: Could not generate summary points. Legal review of any terms is essential."],
+          };
+      }
+      return output;
     }
-    return output; // Output should now conform to the schema or the above check would catch it.
-  }
-);
+  );
 
+  return generateLeaseTermsFlow(input);
+}

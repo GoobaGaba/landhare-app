@@ -8,13 +8,9 @@
  * - GenerateListingDescriptionOutput - The return type.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 import type { GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
-
-// Using types directly from lib/types.ts as Zod schemas are for flow/prompt definition.
-// If direct Zod schema is needed for this flow itself, define it here.
-// For now, we assume the input type from lib/types.ts is sufficient for the prompt.
 
 const GenerateListingDescriptionInputSchema = z.object({
   listingTitle: z.string().describe('The title of the land listing.'),
@@ -33,14 +29,12 @@ const GenerateListingDescriptionOutputSchema = z.object({
 
 
 export async function generateListingDescription(input: GenerateListingDescriptionInput): Promise<GenerateListingDescriptionOutput> {
-  return generateListingDescriptionFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateListingDescriptionPrompt',
-  input: {schema: GenerateListingDescriptionInputSchema},
-  output: {schema: GenerateListingDescriptionOutputSchema},
-  prompt: `You are an expert real estate copywriter specializing in crafting compelling and informative descriptions for land rentals and lease-to-own properties.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'generateListingDescriptionPrompt',
+    input: {schema: GenerateListingDescriptionInputSchema},
+    output: {schema: GenerateListingDescriptionOutputSchema},
+    prompt: `You are an expert real estate copywriter specializing in crafting compelling and informative descriptions for land rentals and lease-to-own properties.
 Your goal is to help landowners attract potential renters or buyers by highlighting the unique features and benefits of their land.
 
 Based on the following details, generate an engaging and descriptive text (2-4 paragraphs) for a land listing:
@@ -65,19 +59,22 @@ Craft a description that:
 - Incorporate any focus keywords naturally.
 - Do NOT include a call to action like "Book now!" or "Contact us!". Just provide the descriptive text.
 `,
-});
+  });
 
-const generateListingDescriptionFlow = ai.defineFlow(
-  {
-    name: 'generateListingDescriptionFlow',
-    inputSchema: GenerateListingDescriptionInputSchema,
-    outputSchema: GenerateListingDescriptionOutputSchema,
-  },
-  async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-        throw new Error("The AI failed to generate a listing description.");
+  const generateListingDescriptionFlow = ai.defineFlow(
+    {
+      name: 'generateListingDescriptionFlow',
+      inputSchema: GenerateListingDescriptionInputSchema,
+      outputSchema: GenerateListingDescriptionOutputSchema,
+    },
+    async (input) => {
+      const {output} = await prompt(input);
+      if (!output) {
+          throw new Error("The AI failed to generate a listing description.");
+      }
+      return output;
     }
-    return output;
-  }
-);
+  );
+
+  return generateListingDescriptionFlow(input);
+}
