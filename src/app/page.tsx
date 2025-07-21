@@ -85,11 +85,15 @@ export default function HomePage() {
         </div>
       </section>
       
-      <section className="w-full py-16 md:py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
+      <section 
+        className="w-full py-16 md:py-24 relative bg-cover bg-center bg-fixed"
+        style={{ backgroundImage: "url('/Landhare Vision 2 photo.png')" }}
+      >
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+        <div className="container mx-auto px-4 relative">
           <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandHare Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow bg-card/80">
               <CardHeader>
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <SearchIcon className="h-10 w-10 text-primary" />
@@ -100,7 +104,7 @@ export default function HomePage() {
                 <p className="text-muted-foreground text-sm">Browse diverse listings with our interactive map and powerful filters. Find the perfect spot for your needs.</p>
               </CardContent>
             </Card>
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow bg-card/80">
               <CardHeader>
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <ShieldCheck className="h-10 w-10 text-primary" />
@@ -111,7 +115,7 @@ export default function HomePage() {
                 <p className="text-muted-foreground text-sm">Easily book your chosen land with transparent pricing. Our platform helps manage bookings and agreements.</p>
               </CardContent>
             </Card>
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow bg-card/80">
               <CardHeader>
                 <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                   <ClipboardList className="h-10 w-10 text-primary" />
