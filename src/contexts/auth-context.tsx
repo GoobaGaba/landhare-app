@@ -105,37 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setLoading(true);
     if (isPrototypeMode) {
-      console.warn("Auth Provider is in PROTOTYPE MODE. Using mock user.");
-      const mockUser: CurrentUser = {
-          uid: 'mock-user-uid-12345',
-          email: 'Gabrielleunda@gmail.com',
-          displayName: 'GoobaGaba',
-          photoURL: null,
-          emailVerified: true,
-          isAnonymous: false,
-          metadata: {} as any,
-          providerData: [],
-          providerId: 'mock',
-          tenantId: null,
-          delete: async () => {},
-          getIdToken: async () => 'mock-token',
-          getIdTokenResult: async () => ({ token: 'mock-token' } as any),
-          reload: async () => {},
-          toJSON: () => ({}),
-          appProfile: {
-            id: 'mock-user-uid-12345',
-            name: 'GoobaGaba',
-            email: 'Gabrielleunda@gmail.com',
-            isAdmin: true,
-            subscriptionStatus: 'premium',
-            walletBalance: 10000,
-            bookmarkedListingIds: [],
-          }
-      };
-      
-      setCurrentUser(mockUser);
-      setSubscriptionStatus('premium');
-      setLoading(false);
+      handleAuthChange(null);
       return;
     }
     

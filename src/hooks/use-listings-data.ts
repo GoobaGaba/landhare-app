@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -43,10 +44,10 @@ export function useListingsData(): ListingsDataState {
   // Effect for all public listings
   useEffect(() => {
     if (firebaseInitializationError !== null) {
-      fetchStaticListings(); // Use mock data if Firebase is not configured
-      const handleDataChange = () => fetchStaticListings();
-      window.addEventListener('mockDataChanged', handleDataChange);
-      return () => window.removeEventListener('mockDataChanged', handleDataChange);
+      // In prototype mode, we just show an empty list because mock data is no longer comprehensive.
+      setInternalListings([]);
+      setIsLoading(false);
+      return;
     }
 
     // --- Firestore Real-time Listener for all listings ---
@@ -75,14 +76,7 @@ export function useListingsData(): ListingsDataState {
   // Effect for the current user's listings
   useEffect(() => {
     if (!currentUser || firebaseInitializationError !== null) {
-      if (currentUser) { // Handle mock data case
-         const db = getListings(); // Mock getListings
-         Promise.resolve(db).then(all => {
-             setMyListings(all.filter(l => l.landownerId === currentUser.uid));
-         })
-      } else {
-         setMyListings([]);
-      }
+      setMyListings([]);
       return;
     }
 
@@ -119,12 +113,10 @@ export function useListingsData(): ListingsDataState {
   }, [internalListings]);
   
   const refreshListings = useCallback(() => {
-    // With real-time listeners, a manual refresh is less necessary, but can be kept for mock mode.
-    if (firebaseInitializationError !== null) {
-      fetchStaticListings(); 
-    }
-    // In live mode, data refreshes automatically.
-  }, [fetchStaticListings]);
+    // This function is now less critical due to real-time listeners,
+    // but can be kept for future manual refresh implementations.
+    // No-op for now in live mode.
+  }, []);
 
   return {
     allAvailableListings: internalListings,
