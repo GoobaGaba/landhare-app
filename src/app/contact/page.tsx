@@ -80,8 +80,8 @@ export default function ContactPage() {
                 <p className="text-sm text-muted-foreground">
                     For direct inquiries, you can also email us at:
                 </p>
-                <a href="mailto:support@landshare.example.com" className="text-primary hover:underline font-medium">
-                    support@landshare.example.com
+                <a href="mailto:support@landhare.example.com" className="text-primary hover:underline font-medium">
+                    support@landhare.example.com
                 </a>
                 <p className="text-xs text-muted-foreground mt-1">(Please allow 1-2 business days for a response)</p>
             </CardContent>

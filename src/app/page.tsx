@@ -87,7 +87,7 @@ export default function HomePage() {
       
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandShare Connect Works</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandHare Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
@@ -210,7 +210,7 @@ export default function HomePage() {
         <div className="container mx-auto text-center px-4">
           <h2 className="text-3xl md:text-4xl font-headline font-extrabold mb-6 text-title-foreground">Ready to Change the Game?</h2>
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
-            Join LandShare Connect today. Whether you're looking for land or have land to share, opportunity awaits.
+            Join LandHare today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105" asChild>

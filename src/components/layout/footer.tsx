@@ -20,7 +20,7 @@ export default function AppFooter() {
         </nav>
         
         <div className="text-xs text-muted-foreground text-right w-full md:w-auto">
-          <p>&copy; {new Date().getFullYear()} LandShare Connect. All Rights Reserved.</p>
+          <p>&copy; {new Date().getFullYear()} LandHare. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
