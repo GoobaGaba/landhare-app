@@ -19,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown, MapPin, Droplets, UtilityPole, SquareDashedBottom, Dog, Wifi, Waves, Flame } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, UserCircle, Percent, UploadCloud, Trash2, FileImage, Lightbulb, FileText, Crown, MapPin, Droplets, UtilityPole, SquareDashedBottom, Dog, Wifi, Waves, Flame, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
@@ -392,7 +392,7 @@ export function ListingForm() {
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader><CardTitle>Create New Land Listing</CardTitle><CardDescription>Fill details to list your land on LandShare.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Create New Land Listing</CardTitle><CardDescription>Fill details to list your land on LandHare.</CardDescription></CardHeader>
       {atListingLimit && (
         <Alert variant="destructive" className="mx-6 mb-0">
             <Crown className="h-4 w-4 text-premium" />
@@ -464,12 +464,12 @@ export function ListingForm() {
               <Label htmlFor="location">Location (City, State, or Full Address)</Label>
               <div className="flex items-center gap-2">
                 <div className="relative flex-grow">
-                    <Input id="location" {...register('location', { onChange: () => setIsLocationVerified(false) })} aria-invalid={errors.location ? "true" : "false"} />
-                    {isLocationVerified && <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500"/>}
+                    <Input id="location" {...register('location', { onChange: () => setIsLocationVerified(false) })} aria-invalid={errors.location ? "true" : "false"} disabled={isLocationVerified} />
+                    {isLocationVerified && <Button variant="ghost" size="icon" onClick={() => setIsLocationVerified(false)} className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"><Edit className="h-4 w-4 text-muted-foreground"/></Button>}
                 </div>
-                <Button type="button" onClick={handleGeocode} disabled={!geocoder || isGeocoding}>
+                <Button type="button" onClick={handleGeocode} disabled={!geocoder || isGeocoding || isLocationVerified}>
                     {isGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4"/>}
-                    Verify
+                    {isLocationVerified ? "Verified" : "Verify"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">You must verify your location to ensure it appears on the map correctly.</p>
@@ -584,6 +584,15 @@ export function ListingForm() {
               <Link href="/pricing" className="underline ml-1 hover:text-primary">Learn more</Link>
             </AlertDescription>
           </Alert>
+          {!isPremiumUser && myListings.length === (FREE_TIER_LISTING_LIMIT-1) && (
+             <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-500/50">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <AlertTitle className="text-amber-800 dark:text-amber-200 font-semibold">Heads Up!</AlertTitle>
+                <AlertDescription className="text-amber-700 dark:text-amber-300">
+                   You have 1 listing slot remaining on the Standard plan.
+                </AlertDescription>
+            </Alert>
+          )}
 
         </CardContent>
         <CardFooter className="flex justify-between items-center gap-2">

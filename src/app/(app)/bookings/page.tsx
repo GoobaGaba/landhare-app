@@ -124,7 +124,7 @@ export default function BookingsPage() {
       });
 
       toast({ title: "Lease Saved!", description: "The lease agreement has been securely saved to the cloud." });
-      await refreshUserProfile(); // Refresh data to show new link and any other state changes
+      await loadBookings(); // Refresh data to show new link
     } catch (error: any) {
       console.error("Error uploading lease:", error);
       toast({ title: "Save Failed", description: `Could not save lease: ${error.message}`, variant: "destructive" });
@@ -140,6 +140,7 @@ export default function BookingsPage() {
     setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: true }));
     setCurrentBookingForLease(booking);
 
+    // FIX: Ensure listing details are fetched even if some booking details are populated
     const listingDetails = await getListingById(booking.listingId);
     if (!listingDetails) {
         toast({title: "Error", description: "Could not fetch listing details for lease terms.", variant: "destructive"});
@@ -147,8 +148,8 @@ export default function BookingsPage() {
         return;
     }
 
-    const fromDate = booking.dateRange.from as Date;
-    const toDate = booking.dateRange.to as Date;
+    const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : booking.dateRange.from.toDate();
+    const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : booking.dateRange.to.toDate();
 
     let durationDesc = "";
     let priceForLeaseTerm = listingDetails.price;
@@ -235,7 +236,7 @@ export default function BookingsPage() {
       });
 
       // First, trigger download for the user
-      doc.save(`LandShare_Lease_Suggestion_${currentBookingForLease.listingTitle?.replace(/\s+/g, '_') || currentBookingForLease.listingId}.pdf`);
+      doc.save(`LandHare_Lease_Suggestion_${currentBookingForLease.listingTitle?.replace(/\s+/g, '_') || currentBookingForLease.listingId}.pdf`);
       toast({title: "PDF Downloaded", description: "Lease suggestion PDF has been downloaded."});
 
       // Then, upload to Firebase Storage
@@ -274,12 +275,10 @@ export default function BookingsPage() {
         }
         toast({ title: "Booking Updated", description: toastDescription });
         
-        // This is the key change: refreshing the global user profile triggers updates everywhere
-        await refreshUserProfile(); 
+        await loadBookings();
 
         // Smart Follow-up Action: If landowner just confirmed, auto-trigger lease generation
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
-            // Need to get the freshly populated booking details after the update
             const freshlyLoadedBooking = await populateBookingDetails(updatedBooking);
             if (freshlyLoadedBooking && freshlyLoadedBooking.listingTitle && freshlyLoadedBooking.renterName) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
@@ -290,7 +289,7 @@ export default function BookingsPage() {
       }
     } catch (error: any) {
       toast({ title: "Update Failed", description: error.message || "Could not update booking status.", variant: "destructive" });
-      await refreshUserProfile(); // Ensure UI consistency even on failure
+      await loadBookings(); // Ensure UI consistency even on failure
     } finally {
         setIsStatusUpdating(prev => ({ ...prev, [booking.id]: false }));
     }

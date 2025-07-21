@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat, ReceiptText, Wallet } from "lucide-react";
+import { User, Mail, Shield, Bell, CreditCard, Save, Edit3, KeyRound, Loader2, Crown, RefreshCw, AlertTriangle, Repeat, ReceiptText, Wallet, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +52,7 @@ export default function ProfilePage() {
         name: currentAppProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || "User",
         email: currentUser.email || "No email provided",
         avatarUrl: currentAppProfile?.avatarUrl || currentUser.photoURL || `https://placehold.co/128x128.png?text=${(currentAppProfile?.name || currentUser.displayName || currentUser.email || 'U').charAt(0)}`,
-        bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' && currentAppProfile?.bio === '' ? "I am the main mock user." : currentAppProfile?.bio || "Welcome to my LandShare profile!"),
+        bio: currentAppProfile?.bio || (currentUser.uid === 'mock-user-uid-12345' && currentAppProfile?.bio === '' ? "I am the main mock user." : currentAppProfile?.bio || "Welcome to my LandHare profile!"),
         memberSince: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime) : new Date(),
         subscriptionTier: currentSubscription,
         walletBalance: currentAppProfile.walletBalance ?? 10000,
@@ -136,13 +136,7 @@ export default function ProfilePage() {
     
     // Check for listing limit before allowing a downgrade from this simple toggle
     if (newStatus === 'standard' && myListings.length > FREE_TIER_LISTING_LIMIT) {
-        toast({
-            title: "Listing Limit Exceeded",
-            description: `You have ${myListings.length} listings. The Standard tier only allows ${FREE_TIER_LISTING_LIMIT}. Please manage your listings to proceed.`,
-            variant: "default",
-            action: <Button variant="link" size="sm" onClick={() => router.push('/downgrade')}>Manage Listings</Button>,
-            duration: 8000,
-        });
+        router.push('/downgrade');
         return;
     }
 
@@ -355,31 +349,23 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
 
-              <div className="p-4 border rounded-lg bg-muted/30">
-                <h3 className="text-md font-semibold mb-1 flex items-center gap-1.5">
-                    Current Plan: 
-                    <span className={cn("capitalize", profileDisplayData.subscriptionTier === 'premium' ? 'text-premium font-bold' : '')}>
-                        {profileDisplayData.subscriptionTier === 'loading' ? 'Checking...' : (profileDisplayData.subscriptionTier === 'premium' ? 'Premium' : 'Standard')} Tier
-                    </span>
-                    {profileDisplayData.subscriptionTier === 'premium' && <Crown className="h-4 w-4 text-premium"/>}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {profileDisplayData.subscriptionTier === 'premium' 
-                    ? "You're enjoying all the benefits of Premium! Thank you for your support." 
-                    : "Upgrade to Premium for unlimited listings, no renter fees, boosted listings, and lower service fees (0.49% vs 2%)."
-                  }
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  (For developer testing, you can freely toggle your subscription status below.)
-                </p>
-              </div>
-
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Developer Tools: Subscription Simulation</CardTitle>
-                  <CardDescription>Instantly switch your account's subscription tier for testing purposes. Downgrading will simulate a refund.</CardDescription>
+                  <CardTitle className="text-lg">Manage Subscription</CardTitle>
+                   <CardDescription>
+                      {profileDisplayData.subscriptionTier === 'premium' 
+                        ? "You are currently on the Premium tier." 
+                        : "You are currently on the Standard tier."
+                      }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {profileDisplayData.subscriptionTier === 'premium' 
+                        ? "To downgrade, you must have 2 or fewer listings." 
+                        : "Upgrade to Premium for unlimited listings, lower fees, and AI tools."
+                      }
+                    </p>
                     <Button
                         onClick={handleSubscriptionToggle}
                         variant="outline"
@@ -387,11 +373,14 @@ export default function ProfilePage() {
                         className="w-full sm:w-auto"
                     >
                         {isSwitchingSubscription ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
-                        Switch to {profileDisplayData.subscriptionTier === 'premium' ? 'Standard' : 'Premium'}
+                        {profileDisplayData.subscriptionTier === 'premium' ? "Downgrade to Standard" : "Upgrade to Premium"}
                     </Button>
                     {isMockUserNoProfile &&
                         <p className="text-xs text-destructive mt-2">Note: Full subscription simulation disabled in preview mode without a mock user.</p>
                     }
+                     {profileDisplayData.subscriptionTier === 'premium' && myListings.length > FREE_TIER_LISTING_LIMIT && (
+                         <Button asChild variant="link" className="text-destructive"><Link href="/downgrade">You have {myListings.length} listings. Manage them here to downgrade <ExternalLink className="ml-1 h-3 w-3" /></Link></Button>
+                    )}
                 </CardContent>
               </Card>
               

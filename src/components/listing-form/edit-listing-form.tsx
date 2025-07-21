@@ -20,7 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown, MapPin, Droplets, UtilityPole, SquareDashedBottom, Dog, Wifi, Waves, Flame } from 'lucide-react';
+import { Sparkles, Info, Loader2, CheckCircle, AlertCircle, CalendarClock, Percent, UploadCloud, Trash2, FileImage, Lightbulb, ArrowLeft, FileText, Crown, MapPin, Droplets, UtilityPole, SquareDashedBottom, Dog, Wifi, Waves, Flame, Edit } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from "@/components/ui/toast";
@@ -442,12 +442,12 @@ export function EditListingForm({ listing, currentUserId }: EditListingFormProps
               <Label htmlFor="location">Location (City, State, or Full Address)</Label>
               <div className="flex items-center gap-2">
                 <div className="relative flex-grow">
-                    <Input id="location" {...register('location', { onChange: () => setIsLocationVerified(false) })} />
-                    {isLocationVerified && <CheckCircle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500"/>}
+                    <Input id="location" {...register('location', { onChange: () => setIsLocationVerified(false) })} disabled={isLocationVerified} />
+                    {isLocationVerified && <Button variant="ghost" size="icon" onClick={() => setIsLocationVerified(false)} className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"><Edit className="h-4 w-4 text-muted-foreground"/></Button>}
                 </div>
-                <Button type="button" onClick={handleGeocode} disabled={!geocoder || isGeocoding}>
+                <Button type="button" onClick={handleGeocode} disabled={!geocoder || isGeocoding || isLocationVerified}>
                     {isGeocoding ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4"/>}
-                    Verify
+                    {isLocationVerified ? "Verified" : "Verify"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">You must verify your location to ensure it appears on the map correctly.</p>

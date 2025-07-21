@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, SubscriptionStatus } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest, getOrCreateConversation } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles, AlertCircleIcon } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -322,7 +322,8 @@ export default function ListingDetailPage() {
   }
 
   const { mainImage, otherImages, displayAmount, displayUnit, isBookmarked, isCurrentUserLandowner } = derivedData;
-  
+  const isBookingDisabled = !listing.isAvailable || (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) || isSubmittingBooking || isMockModeNoUser || isCurrentUserLandowner;
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
@@ -547,7 +548,7 @@ export default function ListingDetailPage() {
                      <p className="text-xs text-destructive flex items-center mt-2">
                         <UserCircle className="h-4 w-4 mr-1" /> Please <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
                     </p>
-                )}
+                 )}
                  {isMockModeNoUser && (
                     <p className="text-xs text-amber-600 flex items-center mt-2">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode.
@@ -557,19 +558,17 @@ export default function ListingDetailPage() {
              <CardFooter className="flex flex-col gap-3 pt-4 border-t">
                 {!isCurrentUserLandowner && (
                     <Button
-                    size="lg"
-                    className="w-full"
-                    onClick={handleBookingRequestOpen}
-                    disabled={
-                        !listing.isAvailable ||
-                        (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
-                        isSubmittingBooking ||
-                        isMockModeNoUser
-                    }
+                        size="lg"
+                        className="w-full"
+                        onClick={handleBookingRequestOpen}
+                        disabled={isBookingDisabled}
                     >
-                     {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                    {listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
-                        : "Currently Unavailable"}
+                        {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                        {!listing.isAvailable ? "Currently Unavailable"
+                        : isCurrentUserLandowner ? "This is your listing"
+                        : listing.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from) ? 
+                            <><AlertCircleIcon className="mr-2 h-4 w-4" />Select Dates Above</>
+                        : listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book"}
                     </Button>
                 )}
                 {landowner && (
