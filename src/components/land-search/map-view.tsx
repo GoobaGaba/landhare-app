@@ -101,7 +101,7 @@ export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: Map
 
             return (
               <AdvancedMarker
-                key={listing.id}
+                key={`${listing.id}-${isSelected}`} // CRITICAL FIX: The key now changes when selection changes, forcing a re-render.
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => onMarkerClick(listing.id)}
                 zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : 2)}
