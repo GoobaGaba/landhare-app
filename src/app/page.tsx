@@ -138,7 +138,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
               <Image 
-                src="https://placehold.co/800x600.png"
+                src="/landhare-couple-v2.jpg"
                 alt="A happy couple and their dog standing in front of a modern tiny home with solar panels in a grassy field."
                 data-ai-hint="happy couple"
                 fill 
