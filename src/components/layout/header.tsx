@@ -79,7 +79,7 @@ export default function AppHeader() {
   ];
 
   const listYourLandHref = currentUser ? "/listings/new" : `/login?redirect=${encodeURIComponent("/listings/new")}`;
-  const isUserAdmin = currentUser?.email ? ADMIN_EMAILS.includes(currentUser.email) : false;
+  const isUserAdmin = currentUser?.appProfile?.isAdmin ?? false;
 
 
   return (

@@ -58,17 +58,14 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
 };
 
 const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
-    // A listing not in the current filter is always greyed out.
     if (!isFiltered) {
         return {
-            background: '#A1A1AA', // Tailwind gray-400
+            background: '#A1A1AA', // gray-400
             glyphColor: '#FFFFFF',
-            borderColor: '#71717A', // Tailwind gray-500
+            borderColor: '#71717A', // gray-500
             opacity: 0.5
         };
     }
-
-    // A selected pin is always the accent color. This takes top priority.
     if (isSelected) {
         return {
             background: 'hsl(var(--accent))',
@@ -77,8 +74,6 @@ const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean
             opacity: 1
         };
     }
-    
-    // An active (filtered) pin that is boosted is premium purple.
     if (listing.isBoosted) {
         return {
             background: 'hsl(var(--premium))',
@@ -87,8 +82,6 @@ const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean
             opacity: 1
         };
     }
-    
-    // A standard active (filtered) pin is the primary color.
     return {
         background: 'hsl(var(--primary))',
         glyphColor: 'hsl(var(--primary-foreground))',

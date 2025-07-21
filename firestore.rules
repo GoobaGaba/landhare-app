@@ -1,85 +1,83 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if the user is the owner of a document
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    // Helper function to check for admin status by email (matches mock-data.ts)
-    function isAdmin() {
-      // In a real production app, this would check a custom claim set via a backend function.
-      // For this app's simulation, checking the email is a secure-enough approach.
-      return request.auth.token.email == 'Gabrielleunda@gmail.com';
-    }
 
-    // --- User Profiles ---
-    // Users can only read and update their own profile.
-    // Anyone can create a user profile (during signup).
+    // --- Users ---
+    // Users can read their own profile.
+    // Users can create their own profile upon signup.
+    // Users can only update their own profile's mutable fields.
     match /users/{userId} {
-      allow read, update, delete: if isAuthenticated() && isOwner(userId);
-      allow create: if isAuthenticated(); // Allow creation for new users
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isAuthenticated() && isOwner(userId) &&
+                       request.resource.data.keys().hasOnly(['name', 'bio', 'avatarUrl', 'subscriptionStatus', 'bookmarkedListingIds', 'isAdmin', 'walletBalance']);
+      // No user should be able to delete their own account directly. This should be handled by a backend process.
+      allow delete: if false;
     }
-
+    
     // --- Listings ---
     // Anyone can read listings.
-    // Authenticated users can only create, update, or delete their own listings.
+    // Only authenticated users can create listings.
+    // Only the owner of a listing can update or delete it.
     match /listings/{listingId} {
-      allow get; // Public read access
-      allow list: if query.limit <= 10; // Allow listing with pagination
+      allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && isOwner(resource.data.landownerId);
+      allow update, delete: if isAuthenticated() && resource.data.landownerId == request.auth.uid;
     }
     
     // --- Bookings ---
-    // Only the renter or landowner involved in a booking can read it.
-    // Only the renter can create a booking.
-    // The landowner can update the booking (e.g., to confirm/decline).
+    // Only participants (renter or landowner) can read a booking.
+    // Only authenticated users can create a booking.
+    // Only participants can update a booking's status.
     match /bookings/{bookingId} {
-      allow get: if isAuthenticated() && (isOwner(resource.data.renterId) || isOwner(resource.data.landownerId));
-      allow create: if isAuthenticated() && isOwner(request.resource.data.renterId);
-      allow update: if isAuthenticated() && isOwner(resource.data.landownerId);
-      // Let renters cancel, which is an update operation.
-      allow update: if isAuthenticated() && isOwner(resource.data.renterId);
+        allow read, update: if isAuthenticated() && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.renterId;
+        // Deletion should be handled via status changes, not direct deletes.
+        allow delete: if false;
     }
     
     // --- Reviews ---
     // Anyone can read reviews.
-    // Only authenticated users can write reviews, and they can't modify them after posting.
+    // Authenticated users can write a review (further logic to check if they completed a booking should be in backend rules/functions).
+    // Users can only update/delete their own reviews.
     match /reviews/{reviewId} {
-      allow get;
-      allow list;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+        allow read: if true;
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+        allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
     
     // --- Transactions ---
-    // Users can only read their own transactions. Creation is handled by server-side logic (simulated in mock-data.ts).
+    // Users can only read their own transactions.
     match /transactions/{transactionId} {
-        allow get: if isAuthenticated() && isOwner(resource.data.userId);
-        allow list: if isAuthenticated() && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
-        allow create, update, delete: if false; // Transactions should be immutable from client
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      // Transactions are system-generated, not user-created.
+      allow create, update, delete: if false;
     }
     
     // --- Admin State ---
-    // Only the admin can read or write to the admin_state collection.
+    // Only authenticated admins should be able to read/write this.
+    // For simplicity now, we restrict write access but allow read for authenticated users.
+    // In a production app, this would be locked down to specific admin UIDs.
     match /admin_state/{docId} {
-      allow read, write: if isAuthenticated() && isAdmin();
-    }
-    
-     // --- Backtest Presets ---
-    // Only the admin can read or write to the backtest_presets collection.
-    match /backtest_presets/{presetId} {
-       allow read, write, delete: if isAuthenticated() && isAdmin();
+      allow read: if isAuthenticated();
+      // Write access should be handled by backend functions or specific admin UIDs.
+      allow write: if false; 
     }
 
+    // --- Backtest Presets (Admin-only feature) ---
+    match /backtest_presets/{presetId} {
+      // Assuming only admins can access the backtesting tool.
+      allow read, write, delete: if isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
   }
 }

@@ -53,11 +53,12 @@ export default function MyListingsPage() {
 
     if (result.success) {
       toast({ title: "Listing Deleted", description: result.message });
-      refreshListings();
+      // Real-time listener will update the UI automatically.
+      // refreshListings(); 
     } else {
       toast({ title: "Deletion Failed", description: result.message, variant: "destructive" });
     }
-  }, [listingToDelete, toast, refreshListings]);
+  }, [listingToDelete, toast]);
 
   if (authLoading || listingsLoading) {
     return (

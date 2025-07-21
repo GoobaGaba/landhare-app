@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { updateUserProfile } from '@/lib/mock-data';
 
 export default function DowngradePage() {
-  const { currentUser, subscriptionStatus, refreshUserProfile, loading: authLoading } = useAuth();
+  const { currentUser, subscriptionStatus, refreshUserProfile, loading: authLoading, updateCurrentAppUserProfile } = useAuth();
   const { myListings, isLoading: listingsLoading, refreshListings } = useListingsData();
   const router = useRouter();
   const { toast } = useToast();
@@ -33,10 +33,11 @@ export default function DowngradePage() {
     // Redirect if user shouldn't be here
     if (!authLoading && !listingsLoading) {
       if (subscriptionStatus !== 'premium' || myListings.length <= FREE_TIER_LISTING_LIMIT) {
+        toast({ title: "Not Applicable", description: "You are already eligible for the Standard tier.", variant: "default"});
         router.replace('/profile');
       }
     }
-  }, [currentUser, subscriptionStatus, myListings, authLoading, listingsLoading, router]);
+  }, [currentUser, subscriptionStatus, myListings, authLoading, listingsLoading, router, toast]);
 
   const listingsOverLimit = useMemo(() => Math.max(0, myListings.length - FREE_TIER_LISTING_LIMIT), [myListings.length]);
   const canDowngrade = selectedListings.length >= listingsOverLimit;
@@ -64,10 +65,8 @@ export default function DowngradePage() {
       
       toast({ title: "Listings Deleted", description: deleteResult.message });
       
-      // We call the direct updateUserProfile here to simulate the subscription change transaction.
-      // This is more robust than the context's update function for this specific flow.
-      await updateUserProfile(currentUser!.uid, { subscriptionStatus: 'standard' });
-      await refreshUserProfile(); // Ensure context is updated with new status
+      // Use the context's update function for a consistent state update
+      await updateCurrentAppUserProfile({ subscriptionStatus: 'standard' });
 
       toast({ title: "Downgrade Successful", description: "Your account is now on the Standard tier." });
       router.push('/profile');
@@ -127,6 +126,7 @@ export default function DowngradePage() {
                     className="absolute top-3 left-3 h-5 w-5 z-10 bg-background"
                     checked={selectedListings.includes(listing.id)}
                     readOnly
+                    aria-label={`Select ${listing.title}`}
                   />
                   <div className="flex items-start p-3 pl-10 gap-3">
                     <div className="relative h-24 w-24 flex-shrink-0">

@@ -1,40 +1,37 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+  
+    // --- Listings Images ---
+    // Path: /listings/{userId}/{fileName}
+    // Anyone can read listing images.
+    // Only an authenticated user can write to their own designated folder.
+    // Images must be smaller than 5MB.
+    // Only image content types are allowed.
+    match /listings/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // --- Lease Contracts (PDFs) ---
+    // Path: /leaseContracts/{bookingId}/{fileName}
+    // Only users involved in the booking can read the contract.
+    // This requires that the booking document is accessible to check participant IDs.
+    // For simplicity in this ruleset, we will lock it to authenticated users.
+    // A more robust rule would check the associated booking document.
+    match /leaseContracts/{bookingId}/{fileName} {
+       allow read: if request.auth != null;
+       allow write: if request.auth != null 
+                    && request.resource.contentType == 'application/pdf'
+                    && request.resource.size < 2 * 1024 * 1024;
+    }
     
-    // Helper function to check if the user is authenticated.
-    function isAuthenticated() {
-      return request.auth != null;
+    // Default deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
-    
-    // Helper function to check if the user is the owner of the resource path.
-    // This allows a user to write to their own folder, e.g., 'listings/{userId}/...'
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Match any file in the 'listings' folder.
-    match /listings/{userId}/{allPaths=**} {
-      
-      // Anyone can read listing images. This is required for the public to see them.
-      allow get;
-      
-      // Only an authenticated user can write files to their own subdirectory.
-      // This prevents users from uploading files into other users' folders.
-      allow write: if isAuthenticated() && isOwner(userId);
-    }
-
-    // Match any file in the 'leaseContracts' folder.
-    match /leaseContracts/{bookingId}/{allPaths=**} {
-        // In a real app with sensitive data, you would add logic here
-        // to check if the requesting user is the renter or landowner for the bookingId.
-        // For this app, allowing any authenticated user to read is sufficient,
-        // as the URLs are unguessable and only exposed to the correct users in the app UI.
-        allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
-    }
-
   }
 }
