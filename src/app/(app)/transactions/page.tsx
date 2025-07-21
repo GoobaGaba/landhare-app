@@ -206,7 +206,7 @@ export default function TransactionsPage() {
                   </TableRow>
                 ) : filteredTransactions.length > 0 ? (
                   filteredTransactions.map(t => {
-                     const date = t.date instanceof Date ? t.date : (t.date as any).toDate();
+                     const date = t.date as Date;
                      const isIncome = ['Landowner Payout', 'Subscription Refund', 'Booking Refund'].includes(t.type);
                      let typeVariant: "default" | "secondary" | "destructive" | "outline" = "default";
                      switch(t.type) {

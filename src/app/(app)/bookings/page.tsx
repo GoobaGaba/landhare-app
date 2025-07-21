@@ -147,8 +147,8 @@ export default function BookingsPage() {
         return;
     }
 
-    const fromDate = booking.dateRange.from instanceof Date ? booking.dateRange.from : (booking.dateRange.from as any).toDate();
-    const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : (booking.dateRange.to as any).toDate();
+    const fromDate = booking.dateRange.from as Date;
+    const toDate = booking.dateRange.to as Date;
 
     let durationDesc = "";
     let priceForLeaseTerm = listingDetails.price;
@@ -281,7 +281,7 @@ export default function BookingsPage() {
         if (newStatus === 'Confirmed' && currentUser.uid === booking.landownerId) {
             // Need to get the freshly populated booking details after the update
             const freshlyLoadedBooking = await populateBookingDetails(updatedBooking);
-            if (freshlyLoadedBooking) {
+            if (freshlyLoadedBooking && freshlyLoadedBooking.listingTitle && freshlyLoadedBooking.renterName) {
                  await handleGenerateAndShowLeaseTerms(freshlyLoadedBooking);
             }
         }
@@ -305,10 +305,8 @@ export default function BookingsPage() {
     return 'text-muted-foreground';
   };
 
-  const formatDateRange = (dateRange: { from: Date | { toDate: () => Date }; to: Date | { toDate: () => Date } }): string => {
-    const fromDate = dateRange.from instanceof Date ? dateRange.from : (dateRange.from as any).toDate();
-    const toDate = dateRange.to instanceof Date ? dateRange.to : (dateRange.to as any).toDate();
-    return `${format(fromDate, "PPP")} - ${format(toDate, "PPP")}`;
+  const formatDateRange = (from: Date, to: Date): string => {
+    return `${format(from, "PPP")} - ${format(to, "PPP")}`;
   };
 
   if (authLoading || isLoading) {
@@ -364,7 +362,7 @@ export default function BookingsPage() {
                 <CardDescription> Status: <span className={`font-semibold ${getStatusColor(booking.status)}`}>{booking.status}</span> </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
-                <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange as { from: Date; to: Date })}</p>
+                <p className="text-sm"><strong>Dates:</strong> {formatDateRange(booking.dateRange.from as Date, booking.dateRange.to as Date)}</p>
                 {currentUser && booking.landownerId === currentUser.uid && ( <p className="text-sm"><strong>Renter:</strong> {booking.renterName || `Renter ID: ${booking.renterId.substring(0,6)}`}</p> )}
                 {currentUser && booking.renterId === currentUser.uid && ( <p className="text-sm"><strong>Landowner:</strong> {booking.landownerName || `Owner ID: ${booking.landownerId.substring(0,6)}`}</p> )}
                 {booking.leaseContractUrl && booking.status === 'Confirmed' && (

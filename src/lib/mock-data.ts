@@ -40,19 +40,27 @@ function docToObj<T>(docSnap: any): T {
         return undefined as any;
     }
     const data = docSnap.data();
-    // Convert Firestore Timestamps to JS Dates
-    for (const key in data) {
-        if (data[key] instanceof Timestamp) {
-            data[key] = data[key].toDate();
+    // Convert Firestore Timestamps to JS Dates recursively
+    const convertTimestamps = (obj: any): any => {
+        if (!obj) return obj;
+        if (Array.isArray(obj)) {
+            return obj.map(item => convertTimestamps(item));
         }
-        if(key === 'dateRange' && data[key]?.from instanceof Timestamp) {
-            data.dateRange.from = data.dateRange.from.toDate();
+        if (obj instanceof Timestamp) {
+            return obj.toDate();
         }
-        if(key === 'dateRange' && data[key]?.to instanceof Timestamp) {
-            data.dateRange.to = data.dateRange.to.toDate();
+        if (typeof obj === 'object') {
+            const newObj: { [key: string]: any } = {};
+            for (const key in obj) {
+                newObj[key] = convertTimestamps(obj[key]);
+            }
+            return newObj;
         }
-    }
-    return { ...data, id: docSnap.id } as T;
+        return obj;
+    };
+
+    const convertedData = convertTimestamps(data);
+    return { ...convertedData, id: docSnap.id } as T;
 }
 
 // --- User Functions ---
@@ -522,8 +530,8 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
 
     const activeBookingsSnap = await getDocs(q);
     const activeBookings = activeBookingsSnap.docs.map(d => docToObj<Booking>(d)).filter(b => {
-        const from = b.dateRange.from instanceof Date ? b.dateRange.from : (b.dateRange.from as any).toDate();
-        const to = b.dateRange.to instanceof Date ? b.dateRange.to : (b.dateRange.to as any).toDate();
+        const from = b.dateRange.from as Date;
+        const to = b.dateRange.to as Date;
         return isWithinInterval(today, { start: from, end: to });
     });
 
