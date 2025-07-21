@@ -17,6 +17,9 @@ import { getConversationsForUser, getMessagesForConversation, sendMessage, getUs
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
+// Force this page to be dynamically rendered on the client
+export const dynamic = 'force-dynamic';
+
 interface PopulatedConversation extends Conversation {
     otherParticipant?: AppUserType;
     listingTitle?: string;
