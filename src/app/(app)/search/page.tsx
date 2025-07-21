@@ -181,7 +181,7 @@ function SearchPageContent() {
           <Alert variant="default" className="border-premium/50 bg-premium/5 text-premium"><Sparkles className="h-4 w-4 text-premium" /><AlertTitle className="font-semibold text-premium">Premium Search</AlertTitle><AlertDescription>As a Premium member, your listings are boosted and you may see advanced search filters in the future!</AlertDescription></Alert>
         )}
         {filteredListings.length === 0 && !listingsLoading ? (
-          <Alert><SearchIcon className="h-4 w-4" /><AlertTitle>No Listings Found</AlertTitle><AlertDescription>Try adjusting your filters or search term.{firebaseInitializationError && " (Currently displaying sample data due to Firebase configuration issue.)"}</AlertDescription></Alert>
+          <Alert><SearchIcon className="h-4 w-4" /><AlertTitle>No Listings Found</AlertTitle><AlertDescription>Try adjusting your filters or search term.{firebaseInitializationError && " (Note: Real-time data may be unavailable if Firebase isn't configured.)"}</AlertDescription></Alert>
         ) : (
           <div className={viewMode === 'grid' ? "grid sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6" : "space-y-4"}>
             {paginatedListings.map((listing) => (
@@ -239,7 +239,7 @@ export default function SearchPage() {
                     <CardContent>
                         <p>The Google Maps API key is missing or invalid, which is required for the Search and Map functionality.</p>
                         <p className="text-sm text-muted-foreground mt-2">
-                           <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set for your deployed application.
+                           <strong>Action Required:</strong> For local development, ensure `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set in your `.env.local` file. For deployment, ensure it is set as an environment variable for your App Hosting backend. Without a valid key, map features will not work on the live site.
                         </p>
                         <Button asChild variant="outline" className="mt-4"><Link href="/">Go Home</Link></Button>
                     </CardContent>
