@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,9 +18,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Loader2, Trash2, ShieldCheck, Home, Star, DollarSign } from 'lucide-react';
 import type { Listing } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { updateUserProfile } from '@/lib/mock-data';
 
 export default function DowngradePage() {
-  const { currentUser, subscriptionStatus, updateCurrentAppUserProfile, loading: authLoading } = useAuth();
+  const { currentUser, subscriptionStatus, refreshUserProfile, loading: authLoading } = useAuth();
   const { myListings, isLoading: listingsLoading, refreshListings } = useListingsData();
   const router = useRouter();
   const { toast } = useToast();
@@ -62,13 +64,13 @@ export default function DowngradePage() {
       
       toast({ title: "Listings Deleted", description: deleteResult.message });
       
-      const downgradeResult = await updateCurrentAppUserProfile({ subscriptionStatus: 'standard' });
-      if (downgradeResult) {
-        toast({ title: "Downgrade Successful", description: "Your account is now on the Standard tier." });
-        router.push('/profile');
-      } else {
-         throw new Error("Could not update your subscription status after deleting listings.");
-      }
+      // We call the direct updateUserProfile here to simulate the subscription change transaction.
+      // This is more robust than the context's update function for this specific flow.
+      await updateUserProfile(currentUser!.uid, { subscriptionStatus: 'standard' });
+      await refreshUserProfile(); // Ensure context is updated with new status
+
+      toast({ title: "Downgrade Successful", description: "Your account is now on the Standard tier." });
+      router.push('/profile');
 
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

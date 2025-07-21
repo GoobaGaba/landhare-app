@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
@@ -140,7 +141,7 @@ export default function AppHeader() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>
                         <div className="flex items-center gap-2">
-                           <span>{currentUser.appProfile?.name || currentUser.displayName || currentUser.email}</span>
+                           <span className="truncate">{currentUser.appProfile?.name || currentUser.displayName || currentUser.email}</span>
                            {subscriptionStatus === 'premium' && !currentUser.appProfile?.isAdmin && <Crown className="h-4 w-4 text-premium" />}
                            {currentUser.appProfile?.isAdmin && <Shield className="h-4 w-4 text-primary" title="Administrator" />}
                         </div>

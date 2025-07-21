@@ -8,9 +8,7 @@ import {
   signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
-  updateProfile as updateFirebaseProfile,
-  GoogleAuthProvider,
-  signInWithPopup
+  updateProfile as updateFirebaseProfile
 } from 'firebase/auth';
 import { auth as firebaseAuthInstance, isPrototypeMode } from '@/lib/firebase'; 
 import type { ReactNode} from 'react';
@@ -43,7 +41,6 @@ interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
   signUpWithEmailAndPassword: (credentials: Required<AuthCredentials>) => Promise<void>;
   signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   logoutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
@@ -184,26 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
-    setLoading(true);
-    setAuthError(null);
-    if (isPrototypeMode) throw new Error("Cannot sign in with Google in prototype mode.");
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(firebaseAuthInstance!, provider);
-    } catch (err) {
-      const firebaseErr = err as AuthError;
-      toast({
-        title: "Google Sign-In Failed",
-        description: firebaseErr.code === 'auth/popup-closed-by-user' ? "The sign-in popup was closed." : firebaseErr.message,
-        variant: "destructive",
-      });
-      setAuthError(firebaseErr.message);
-      setLoading(false);
-      throw firebaseErr;
-    }
-  };
-
   const logoutUser = async () => {
     setLoading(true);
     if (isPrototypeMode) {
@@ -310,7 +287,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     subscriptionStatus,
     signUpWithEmailAndPassword,
     signInWithEmailPassword,
-    signInWithGoogle,
     logoutUser,
     sendPasswordReset,
     refreshUserProfile,
