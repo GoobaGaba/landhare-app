@@ -15,9 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { SubscriptionStatus, User as AppUserType } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
-import { firebaseInitializationError } from '@/lib/firebase';
+import { isPrototypeMode } from '@/lib/firebase';
 import { Switch } from "@/components/ui/switch";
-import { GoogleAuthProvider } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 import { useListingsData } from '@/hooks/use-listings-data';
 import { FREE_TIER_LISTING_LIMIT } from '@/lib/mock-data';
@@ -116,7 +115,7 @@ export default function ProfilePage() {
         toast({ title: "Error", description: "Email address not found.", variant: "destructive"});
         return;
     }
-    if (firebaseInitializationError && !currentUser.appProfile) {
+    if (isPrototypeMode && !currentUser.appProfile) {
         toast({ title: "Preview Mode", description: "This action is disabled in full preview mode.", variant: "default" });
         return;
     }
@@ -168,7 +167,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (firebaseInitializationError && !currentUser && !authLoading) { 
+  if (isPrototypeMode && !currentUser && !authLoading) { 
      return (
       <Card>
         <CardHeader>
@@ -179,7 +178,7 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            Profile features are temporarily unavailable due to a configuration issue: <span className="font-semibold text-destructive">{firebaseInitializationError}</span>
+            Profile features are temporarily unavailable due to a configuration issue.
           </p>
            <p className="text-xs text-muted-foreground mt-2">Please ensure Firebase is correctly configured in your .env.local file and the server has been restarted.</p>
         </CardContent>
@@ -204,8 +203,7 @@ export default function ProfilePage() {
   }
 
   const avatarFallback = (profileDisplayData.name || profileDisplayData.email || 'U').split(' ').map(n=>n[0]).join('').toUpperCase() || 'U';
-  const isMockUserNoProfile = firebaseInitializationError !== null && !currentUser.appProfile;
-  const isGoogleUser = currentUser?.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID);
+  const isMockUserNoProfile = isPrototypeMode && !currentUser.appProfile;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -274,7 +272,7 @@ export default function ProfilePage() {
                <div>
                 <Label htmlFor="avatarUrl">Avatar URL (Optional)</Label>
                 <Input id="avatarUrl" value={profileDisplayData.avatarUrl || ''} disabled />
-                 <p className="text-xs text-muted-foreground mt-1">Avatar is typically set via your authentication provider (e.g., Google profile picture) or uses a placeholder. Custom avatar uploads are not yet implemented.</p>
+                 <p className="text-xs text-muted-foreground mt-1">Avatar is typically set via your authentication provider or uses a placeholder. Custom avatar uploads are not yet implemented.</p>
               </div>
             </CardContent>
             {isEditing && (
@@ -295,14 +293,12 @@ export default function ProfilePage() {
               <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                      {/* Using a div wrapper for TooltipTrigger on disabled button */}
                       <div> 
-                        <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || isGoogleUser || isMockUserNoProfile}>
+                        <Button variant="outline" onClick={handleChangePassword} disabled={authLoading || isMockUserNoProfile}>
                             <KeyRound className="mr-2 h-4 w-4" /> Change Password
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    {isGoogleUser && <TooltipContent><p>Password managed through your Google account.</p></TooltipContent>}
                     {isMockUserNoProfile && <TooltipContent><p>Action disabled in preview mode.</p></TooltipContent>}
                 </Tooltip>
               </TooltipProvider>

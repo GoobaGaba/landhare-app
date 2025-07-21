@@ -37,25 +37,13 @@ body {
     --input: 60 30% 87%;
     --ring: 120 33% 30%; /* Forest Green for focus rings, can also be accent */
     
-    --radius: 1rem; /* Increased for rounder buttons */
+    --radius: 0.5rem; /* Standardized radius */
 
     --chart-1: 120 33% 30%;
     --chart-2: 20 60% 50%;
     --chart-3: 120 20% 55%;
     --chart-4: 60 50% 60%;
     --chart-5: 30 55% 55%;
-
-    --sidebar-background: 60 56% 93%;
-    --sidebar-foreground: 120 25% 15%;
-    --sidebar-primary: 120 33% 30%;
-    --sidebar-primary-foreground: 60 60% 97%;
-    --sidebar-accent: 20 60% 50%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 60 30% 82%;
-    --sidebar-ring: 120 33% 30%;
-
-    --neon-green: 120 100% 45%;
-    --neon-green-foreground: 120 25% 10%;
 
     /* Premium Purple - Light Mode (Vibrant) */
     --premium-feature-h: 275;
@@ -106,18 +94,6 @@ body {
     --chart-4: 60 50% 75%;
     --chart-5: 30 55% 70%;
     
-    --sidebar-background: 120 10% 12%;
-    --sidebar-foreground: 60 30% 92%;
-    --sidebar-primary: 120 33% 50%;
-    --sidebar-primary-foreground: 120 25% 10%;
-    --sidebar-accent: 20 60% 60%;
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 120 10% 25%;
-    --sidebar-ring: 20 60% 60%;
-
-    --neon-green: 120 100% 50%;
-    --neon-green-foreground: 0 0% 5%;
-
     /* Premium Purple - Dark Mode (Softer Lavender) */
     --premium-feature-h: 270;   /* Adjusted Hue */
     --premium-feature-s: 65%;   /* Adjusted Saturation */

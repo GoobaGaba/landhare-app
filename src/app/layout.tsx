@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -23,7 +22,7 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'LandHare',
+  title: 'LandShare Connect',
   description: 'Connecting landowners with those seeking affordable land.',
 };
 
@@ -34,9 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${ptSans.variable} ${playfairDisplay.variable}`}>
-      <head>
-        {/* Removed direct Google Font links, next/font handles optimization */}
-      </head>
+      <head />
       <body className="font-body antialiased flex flex-col min-h-screen" suppressHydrationWarning={true}>
         <ThemeProvider
           attribute="class"

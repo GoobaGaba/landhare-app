@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const { currentUser, loading: authLoading } = useAuth();
-  const { recentListings, isLoading: listingsLoading, error: listingsError, refreshListings } = useListingsData();
+  const { recentListings, isLoading: listingsLoading, error: listingsError } = useListingsData();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -87,7 +87,7 @@ export default function HomePage() {
       
       <section className="w-full py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandHare Works</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">How LandShare Connect Works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
@@ -158,7 +158,7 @@ export default function HomePage() {
                 <Feather className="h-8 w-8 text-accent mb-3" />
                 <h3 className="text-2xl font-headline text-primary mb-3 font-extrabold">Freedom for Land-Seekers</h3>
                 <p className="text-foreground/90 leading-relaxed">
-                  Find flexible, affordable land options for your tiny home, RV, or unique project. Our "Bring Your Own Home" (BYOH) model offers unparalleled freedom to live life on your terms.
+                  Find flexible, affordable land options for your tiny home, RV, or unique project. Our platform makes it simple to discover your next space.
                 </p>
               </div>
               <div>
@@ -207,24 +207,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="w-full py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-headline text-center mb-12 text-primary font-extrabold">A New Era for Housing</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><DollarSign className="text-destructive h-7 w-7" />The Ownership Dilemma</CardTitle></CardHeader><CardContent><p className="text-foreground/90">The average U.S. home now costs over $415,000. With rising interest rates and mortgage burdens, it's time to rethink what affordable housing really means — starting with downsizing, flexibility, and financial freedom.</p></CardContent></Card>
-            <Card className="shadow-lg"><CardHeader><CardTitle className="font-headline flex items-center gap-2"><MapPin className="text-primary h-7 w-7" />Unlock Your Land's Earnings</CardTitle></CardHeader><CardContent><p className="text-foreground/90">Millions of acres are sitting idle — yours doesn’t have to. LandHare turns unused land into monthly income. We make it simple to list, connect, and earn — starting today.</p></CardContent></Card>
-          </div>
-          <div className="mt-16 animate-bounce text-center">
-            <ChevronDown className="h-6 w-6 text-primary/70 mx-auto" />
-          </div>
-        </div>
-      </section>
-
       <section className="w-full py-20 md:py-32 bg-primary text-primary-foreground">
         <div className="container mx-auto text-center px-4">
           <h2 className="text-3xl md:text-4xl font-headline font-extrabold mb-6 text-title-foreground">Ready to Change the Game?</h2>
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
-            Join LandHare today. Whether you're looking for land or have land to share, opportunity awaits.
+            Join LandShare Connect today. Whether you're looking for land or have land to share, opportunity awaits.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button size="lg" variant="secondary" className="bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105" asChild>

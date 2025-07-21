@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, Landmark, LogOut, ListChecks, Crown, Bookmark, Sun, Moon, Settings, ReceiptText, BarChart3, Shield, Beaker } from 'lucide-react';
+import { Menu, Home, Search, PlusCircle, MessageSquare, UserCircle, LogIn, UserPlus, LogOut, Crown, Bookmark, Sun, Moon, Shield } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -17,9 +17,7 @@ import type { ComponentType } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { ADMIN_EMAILS } from '@/lib/mock-data';
 import { isPrototypeMode } from '@/lib/firebase';
-
 
 interface NavLink {
   href: string;
@@ -86,7 +84,7 @@ export default function AppHeader() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {isPrototypeMode && (
          <div className="w-full bg-amber-400 text-amber-900 text-xs font-bold text-center py-1 flex items-center justify-center gap-2">
-            <Beaker className="h-3 w-3" />
+            <Shield className="h-3 w-3" />
             PROTOTYPE MODE (Using Mock Data)
         </div>
       )}
@@ -95,7 +93,7 @@ export default function AppHeader() {
         <div className="flex items-center gap-2 shrink-0">
           <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage">
             <Logo className="h-12 w-12" />
-            <span className="font-headline text-xl font-bold text-title hidden sm:inline-block">LandHare</span>
+            <span className="font-headline text-xl font-bold text-title hidden sm:inline-block">LandShare Connect</span>
           </Link>
         </div>
 
@@ -115,7 +113,7 @@ export default function AppHeader() {
                 <Search className="mr-2 h-4 w-4 hidden lg:inline-block" /> Browse Land
             </Link>
           </Button>
-          <Button variant="outline" className="h-10 px-4 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground" asChild>
+          <Button variant="outline" className="h-10 px-4" asChild>
             <Link href={listYourLandHref}>
                 <PlusCircle className="mr-2 h-4 w-4 hidden lg:inline-block" /> List Your Land
             </Link>
@@ -211,7 +209,7 @@ export default function AppHeader() {
                 <div className="p-4 border-b">
                   <Link href="/" className="flex items-center gap-2" aria-label="Go to homepage" onClick={() => setIsMobileMenuOpen(false)}>
                     <Logo className="h-10 w-10" />
-                    <span className="font-headline text-xl text-title">LandHare</span>
+                    <span className="font-headline text-xl text-title">LandShare Connect</span>
                   </Link>
                 </div>
 
@@ -237,7 +235,7 @@ export default function AppHeader() {
                     </Button>
                   </SheetClose>
                   <SheetClose asChild>
-                    <Button asChild variant="outline" className="w-full justify-start text-base py-3 border-neon-DEFAULT text-neon-DEFAULT hover:bg-neon-DEFAULT hover:text-neon-foreground">
+                    <Button asChild variant="outline" className="w-full justify-start text-base py-3">
                       <Link href={listYourLandHref}><PlusCircle className="mr-2 h-4 w-4" />List Your Land</Link>
                     </Button>
                   </SheetClose>
