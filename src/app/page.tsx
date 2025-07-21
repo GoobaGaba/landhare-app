@@ -138,7 +138,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
               <Image 
-                src="/Landhare Couple v2.jpg"
+                src="/Landhare Couple v2.png"
                 alt="A happy couple and their dog standing in front of a modern tiny home with solar panels in a grassy field."
                 fill 
                 className="object-cover"
