@@ -12,13 +12,12 @@ import Image from 'next/image';
 
 interface MapViewProps {
   listings: Listing[];
-  filteredListingIds: string[];
   selectedId: string | null;
   onMarkerClick: (id: string | null) => void;
   onMapClick: () => void;
 }
 
-const MapController = ({ listings, filteredIds, selectedId }: { listings: Listing[], filteredIds: string[], selectedId: string | null }) => {
+const MapController = ({ listings, selectedId }: { listings: Listing[], selectedId: string | null }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -35,7 +34,7 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
       }
     }
     
-    const listingsToShow = listings.filter(l => filteredIds.includes(l.id) && l.lat != null && l.lng != null);
+    const listingsToShow = listings.filter(l => l.lat != null && l.lng != null);
 
     if (listingsToShow.length === 0) {
         map.panTo({ lat: 39.8283, lng: -98.5795 });
@@ -52,26 +51,17 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
       map.fitBounds(bounds, 100);
     }
 
-  }, [map, listings, filteredIds, selectedId]);
+  }, [map, listings, selectedId]);
 
   return null;
 };
 
-const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
-    if (!isFiltered) {
-        return {
-            background: '#A1A1AA', // gray-400
-            glyphColor: '#FFFFFF',
-            borderColor: '#71717A', // gray-500
-            opacity: 0.5
-        };
-    }
+const getPinColors = (listing: Listing, isSelected: boolean) => {
     if (isSelected) {
         return {
             background: 'hsl(var(--accent))',
             glyphColor: 'hsl(var(--accent-foreground))',
             borderColor: 'hsl(var(--background))',
-            opacity: 1
         };
     }
     if (listing.isBoosted) {
@@ -79,22 +69,18 @@ const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean
             background: 'hsl(var(--premium))',
             glyphColor: 'hsl(var(--premium-foreground))',
             borderColor: 'hsl(var(--background))',
-            opacity: 1
         };
     }
     return {
         background: 'hsl(var(--primary))',
         glyphColor: 'hsl(var(--primary-foreground))',
         borderColor: 'hsl(var(--background))',
-        opacity: 1
     };
 };
 
-export function MapView({ listings, filteredListingIds, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
+export function MapView({ listings, selectedId, onMarkerClick, onMapClick }: MapViewProps) {
   const defaultPosition = { lat: 39.8283, lng: -98.5795 };
   const selectedListing = listings.find(l => l.id === selectedId);
-
-  const filteredIdSet = useMemo(() => new Set(filteredListingIds), [filteredListingIds]);
 
   return (
     <Card className="h-full w-full flex flex-col bg-muted/30 overflow-hidden rounded-lg shadow-md">
@@ -111,24 +97,21 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
             if (listing.lat == null || listing.lng == null) return null;
             
             const isSelected = selectedId === listing.id;
-            const isFiltered = filteredIdSet.has(listing.id);
-            const pinColors = getPinColors(listing, isSelected, isFiltered);
+            const pinColors = getPinColors(listing, isSelected);
 
             return (
               <AdvancedMarker
                 key={listing.id}
                 position={{ lat: listing.lat, lng: listing.lng }}
                 onClick={() => onMarkerClick(listing.id)}
-                zIndex={isSelected ? 10 : (listing.isBoosted && isFiltered ? 5 : (isFiltered ? 2 : 1))}
+                zIndex={isSelected ? 10 : (listing.isBoosted ? 5 : 2)}
               >
-                <div style={{ opacity: pinColors.opacity }}>
                   <Pin 
                     background={pinColors.background}
                     borderColor={pinColors.borderColor}
                     glyphColor={pinColors.glyphColor}
-                    scale={isSelected ? 1.5 : (listing.isBoosted && isFiltered ? 1.2 : 1)}
+                    scale={isSelected ? 1.5 : (listing.isBoosted ? 1.2 : 1)}
                   />
-                </div>
               </AdvancedMarker>
             )
           })}
@@ -157,7 +140,7 @@ export function MapView({ listings, filteredListingIds, selectedId, onMarkerClic
             </InfoWindow>
           )}
 
-          <MapController listings={listings} filteredIds={filteredListingIds} selectedId={selectedId} />
+          <MapController listings={listings} selectedId={selectedId} />
 
         </Map>
     </Card>

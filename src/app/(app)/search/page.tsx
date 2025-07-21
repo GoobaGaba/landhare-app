@@ -129,10 +129,6 @@ function SearchPageContent() {
       window.scrollTo(0, 0);
     }
   };
-  
-  const filteredMapIds = useMemo(() => {
-      return new Set(filteredListings.map(l => l.id));
-  }, [filteredListings]);
 
   if (authLoading || listingsLoading || subscriptionStatus === 'loading') {
     return (
@@ -209,8 +205,7 @@ function SearchPageContent() {
       {showMap && (
         <aside className="hidden lg:block w-1/3 xl:w-2/5 h-full">
             <MapView 
-                listings={allAvailableListings}
-                filteredListingIds={Array.from(filteredMapIds)}
+                listings={filteredListings}
                 selectedId={selectedListingId} 
                 onMarkerClick={setSelectedListingId}
                 onMapClick={() => setSelectedListingId(null)}
@@ -221,11 +216,11 @@ function SearchPageContent() {
   );
 }
 
-function SearchPageFallback() {
+function LoadingFallback() {
     return (
-      <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
+        <div className="flex justify-center items-center min-h-[calc(100vh-10rem)]">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
     )
 }
 
@@ -253,7 +248,7 @@ export default function SearchPage() {
 
     return (
         <APIProvider apiKey={apiKey}>
-            <Suspense fallback={<SearchPageFallback />}>
+            <Suspense fallback={<LoadingFallback />}>
                 <SearchPageContent />
             </Suspense>
         </APIProvider>
