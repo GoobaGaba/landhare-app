@@ -17,9 +17,6 @@ import { AlertCircle, Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { isPrototypeMode } from '@/lib/firebase';
 
-// Force this page to be dynamically rendered on the client
-export const dynamic = 'force-dynamic';
-
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
 });

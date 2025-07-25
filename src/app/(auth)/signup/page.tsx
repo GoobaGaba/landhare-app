@@ -17,9 +17,6 @@ import { useState } from 'react';
 import { AlertCircle, Loader2, Mail } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Force this page to be dynamically rendered on the client
-export const dynamic = 'force-dynamic';
-
 const signupSchema = z.object({
   displayName: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Invalid email address.' }),

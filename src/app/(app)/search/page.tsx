@@ -25,9 +25,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 
-// Force this page to be dynamically rendered on the client
-export const dynamic = 'force-dynamic';
-
 const ITEMS_PER_PAGE = 12;
 const initialPriceRange: [number, number] = [0, 2000];
 const initialSizeRange: [number, number] = [100, 500000];
