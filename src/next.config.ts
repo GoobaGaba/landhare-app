@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    // This allows the Next.js dev server to accept requests from the
+    // Firebase Studio development environment.
+    allowedDevOrigins: ["*.cloudworkstations.dev"],
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -34,3 +39,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
