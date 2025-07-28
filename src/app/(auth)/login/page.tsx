@@ -2,8 +2,10 @@
 
 import { Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const LoginForm = dynamic(() => import('@/components/auth/login-form').then(mod => mod.LoginForm), {
     ssr: false,
@@ -27,7 +29,17 @@ function LoadingFallback() {
 export default function LoginPage() {
     return (
         <Suspense fallback={<LoadingFallback />}>
-            <LoginForm />
+            <div className="relative w-full max-w-sm">
+                <LoginForm />
+                <div className="mt-4 text-center">
+                    <Button variant="outline" asChild className="w-full">
+                        <Link href="/admin-login">
+                            <Shield className="mr-2 h-4 w-4"/>
+                            Admin Quick Login
+                        </Link>
+                    </Button>
+                </div>
+            </div>
         </Suspense>
     );
 }
