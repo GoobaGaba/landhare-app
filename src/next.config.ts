@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     // This allows the Next.js dev server to accept requests from the
     // Firebase Studio development environment.
     allowedDevOrigins: ["*.cloudworkstations.dev"],
+    instrumentationHook: false,
   },
   eslint: {
     ignoreDuringBuilds: true,

@@ -77,8 +77,8 @@ module.exports = {
           foreground: 'hsl(var(--neon-green-foreground))',
         },
         premium: {
-          DEFAULT: 'hsl(var(--premium))',
-          foreground: 'hsl(var(--premium-foreground))',
+          DEFAULT: 'hsl(275 90% 60%)',
+          foreground: 'hsl(275 80% 95%)',
         },
         title: {
           DEFAULT: 'hsl(var(--title-foreground))',
