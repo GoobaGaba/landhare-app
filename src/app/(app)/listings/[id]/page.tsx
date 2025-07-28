@@ -40,28 +40,22 @@ const calculatePriceDetails = (listing: Listing, dateRange: DateRange, renterSub
     durationUnitText = durationValue === 1 ? 'night' : 'nights';
     baseRate = (listing.price || 0) * durationValue;
     displayRateString = `$${listing.price.toFixed(0)} / ${durationUnitText.replace('s', '')}`;
-  } else if (listing.pricingModel === 'monthly') {
-    durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
-    if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-    baseRate = (listing.price / 30) * durationValue;
-    durationUnitText = durationValue === 1 ? 'day' : 'days';
-    displayRateString = `$${listing.price.toFixed(0)} / month (prorated for ${durationValue} ${durationUnitText})`;
-  } else if (listing.pricingModel === 'lease-to-own') {
+  } else if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
       const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
       durationValue = fullMonths > 0 ? fullMonths : 1;
       durationUnitText = fullMonths === 1 ? 'month' : 'months';
       baseRate = listing.price * durationValue;
       displayRateString = `$${listing.price.toFixed(0)} / month`;
-  }
-  else {
+  } else {
     return null;
   }
 
-  const taxRate = 0.05;
+  const RENTER_FEE = 0.99;
+  const TAX_RATE = 0.05;
   if (isNaN(baseRate)) baseRate = 0;
-  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? 0.99 : 0;
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
   const subtotal = baseRate + renterFee;
-  const estimatedTax = subtotal * taxRate;
+  const estimatedTax = subtotal * TAX_RATE;
   let totalPrice = subtotal + estimatedTax;
   if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0;
 

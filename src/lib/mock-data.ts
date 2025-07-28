@@ -1,4 +1,3 @@
-
 // IMPORTANT: THIS FILE IS THE LIVE DATA ACCESS LAYER.
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset, Conversation, Message } from './types';
@@ -225,18 +224,24 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
 };
 
 const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, renterSubscription: SubscriptionStatus): number => {
-  let baseRate = 0;
-  if (listing.pricingModel === 'nightly') {
-      const days = differenceInDays(dateRange.to, dateRange.from) + 1;
-      baseRate = (listing.price || 0) * (days > 0 ? days : 1);
-  } else { // monthly or LTO
-      const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
-      baseRate = listing.price * (fullMonths > 0 ? fullMonths : 1);
-  }
-  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
-  const subtotal = baseRate + renterFee;
-  const estimatedTax = subtotal * TAX_RATE;
-  return subtotal + estimatedTax;
+    if (!dateRange.from || !dateRange.to) return 0;
+    
+    let baseRate = 0;
+
+    if (listing.pricingModel === 'nightly') {
+        const durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
+        baseRate = (listing.price || 0) * (durationValue > 0 ? durationValue : 1);
+    } else if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
+        const durationInMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
+        baseRate = listing.price * (durationInMonths > 0 ? durationInMonths : 1);
+    }
+  
+    const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
+    const subtotal = baseRate + renterFee;
+    const estimatedTax = subtotal * TAX_RATE;
+    const totalPrice = subtotal + estimatedTax;
+
+    return isNaN(totalPrice) ? 0 : totalPrice;
 };
 
 export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>): Promise<Booking> => {

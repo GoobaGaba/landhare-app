@@ -152,27 +152,18 @@ export default function BookingsPage() {
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : booking.dateRange.to.toDate();
 
     let durationDesc = "";
-    let priceForLeaseTerm = listingDetails.price;
+    let priceForLeaseTerm = booking.totalPrice || 0;
 
     if (listingDetails.pricingModel === 'nightly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         durationDesc = `${days} day(s) nightly rental`;
-        priceForLeaseTerm = booking.totalPrice || listingDetails.price * days;
     } else if (listingDetails.pricingModel === 'monthly' || listingDetails.pricingModel === 'lease-to-own') {
         const fullMonths = differenceInCalendarMonths(endOfMonth(toDate), startOfMonth(fromDate)) + 1;
-        const days = differenceInDays(toDate, fromDate) + 1;
-
-        if (days < 28 && listingDetails.minLeaseDurationMonths && listingDetails.minLeaseDurationMonths > 0) {
-             const approxMonths = (days / 30).toFixed(1);
-             durationDesc = `${days} day(s) (approx ${approxMonths} months) - Short-term on monthly plot`;
-        } else {
-             durationDesc = `${fullMonths} month(s)`;
-        }
+        durationDesc = `${fullMonths} month(s)`;
         
         if(listingDetails.pricingModel === 'lease-to-own') {
             durationDesc += " (under Lease-to-Own terms)";
         }
-        priceForLeaseTerm = booking.totalPrice || listingDetails.price * fullMonths;
     }
 
     const input: GenerateLeaseTermsInput = {
