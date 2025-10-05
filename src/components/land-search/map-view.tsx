@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -58,6 +57,9 @@ const MapController = ({ listings, filteredIds, selectedId }: { listings: Listin
 };
 
 const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean) => {
+    const premiumHsl = 'hsl(var(--premium-feature-h) var(--premium-feature-s) var(--premium-feature-l))';
+    const premiumFgHsl = 'hsl(var(--premium-feature-foreground-h) var(--premium-feature-foreground-s) var(--premium-feature-foreground-l))';
+    
     if (!isFiltered) {
         return {
             background: '#A1A1AA', // gray-400
@@ -76,8 +78,8 @@ const getPinColors = (listing: Listing, isSelected: boolean, isFiltered: boolean
     }
     if (listing.isBoosted) {
         return {
-            background: 'hsl(var(--premium))',
-            glyphColor: 'hsl(var(--premium-foreground))',
+            background: premiumHsl,
+            glyphColor: premiumFgHsl,
             borderColor: 'hsl(var(--background))',
             opacity: 1
         };
