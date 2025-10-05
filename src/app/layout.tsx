@@ -1,3 +1,4 @@
+'use client';
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -20,11 +21,6 @@ const playfairDisplay = Playfair_Display({
   variable: '--font-playfair-display',
   display: 'swap',
 });
-
-export const metadata: Metadata = {
-  title: 'LandHare',
-  description: 'Connecting landowners with those seeking affordable land.',
-};
 
 export default function RootLayout({
   children,
