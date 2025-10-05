@@ -139,10 +139,11 @@ export default function ListingDetailPage() {
   const derivedData = useMemo(() => {
     const isBookmarked = currentUser?.appProfile?.bookmarkedListingIds?.includes(id) || false;
     const isCurrentUserLandowner = currentUser?.uid === listing?.landownerId;
+    const placeholderUrl = "https://placehold.co/1200x800.png?text=Image+Not+Found";
 
     if (!listing) {
       return {
-        mainImage: "https://placehold.co/1200x800.png?text=Image+Not+Found",
+        mainImage: placeholderUrl,
         otherImages: ["https://placehold.co/600x400.png?text=+", "https://placehold.co/600x400.png?text=+"],
         displayAmount: "N/A",
         displayUnit: "",
@@ -151,7 +152,7 @@ export default function ListingDetailPage() {
       };
     }
     
-    const mainImage = listing.images && listing.images.length > 0 && listing.images[0] ? listing.images[0] : "https://placehold.co/1200x800.png?text=Image+Not+Found";
+    const mainImage = listing.images && listing.images.length > 0 && listing.images[0] ? listing.images[0] : placeholderUrl;
     const otherImages = listing.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png?text=+") : ["https://placehold.co/600x400.png?text=+", "https://placehold.co/600x400.png?text=+"];
 
     let displayAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -677,5 +678,3 @@ export default function ListingDetailPage() {
     </div>
   );
 }
-
-    
