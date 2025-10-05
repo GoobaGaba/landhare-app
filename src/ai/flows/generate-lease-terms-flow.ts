@@ -8,13 +8,13 @@
  * - GenerateLeaseTermsOutput - The return type for the generateLeaseTerms function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateLeaseTermsInputSchema = z.object({
   listingType: z.string().describe('The type of land being leased (e.g., "RV Pad for Lakeside Camping", "Tiny Home Lot - Forest Retreat", "Agricultural Land - 10 Acres", "General Use Plot - Urban Garden"). Be specific if possible.'),
   durationDescription: z.string().describe('A textual description of the lease duration (e.g., "3 months", "14 days (approx 0.46 months)", "1 year", "5 days nightly rental"). This helps the AI formulate the term clause accurately.'),
-  pricePerMonthEquivalent: z.number().positive().describe('The agreed monthly rental price in USD. If the original booking was nightly or for a shorter term, this should be the total price for that specific term, clearly noting the duration in durationDescription.'),
+  pricePerMonthEquivalent: z.number().positive().describe('The total agreed rental price in USD for the entire specified duration. The prompt will clarify if this is a total or recurring payment based on durationDescription.'),
   landownerName: z.string().describe('The full name of the landowner.'),
   renterName: z.string().describe('The full name of the renter.'),
   listingAddress: z.string().describe('The full address or specific location description of the land being leased.'),
@@ -29,14 +29,12 @@ const GenerateLeaseTermsOutputSchema = z.object({
 export type GenerateLeaseTermsOutput = z.infer<typeof GenerateLeaseTermsOutputSchema>;
 
 export async function generateLeaseTerms(input: GenerateLeaseTermsInput): Promise<GenerateLeaseTermsOutput> {
-  return generateLeaseTermsFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateLeaseTermsPrompt',
-  input: {schema: GenerateLeaseTermsInputSchema},
-  output: {schema: GenerateLeaseTermsOutputSchema},
-  prompt: `You are an AI assistant helping to draft a simple lease agreement for a land rental.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'generateLeaseTermsPrompt',
+    input: {schema: GenerateLeaseTermsInputSchema},
+    output: {schema: GenerateLeaseTermsOutputSchema},
+    prompt: `You are an AI assistant helping to draft a simple lease agreement for a land rental.
 **IMPORTANT: This is a DRAFT agreement for informational purposes ONLY.**
 **It is CRUCIAL to have this document reviewed by legal counsel before use.**
 **Ensure all terms comply with local and state laws, including any applicable zoning regulations for the specified listingType and listingAddress.**
@@ -49,7 +47,7 @@ Renter: {{{renterName}}}
 Property Type/Use: {{{listingType}}} (Specify permitted use based on this type)
 Property Location: {{{listingAddress}}}
 Lease Duration: {{{durationDescription}}}
-Rent: \${{{pricePerMonthEquivalent}}} (This is the rent for the specified '{{{durationDescription}}}'. If duration is monthly, this is the monthly rent. If duration is for a specific number of days/weeks, this is the total rent for that period.)
+Rent: \${{{pricePerMonthEquivalent}}} (This is the total rent for the entire '{{{durationDescription}}}'. If durationDescription indicates a recurring payment (e.g., "monthly"), specify this as the recurring amount. Otherwise, state it as the total for the term.)
 
 {{#if additionalRules}}
 Specific Additional Rules from Landowner:
@@ -60,7 +58,7 @@ Generate a suggested lease agreement text covering standard clauses:
 1.  **Parties**: Clearly state Landowner and Renter names.
 2.  **Property**: Describe the property being leased (type as {{{listingType}}} and location as {{{listingAddress}}}).
 3.  **Term**: State the lease duration precisely using the '{{{durationDescription}}}'. Assume the start date is "Effective Date of Agreement" or "Agreed Start Date".
-4.  **Rent**: Specify the rent amount (Total: \${{{pricePerMonthEquivalent}}} for the full '{{{durationDescription}}}'). If '{{{durationDescription}}}' indicates a monthly term, state this as the monthly rent and specify the due date (e.g., 1st of each month). For shorter terms, state the total payment due and when (e.g., "in full prior to commencement"). Suggest "mutually agreed method" for payment.
+4.  **Rent**: Specify the rent amount. If '{{{durationDescription}}}' contains "month" or "year", frame it as a recurring payment (e.g., "\${{{pricePerMonthEquivalent}}} per month, due on the 1st"). If it's a fixed period (e.g., "14 days"), state it as "A total of \${{{pricePerMonthEquivalent}}} for the term, due in full prior to commencement." Suggest "mutually agreed method" for payment.
 5.  **Use of Premises**: Define the allowed use clearly based on '{{{listingType}}}'. State that no other use is permitted without prior written consent. Include any specific restrictions from '{{{additionalRules}}}' here if relevant to use.
 6.  **Condition of Premises**: Renter accepts property "as-is".
 7.  **Maintenance & Repairs**: Typically Renter's responsibility for their structures/belongings and any damage they cause beyond normal wear and tear; Landowner for general land upkeep unless specified. Consider specific rules provided in '{{{additionalRules}}}'.
@@ -78,31 +76,30 @@ Example for a clause:
 "**5. Use of Premises**
 The Renter shall use the Property solely for the purpose of [e.g., 'placement and use of a tiny home for residential purposes' or 'short-term RV parking and camping' - be specific based on {{{listingType}}}] and for no other purpose without the prior written consent of the Landowner."
 `,
-});
+  });
 
-const generateLeaseTermsFlow = ai.defineFlow(
-  {
-    name: 'generateLeaseTermsFlow',
-    inputSchema: GenerateLeaseTermsInputSchema,
-    outputSchema: GenerateLeaseTermsOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    if (!output || !output.leaseAgreementText || output.summaryPoints.length === 0) {
-        // Fallback or more specific error based on what's missing
-        let errorMsg = "The AI failed to generate complete lease terms. ";
-        if (!output) errorMsg += "No output received. ";
-        if (output && !output.leaseAgreementText) errorMsg += "Lease agreement text is missing. ";
-        if (output && output.summaryPoints?.length === 0) errorMsg += "Summary points are missing. ";
-        console.error("AI Lease Generation Error:", errorMsg, "Input:", input);
-        // Consider throwing, or returning a structured error that the client can display.
-        // For now, returning fallback text.
-        return {
-            leaseAgreementText: output?.leaseAgreementText || "Error: Could not generate lease agreement text. Please check inputs and try again. This is a template and requires legal review.",
-            summaryPoints: output?.summaryPoints?.length > 0 ? output.summaryPoints : ["Error: Could not generate summary points. Legal review of any terms is essential."],
-        };
+  const generateLeaseTermsFlow = ai.defineFlow(
+    {
+      name: 'generateLeaseTermsFlow',
+      inputSchema: GenerateLeaseTermsInputSchema,
+      outputSchema: GenerateLeaseTermsOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      if (!output || !output.leaseAgreementText || output.summaryPoints.length === 0) {
+          let errorMsg = "The AI failed to generate complete lease terms. ";
+          if (!output) errorMsg += "No output received. ";
+          if (output && !output.leaseAgreementText) errorMsg += "Lease agreement text is missing. ";
+          if (output && output.summaryPoints?.length === 0) errorMsg += "Summary points are missing. ";
+          console.error("AI Lease Generation Error:", errorMsg, "Input:", input);
+          return {
+              leaseAgreementText: output?.leaseAgreementText || "Error: Could not generate lease agreement text. Please check inputs and try again. This is a template and requires legal review.",
+              summaryPoints: output?.summaryPoints?.length > 0 ? output.summaryPoints : ["Error: Could not generate summary points. Legal review of any terms is essential."],
+          };
+      }
+      return output;
     }
-    return output; // Output should now conform to the schema or the above check would catch it.
-  }
-);
+  );
 
+  return generateLeaseTermsFlow(input);
+}

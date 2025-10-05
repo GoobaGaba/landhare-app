@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -25,12 +24,6 @@ const nextConfig: NextConfig = {
       }
     ],
   },
-  transpilePackages: [
-    "@genkit-ai/core",
-    "@genkit-ai/flow",
-    "dotprompt",
-    "zod-to-json-schema",
-  ]
 };
 
 export default nextConfig;

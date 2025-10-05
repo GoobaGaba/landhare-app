@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useId } from 'react';
@@ -29,7 +28,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import { doc, updateDoc } from 'firebase/firestore';
 
 export default function BookingsPage() {
-  const { currentUser, loading: authLoading, refreshUserProfile } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const [userBookings, setUserBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLeaseTermsLoading, setIsLeaseTermsLoading] = useState<Record<string, boolean>>({});
@@ -46,7 +45,7 @@ export default function BookingsPage() {
   const leaseDialogDescriptionId = useId();
 
   const loadBookings = useCallback(async () => {
-    if (firebaseInitializationError && !currentUser?.appProfile) {
+    if (!currentUser) {
       setIsLoading(false);
       setUserBookings([]);
       return;
@@ -55,16 +54,7 @@ export default function BookingsPage() {
     setIsLoading(true);
 
     try {
-      if (!currentUser) {
-        setUserBookings([]);
-        setIsLoading(false);
-        return;
-      }
-      let bookingsFromDb = await getBookingsForUser(currentUser.uid);
-      // Ensure booking details are populated for display, especially in mock mode
-      if (firebaseInitializationError) {
-        bookingsFromDb = await Promise.all(bookingsFromDb.map(b => populateBookingDetails(b)));
-      }
+      const bookingsFromDb = await getBookingsForUser(currentUser.uid);
       setUserBookings(bookingsFromDb);
     } catch (error: any) {
       console.error("Failed to load bookings:", error);
@@ -90,13 +80,9 @@ export default function BookingsPage() {
 
 
   const uploadLeaseToStorage = async (pdfBlob: Blob, booking: Booking) => {
-    if (!currentUser || !booking || !booking.listingId || (!firestoreDb && !firebaseInitializationError)) {
+    if (!currentUser || !booking || !booking.listingId || !firestoreDb) {
       toast({ title: "Error", description: "Cannot save lease without user, booking info, or DB connection.", variant: "destructive" });
       return;
-    }
-    if (firebaseInitializationError) {
-       toast({ title: "Preview Mode", description: "Lease upload is disabled in preview mode.", variant: "default" });
-       return;
     }
 
     toast({ title: "Saving Lease...", description: "Uploading lease to secure storage." });
@@ -117,7 +103,7 @@ export default function BookingsPage() {
       const snapshot = await uploadBytes(sRef, pdfBlob, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
-      const bookingDocRef = doc(firestoreDb!, "bookings", booking.id);
+      const bookingDocRef = doc(firestoreDb, "bookings", booking.id);
       await updateDoc(bookingDocRef, {
         leaseContractPath: snapshot.ref.fullPath,
         leaseContractUrl: downloadURL
@@ -140,7 +126,6 @@ export default function BookingsPage() {
     setIsLeaseTermsLoading(prev => ({ ...prev, [booking.id]: true }));
     setCurrentBookingForLease(booking);
 
-    // FIX: Ensure listing details are fetched even if some booking details are populated
     const listingDetails = await getListingById(booking.listingId);
     if (!listingDetails) {
         toast({title: "Error", description: "Could not fetch listing details for lease terms.", variant: "destructive"});
@@ -152,8 +137,7 @@ export default function BookingsPage() {
     const toDate = booking.dateRange.to instanceof Date ? booking.dateRange.to : booking.dateRange.to.toDate();
 
     let durationDesc = "";
-    let priceForLeaseTerm = booking.totalPrice || 0;
-
+    
     if (listingDetails.pricingModel === 'nightly') {
         const days = differenceInDays(toDate, fromDate) + 1;
         durationDesc = `${days} day(s) nightly rental`;
@@ -169,7 +153,7 @@ export default function BookingsPage() {
     const input: GenerateLeaseTermsInput = {
         listingType: `${listingDetails.title} (${listingDetails.pricingModel})`,
         durationDescription: durationDesc,
-        pricePerMonthEquivalent: priceForLeaseTerm,
+        pricePerMonthEquivalent: booking.totalPrice || 0,
         landownerName: booking.landownerName,
         renterName: booking.renterName,
         listingAddress: listingDetails.location,
@@ -233,7 +217,6 @@ export default function BookingsPage() {
       // Then, upload to Firebase Storage
       const pdfBlob = doc.output('blob');
       await uploadLeaseToStorage(pdfBlob, currentBookingForLease);
-      // The uploadLeaseToStorage function will show its own toast and refresh bookings
 
     } catch (error: any) {
       console.error("Error processing PDF:", error);
@@ -243,10 +226,6 @@ export default function BookingsPage() {
 
 
   const handleUpdateBookingStatus = async (booking: Booking, newStatus: Booking['status']) => {
-    if (firebaseInitializationError && !currentUser?.appProfile) {
-        toast({ title: "Preview Mode", description: "Updating booking status is disabled in full preview mode.", variant: "default" });
-        return;
-    }
     if(!currentUser){
          toast({ title: "Authentication Error", description: "User not logged in.", variant: "destructive"});
         return;
@@ -308,7 +287,7 @@ export default function BookingsPage() {
     );
   }
 
-  if (!currentUser && !authLoading && !isLoading) {
+  if (!currentUser) {
      return (
       <Card>
         <CardHeader>

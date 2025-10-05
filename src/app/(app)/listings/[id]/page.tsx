@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import type { Listing, Review as ReviewType, User, PriceDetails, PricingModel, SubscriptionStatus } from '@/lib/types';
 import { getListingById, getUserById, getReviewsForListing, addBookingRequest, getOrCreateConversation } from '@/lib/mock-data';
-import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles } from 'lucide-react';
+import { MapPin, DollarSign, Maximize, CheckCircle, MessageSquare, Star, CalendarDays, Award, AlertTriangle, Info, UserCircle, Loader2, Edit, TrendingUp, ExternalLink, Home, FileText, Plus, Bookmark, Sparkles, AlertCircleIcon } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { addDays, format, differenceInDays, isBefore, differenceInCalendarMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -40,28 +40,22 @@ const calculatePriceDetails = (listing: Listing, dateRange: DateRange, renterSub
     durationUnitText = durationValue === 1 ? 'night' : 'nights';
     baseRate = (listing.price || 0) * durationValue;
     displayRateString = `$${listing.price.toFixed(0)} / ${durationUnitText.replace('s', '')}`;
-  } else if (listing.pricingModel === 'monthly') {
-    durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
-    if (isNaN(durationValue) || durationValue <= 0) durationValue = 1;
-    baseRate = (listing.price / 30) * durationValue;
-    durationUnitText = durationValue === 1 ? 'day' : 'days';
-    displayRateString = `$${listing.price.toFixed(0)} / month (prorated for ${durationValue} ${durationUnitText})`;
-  } else if (listing.pricingModel === 'lease-to-own') {
+  } else if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
       const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
       durationValue = fullMonths > 0 ? fullMonths : 1;
       durationUnitText = fullMonths === 1 ? 'month' : 'months';
       baseRate = listing.price * durationValue;
       displayRateString = `$${listing.price.toFixed(0)} / month`;
-  }
-  else {
+  } else {
     return null;
   }
 
-  const taxRate = 0.05;
+  const RENTER_FEE = 0.99;
+  const TAX_RATE = 0.05;
   if (isNaN(baseRate)) baseRate = 0;
-  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? 0.99 : 0;
+  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
   const subtotal = baseRate + renterFee;
-  const estimatedTax = subtotal * taxRate;
+  const estimatedTax = subtotal * TAX_RATE;
   let totalPrice = subtotal + estimatedTax;
   if (isNaN(totalPrice)) totalPrice = baseRate > 0 ? baseRate : 0;
 
@@ -323,7 +317,8 @@ export default function ListingDetailPage() {
   }
 
   const { mainImage, otherImages, displayAmount, displayUnit, isBookmarked, isCurrentUserLandowner } = derivedData;
-  
+  const isBookingDisabled = !listing.isAvailable || (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) || isSubmittingBooking || isMockModeNoUser || isCurrentUserLandowner;
+
   return (
     <div className="max-w-6xl mx-auto py-8 px-4 space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-6">
@@ -548,7 +543,7 @@ export default function ListingDetailPage() {
                      <p className="text-xs text-destructive flex items-center mt-2">
                         <UserCircle className="h-4 w-4 mr-1" /> Please <Link href={`/login?redirect=${encodeURIComponent(pathname)}`} className="underline hover:text-destructive/80 mx-1">log in</Link> to proceed.
                     </p>
-                )}
+                 )}
                  {isMockModeNoUser && (
                     <p className="text-xs text-amber-600 flex items-center mt-2">
                         <AlertTriangle className="h-4 w-4 mr-1" /> Action disabled in preview mode.
@@ -558,19 +553,17 @@ export default function ListingDetailPage() {
              <CardFooter className="flex flex-col gap-3 pt-4 border-t">
                 {!isCurrentUserLandowner && (
                     <Button
-                    size="lg"
-                    className="w-full"
-                    onClick={handleBookingRequestOpen}
-                    disabled={
-                        !listing.isAvailable ||
-                        (listing.pricingModel !== 'lease-to-own' && (!dateRange?.from || !dateRange?.to)) ||
-                        isSubmittingBooking ||
-                        isMockModeNoUser
-                    }
+                        size="lg"
+                        className="w-full"
+                        onClick={handleBookingRequestOpen}
+                        disabled={isBookingDisabled}
                     >
-                     {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                    {listing.isAvailable ? (listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book")
-                        : "Currently Unavailable"}
+                        {isSubmittingBooking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                        {!listing.isAvailable ? "Currently Unavailable"
+                        : isCurrentUserLandowner ? "This is your listing"
+                        : listing.pricingModel !== 'lease-to-own' && (!dateRange || !dateRange.from) ? 
+                            <><AlertCircleIcon className="mr-2 h-4 w-4" />Select Dates Above</>
+                        : listing.pricingModel === 'lease-to-own' ? "Inquire about Lease-to-Own" : "Request to Book"}
                     </Button>
                 )}
                 {landowner && (

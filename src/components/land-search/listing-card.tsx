@@ -217,7 +217,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
         onClick={handleCardClick}
         className={cn(
             "overflow-hidden transition-all duration-300 flex flex-col sm:flex-row h-full shadow-lg hover:shadow-xl cursor-pointer",
-            listing.isBoosted && "ring-1 ring-premium",
+            listing.isBoosted && "ring-1 ring-accent",
             isSelected && "ring-2 ring-primary shadow-2xl"
         )}>
         {cardContent}
@@ -232,7 +232,7 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
       className={cn(
       "overflow-hidden transition-all duration-300 flex flex-col h-full shadow-lg hover:shadow-xl cursor-pointer", 
       isCompact ? "text-sm" : "",
-      listing.isBoosted && "ring-1 ring-premium",
+      listing.isBoosted && "ring-1 ring-accent",
       isSelected && "ring-2 ring-primary shadow-2xl"
     )}>
       <CardHeader className="p-0 relative">

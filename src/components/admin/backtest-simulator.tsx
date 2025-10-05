@@ -528,7 +528,7 @@ export function BacktestSimulator() {
                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Users', angle: 90, position: 'insideRight', dx: 10, fontSize: '12px' }} tickFormatter={(value) => value.toLocaleString()} />
                    <Tooltip content={<CustomChartTooltip isAnnualView={isAnnualView} />} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                    <Legend />
-                   <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="hsl(var(--premium-feature-h), var(--premium-feature-s), var(--premium-feature-l))" strokeWidth={2} dot={false} name="Revenue" />
+                   <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="hsl(var(--premium))" strokeWidth={2} dot={false} name="Revenue" />
                    <Line yAxisId="left" type="monotone" dataKey="costs" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} name="Costs"/>
                    <Line yAxisId="left" type="monotone" dataKey="profit" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} name="Profit"/>
                    <Line yAxisId="right" type="monotone" dataKey="users" stroke="hsl(200, 80%, 70%)" strokeWidth={2} dot={false} name="Total Users"/>

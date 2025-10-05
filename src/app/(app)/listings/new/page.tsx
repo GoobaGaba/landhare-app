@@ -32,7 +32,7 @@ export default function NewListingPage() {
                 <CardContent>
                     <p>The Google Maps API key is missing or invalid. This form requires geocoding services to verify locations.</p>
                     <p className="text-sm text-muted-foreground mt-2">
-                        <strong>Action Required:</strong> Please ensure the <code className="p-1 bg-muted rounded-sm">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> environment variable is correctly set in your <code className="p-1 bg-muted rounded-sm">.env.local</code> file and that the development server has been fully restarted.
+                        <strong>Action Required:</strong> For local development, ensure `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set in your `.env.local` file. For deployment, ensure it is set as an environment variable for your App Hosting backend.
                     </p>
                     <Button asChild variant="outline" className="mt-4"><Link href="/dashboard">Go to Dashboard</Link></Button>
                 </CardContent>

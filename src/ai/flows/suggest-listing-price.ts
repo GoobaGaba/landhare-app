@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -8,7 +9,7 @@
  * - SuggestListingPriceOutput - The return type for the suggestListingPrice function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestListingPriceInputSchema = z.object({
@@ -25,14 +26,12 @@ const SuggestListingPriceOutputSchema = z.object({
 export type SuggestListingPriceOutput = z.infer<typeof SuggestListingPriceOutputSchema>;
 
 export async function suggestListingPrice(input: SuggestListingPriceInput): Promise<SuggestListingPriceOutput> {
-  return suggestListingPriceFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'suggestListingPricePrompt',
-  input: {schema: SuggestListingPriceInputSchema},
-  output: {schema: SuggestListingPriceOutputSchema},
-  prompt: `You are an AI assistant helping landowners determine a competitive price for their land listing.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'suggestListingPricePrompt',
+    input: {schema: SuggestListingPriceInputSchema},
+    output: {schema: SuggestListingPriceOutputSchema},
+    prompt: `You are an AI assistant helping landowners determine a competitive price for their land listing.
 
   Given the following information about the land listing, suggest a price that will maximize earnings and attract potential renters.
 
@@ -43,16 +42,19 @@ const prompt = ai.definePrompt({
   Consider recent comparable listings and local market trends when determining the price.
   Provide a brief reasoning for your suggested price.
   `,
-});
+  });
 
-const suggestListingPriceFlow = ai.defineFlow(
-  {
-    name: 'suggestListingPriceFlow',
-    inputSchema: SuggestListingPriceInputSchema,
-    outputSchema: SuggestListingPriceOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  const suggestListingPriceFlow = ai.defineFlow(
+    {
+      name: 'suggestListingPriceFlow',
+      inputSchema: SuggestListingPriceInputSchema,
+      outputSchema: SuggestListingPriceOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+
+  return suggestListingPriceFlow(input);
+}

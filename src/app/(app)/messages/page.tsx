@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +22,7 @@ interface PopulatedConversation extends Conversation {
     listingTitle?: string;
 }
 
-export default function MessagesPage() {
+function MessagesComponent() {
     const { currentUser, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const searchParams = useSearchParams();
@@ -225,4 +225,22 @@ export default function MessagesPage() {
             </div>
         </div>
     );
+}
+
+function LoadingFallback() {
+    return (
+        <div className="flex justify-center items-center h-[calc(100vh-12rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-2 text-muted-foreground">Loading Messages...</p>
+        </div>
+    );
+}
+
+
+export default function MessagesPage() {
+    return (
+        <Suspense fallback={<LoadingFallback/>}>
+            <MessagesComponent />
+        </Suspense>
+    )
 }

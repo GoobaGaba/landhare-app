@@ -8,7 +8,7 @@
  * - SuggestListingTitleOutput - The return type for the suggestListingTitle function.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestListingTitleInputSchema = z.object({
@@ -26,14 +26,12 @@ const SuggestListingTitleOutputSchema = z.object({
 export type SuggestListingTitleOutput = z.infer<typeof SuggestListingTitleOutputSchema>;
 
 export async function suggestListingTitle(input: SuggestListingTitleInput): Promise<SuggestListingTitleOutput> {
-  return suggestListingTitleFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'suggestListingTitlePrompt',
-  input: {schema: SuggestListingTitleInputSchema},
-  output: {schema: SuggestListingTitleOutputSchema},
-  prompt: `You are an expert copywriter specializing in creating compelling and concise titles for real estate and land listings.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'suggestListingTitlePrompt',
+    input: {schema: SuggestListingTitleInputSchema},
+    output: {schema: SuggestListingTitleOutputSchema},
+    prompt: `You are an expert copywriter specializing in creating compelling and concise titles for real estate and land listings.
 Your goal is to help landowners attract potential renters with an engaging title.
 
 Given the following information about a land listing, generate a catchy and descriptive title (ideally under 60 characters, but can be up to 80 if necessary).
@@ -48,16 +46,19 @@ Keywords/Features: {{{keywords}}}
 Focus on highlighting unique selling points or the primary appeal of the land. Use strong, positive, and evocative language.
 Avoid generic titles. Be creative but clear.
 `,
-});
+  });
 
-const suggestListingTitleFlow = ai.defineFlow(
-  {
-    name: 'suggestListingTitleFlow',
-    inputSchema: SuggestListingTitleInputSchema,
-    outputSchema: SuggestListingTitleOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
+  const suggestListingTitleFlow = ai.defineFlow(
+    {
+      name: 'suggestListingTitleFlow',
+      inputSchema: SuggestListingTitleInputSchema,
+      outputSchema: SuggestListingTitleOutputSchema,
+    },
+    async input => {
+      const {output} = await prompt(input);
+      return output!;
+    }
+  );
+
+  return suggestListingTitleFlow(input);
+}

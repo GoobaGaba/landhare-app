@@ -1,4 +1,3 @@
-
 // IMPORTANT: THIS FILE IS THE LIVE DATA ACCESS LAYER.
 'use client';
 import type { User, Listing, Booking, Review, SubscriptionStatus, PricingModel, Transaction, PlatformMetrics, BacktestPreset, Conversation, Message } from './types';
@@ -40,19 +39,27 @@ function docToObj<T>(docSnap: any): T {
         return undefined as any;
     }
     const data = docSnap.data();
-    // Convert Firestore Timestamps to JS Dates
-    for (const key in data) {
-        if (data[key] instanceof Timestamp) {
-            data[key] = data[key].toDate();
+    // Convert Firestore Timestamps to JS Dates recursively
+    const convertTimestamps = (obj: any): any => {
+        if (!obj) return obj;
+        if (Array.isArray(obj)) {
+            return obj.map(item => convertTimestamps(item));
         }
-        if(key === 'dateRange' && data[key]?.from instanceof Timestamp) {
-            data.dateRange.from = data.dateRange.from.toDate();
+        if (obj instanceof Timestamp) {
+            return obj.toDate();
         }
-        if(key === 'dateRange' && data[key]?.to instanceof Timestamp) {
-            data.dateRange.to = data.dateRange.to.toDate();
+        if (typeof obj === 'object') {
+            const newObj: { [key: string]: any } = {};
+            for (const key in obj) {
+                newObj[key] = convertTimestamps(obj[key]);
+            }
+            return newObj;
         }
-    }
-    return { ...data, id: docSnap.id } as T;
+        return obj;
+    };
+
+    const convertedData = convertTimestamps(data);
+    return { ...convertedData, id: docSnap.id } as T;
 }
 
 // --- User Functions ---
@@ -217,18 +224,24 @@ export const getBookingsForUser = async (userId: string): Promise<Booking[]> => 
 };
 
 const _calculatePrice = (listing: Listing, dateRange: { from: Date, to: Date }, renterSubscription: SubscriptionStatus): number => {
-  let baseRate = 0;
-  if (listing.pricingModel === 'nightly') {
-      const days = differenceInDays(dateRange.to, dateRange.from) + 1;
-      baseRate = (listing.price || 0) * (days > 0 ? days : 1);
-  } else { // monthly or LTO
-      const fullMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
-      baseRate = listing.price * (fullMonths > 0 ? fullMonths : 1);
-  }
-  const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
-  const subtotal = baseRate + renterFee;
-  const estimatedTax = subtotal * TAX_RATE;
-  return subtotal + estimatedTax;
+    if (!dateRange.from || !dateRange.to) return 0;
+    
+    let baseRate = 0;
+
+    if (listing.pricingModel === 'nightly') {
+        const durationValue = differenceInDays(dateRange.to, dateRange.from) + 1;
+        baseRate = (listing.price || 0) * (durationValue > 0 ? durationValue : 1);
+    } else if (listing.pricingModel === 'monthly' || listing.pricingModel === 'lease-to-own') {
+        const durationInMonths = differenceInCalendarMonths(endOfMonth(dateRange.to), startOfMonth(dateRange.from)) + 1;
+        baseRate = listing.price * (durationInMonths > 0 ? durationInMonths : 1);
+    }
+  
+    const renterFee = (listing.pricingModel !== 'lease-to-own' && renterSubscription !== 'premium') ? RENTER_FEE : 0;
+    const subtotal = baseRate + renterFee;
+    const estimatedTax = subtotal * TAX_RATE;
+    const totalPrice = subtotal + estimatedTax;
+
+    return isNaN(totalPrice) ? 0 : totalPrice;
 };
 
 export const addBookingRequest = async (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'listingTitle' | 'renterName' | 'landownerName'>): Promise<Booking> => {
@@ -522,8 +535,8 @@ export const processMonthlyEconomicCycle = async (): Promise<{ message: string, 
 
     const activeBookingsSnap = await getDocs(q);
     const activeBookings = activeBookingsSnap.docs.map(d => docToObj<Booking>(d)).filter(b => {
-        const from = b.dateRange.from instanceof Date ? b.dateRange.from : (b.dateRange.from as any).toDate();
-        const to = b.dateRange.to instanceof Date ? b.dateRange.to : (b.dateRange.to as any).toDate();
+        const from = b.dateRange.from as Date;
+        const to = b.dateRange.to as Date;
         return isWithinInterval(today, { start: from, end: to });
     });
 

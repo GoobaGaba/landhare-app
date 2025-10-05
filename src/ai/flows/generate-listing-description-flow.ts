@@ -8,13 +8,9 @@
  * - GenerateListingDescriptionOutput - The return type.
  */
 
-import {ai} from '@/ai/genkit';
+import {getAi} from '@/ai/genkit';
 import {z} from 'genkit';
 import type { GenerateListingDescriptionInput, GenerateListingDescriptionOutput } from '@/lib/types';
-
-// Using types directly from lib/types.ts as Zod schemas are for flow/prompt definition.
-// If direct Zod schema is needed for this flow itself, define it here.
-// For now, we assume the input type from lib/types.ts is sufficient for the prompt.
 
 const GenerateListingDescriptionInputSchema = z.object({
   listingTitle: z.string().describe('The title of the land listing.'),
@@ -33,51 +29,54 @@ const GenerateListingDescriptionOutputSchema = z.object({
 
 
 export async function generateListingDescription(input: GenerateListingDescriptionInput): Promise<GenerateListingDescriptionOutput> {
-  return generateListingDescriptionFlow(input);
-}
-
-const prompt = ai.definePrompt({
-  name: 'generateListingDescriptionPrompt',
-  input: {schema: GenerateListingDescriptionInputSchema},
-  output: {schema: GenerateListingDescriptionOutputSchema},
-  prompt: `You are an expert real estate copywriter specializing in crafting compelling and informative descriptions for land rentals and lease-to-own properties.
+  const ai = getAi();
+  const prompt = ai.definePrompt({
+    name: 'generateListingDescriptionPrompt',
+    input: {schema: GenerateListingDescriptionInputSchema},
+    output: {schema: GenerateListingDescriptionOutputSchema},
+    prompt: `You are an expert real estate copywriter specializing in crafting compelling and informative descriptions for land rentals and lease-to-own properties.
 Your goal is to help landowners attract potential renters or buyers by highlighting the unique features and benefits of their land.
 
-Based on the following details, generate an engaging and descriptive text (2-4 paragraphs) for a land listing:
+Based on the following details, generate an engaging and descriptive text (2-4 well-structured paragraphs) for a land listing.
 
-Listing Title: {{{listingTitle}}}
-Location: {{{location}}}
-Size: {{{sizeSqft}}} sq ft
-Amenities: {{#if amenities}}{{#each amenities}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}Not specified{{/if}}
-Pricing Model: {{{pricingModel}}}
-Price: \${{{price}}} per {{#if (eq pricingModel "nightly")}}night{{else}}month{{/if}}
-{{#if leaseTerm}}Preferred Lease Term: {{{leaseTerm}}}{{/if}}
-{{#if keywords}}Focus Keywords: {{{keywords}}}{{/if}}
+**Listing Details:**
+- **Title:** {{{listingTitle}}}
+- **Location:** {{{location}}}
+- **Size:** {{{sizeSqft}}} sq ft
+- **Amenities:** {{#if amenities}}{{#each amenities}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}Raw land{{/if}}
+- **Pricing Model:** {{{pricingModel}}}
+- **Price:** \${{{price}}} per {{#if (eq pricingModel "nightly")}}night{{else}}month{{/if}}
+{{#if leaseTerm}}- **Preferred Lease Term:** {{{leaseTerm}}}{{/if}}
+{{#if keywords}}- **Keywords to Emphasize:** {{{keywords}}}{{/if}}
 
-Craft a description that:
-- Is inviting and paints a picture of what it's like to use the land.
-- Highlights key amenities and the benefits they offer.
-- Mentions the size and potential uses relevant to the pricing model (e.g., for nightly rentals, good for RVs/camping; for monthly, good for tiny homes, gardens; for LTO, potential for building).
-- If lease-to-own, subtly weave in the opportunity for long-term settlement or building a future.
-- Is well-structured and easy to read.
-- Avoids making guarantees about zoning or legal permissibility unless explicitly stated as a feature (e.g., "Zoned for residential"). Instead, focus on the physical attributes and potential.
-- If no amenities are listed, acknowledge this and focus on the raw potential or privacy.
-- Incorporate any focus keywords naturally.
-- Do NOT include a call to action like "Book now!" or "Contact us!". Just provide the descriptive text.
+**Instructions for the description:**
+1.  **Opening Hook:** Start with an inviting sentence that paints a picture of the experience (e.g., "Escape to your private sanctuary...", "Discover the perfect foundation for your tiny home...").
+2.  **Elaborate on Features:**
+    -   Mention the **size** and connect it to potential uses. For nightly rentals, this could be for RVs or camping. For monthly, it's ideal for tiny homes, gardening, or storage. For lease-to-own, emphasize the potential for building a future.
+    -   Weave in the **amenities** naturally. Instead of just listing them, describe their benefit (e.g., "with power and water hookups ready to go," "enjoy easy access via the well-maintained road."). If no amenities are listed, frame it positively (e.g., "a blank canvas for your off-grid project," "unspoiled natural beauty and ultimate privacy.").
+    -   Subtly highlight the **pricing model**. For lease-to-own, mention the unique "opportunity for long-term settlement" or "pathway to ownership."
+3.  **Structure & Tone:**
+    -   Use clear, concise language. Break up text into readable paragraphs.
+    -   Maintain a positive, professional, and inviting tone.
+    -   **Do not** make guarantees about zoning or what's legally permissible unless explicitly stated in the keywords (e.g., "Zoned for residential use"). Focus on the physical attributes and potential.
+    -   **Do not** include a call to action like "Book now!" or "Contact us for a tour!". The goal is the descriptive text only.
 `,
-});
+  });
 
-const generateListingDescriptionFlow = ai.defineFlow(
-  {
-    name: 'generateListingDescriptionFlow',
-    inputSchema: GenerateListingDescriptionInputSchema,
-    outputSchema: GenerateListingDescriptionOutputSchema,
-  },
-  async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-        throw new Error("The AI failed to generate a listing description.");
+  const generateListingDescriptionFlow = ai.defineFlow(
+    {
+      name: 'generateListingDescriptionFlow',
+      inputSchema: GenerateListingDescriptionInputSchema,
+      outputSchema: GenerateListingDescriptionOutputSchema,
+    },
+    async (input) => {
+      const {output} = await prompt(input);
+      if (!output) {
+          throw new Error("The AI failed to generate a listing description.");
+      }
+      return output;
     }
-    return output;
-  }
-);
+  );
+
+  return generateListingDescriptionFlow(input);
+}
