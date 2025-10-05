@@ -1,83 +1,52 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // --- Users ---
-    // Users can read their own profile.
-    // Users can create their own profile upon signup.
-    // Users can only update their own profile's mutable fields.
+    // Users
     match /users/{userId} {
-      allow read: if isAuthenticated() && isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isAuthenticated() && isOwner(userId) &&
-                       request.resource.data.keys().hasOnly(['name', 'bio', 'avatarUrl', 'subscriptionStatus', 'bookmarkedListingIds', 'isAdmin', 'walletBalance']);
-      // No user should be able to delete their own account directly. This should be handled by a backend process.
-      allow delete: if false;
+      allow read: if true;
+      allow write: if request.auth.uid == userId;
     }
-    
-    // --- Listings ---
-    // Anyone can read listings.
-    // Only authenticated users can create listings.
-    // Only the owner of a listing can update or delete it.
+
+    // Listings (public read, only owner update/delete)
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && resource.data.landownerId == request.auth.uid;
-    }
-    
-    // --- Bookings ---
-    // Only participants (renter or landowner) can read a booking.
-    // Only authenticated users can create a booking.
-    // Only participants can update a booking's status.
-    match /bookings/{bookingId} {
-        allow read, update: if isAuthenticated() && (request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId);
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.renterId;
-        // Deletion should be handled via status changes, not direct deletes.
-        allow delete: if false;
-    }
-    
-    // --- Reviews ---
-    // Anyone can read reviews.
-    // Authenticated users can write a review (further logic to check if they completed a booking should be in backend rules/functions).
-    // Users can only update/delete their own reviews.
-    match /reviews/{reviewId} {
-        allow read: if true;
-        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
-        allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
-    }
-    
-    // --- Transactions ---
-    // Users can only read their own transactions.
-    match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
-      // Transactions are system-generated, not user-created.
-      allow create, update, delete: if false;
-    }
-    
-    // --- Admin State ---
-    // Only authenticated admins should be able to read/write this.
-    // For simplicity now, we restrict write access but allow read for authenticated users.
-    // In a production app, this would be locked down to specific admin UIDs.
-    match /admin_state/{docId} {
-      allow read: if isAuthenticated();
-      // Write access should be handled by backend functions or specific admin UIDs.
-      allow write: if false; 
+      allow create: if request.auth.uid != null;
+      allow update, delete: if request.auth.uid == resource.data.landownerId;
     }
 
-    // --- Backtest Presets (Admin-only feature) ---
+    // Bookings (create if authenticated; read/write only by involved parties)
+    match /bookings/{bookingId} {
+      allow create: if request.auth.uid != null;
+      allow read: if request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId;
+      allow update: if request.auth.uid == resource.data.renterId || request.auth.uid == resource.data.landownerId;
+    }
+
+    // Transactions (only visible to owner)
+    match /transactions/{txnId} {
+      allow read, write: if request.auth.uid == resource.data.userId;
+    }
+
+    match /admin_state/{docId} {
+      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
     match /backtest_presets/{presetId} {
-      // Assuming only admins can access the backtesting tool.
-      allow read, write, delete: if isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    match /conversations/{conversationId} {
+      allow read, update: if request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth.uid != null;
+    }
+    
+    match /conversations/{conversationId}/messages/{messageId} {
+        allow read, create: if get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds[0] == request.auth.uid || get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds[1] == request.auth.uid;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
