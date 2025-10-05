@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
@@ -13,7 +12,7 @@ export default function BacktestPage() {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Verifying access...</p>
+        <p className="ml-2 text-muted-foreground">Loading...</p>
       </div>
     );
   }

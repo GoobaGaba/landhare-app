@@ -1,10 +1,9 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet, Shield, FlaskConical, ExternalLink } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet, Shield, FlaskConical, ExternalLink, Repeat } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -12,7 +11,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useListingsData } from '@/hooks/use-listings-data';
 import type { Listing, Booking, Transaction, MarketInsightsData } from '@/lib/types';
-import { ADMIN_EMAILS, FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights } from '@/lib/mock-data';
+import { ADMIN_EMAILS, FREE_TIER_BOOKMARK_LIMIT, FREE_TIER_LISTING_LIMIT, getBookingsForUser, getTransactionsForUser, getMarketInsights, processMonthlyEconomicCycle } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -40,6 +39,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [marketInsights, setMarketInsights] = useState<MarketInsightsData | null>(null);
   const [isInsightsLoading, setIsInsightsLoading] = useState(false);
+  const [isProcessingCycle, setIsProcessingCycle] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -58,9 +58,7 @@ export default function DashboardPage() {
     }
   }, [currentUser]);
 
-
-  useEffect(() => {
-    async function fetchData() {
+  const fetchDashboardData = useCallback(async () => {
       if (!currentUser) {
         setBookingCount(0);
         setTransactions([]);
@@ -84,9 +82,12 @@ export default function DashboardPage() {
       } finally {
         setIsDataLoading(false);
       }
-    }
-    fetchData();
-  }, [currentUser, toast]);
+    }, [currentUser, toast]);
+
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   useEffect(() => {
     async function fetchInsights() {
@@ -109,6 +110,30 @@ export default function DashboardPage() {
       fetchInsights();
     }
   }, [subscriptionStatus, authLoading, toast]);
+
+   const handleRunEconomicCycle = async () => {
+      setIsProcessingCycle(true);
+      toast({
+            title: "Economic Cycle Started",
+            description: "Processing monthly lease payments... This may take a moment.",
+        });
+      try {
+        const result = await processMonthlyEconomicCycle();
+        toast({
+            title: "Economic Cycle Complete",
+            description: result.message,
+        });
+        await fetchDashboardData(); // Re-fetch data to update the dashboard
+      } catch (error: any) {
+            toast({
+            title: "Economic Cycle Failed",
+            description: error.message || "An unexpected error occurred.",
+            variant: "destructive",
+        });
+      } finally {
+        setIsProcessingCycle(false);
+      }
+  };
 
   const chartData = useMemo(() => {
     const last6Months = Array.from({ length: 6 }, (_, i) => subMonths(new Date(), i)).reverse();
@@ -181,28 +206,6 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Welcome back, {userName}!</h1>
-      
-      {isUserAdmin && (
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <FlaskConical className="h-6 w-6"/>
-              Advanced Tools
-            </CardTitle>
-            <CardDescription>
-              Access platform-wide metrics and simulation controls.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="mr-2">
-              <Link href="/admin">Platform Metrics</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/admin/backtest">Launch Backtest Tool <ExternalLink className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 
@@ -423,6 +426,40 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FlaskConical className="h-5 w-5 text-primary"/>LandHare Backtest BETA</CardTitle>
+          <CardDescription>
+            An interactive tool to simulate business strategies and backtest economic models over time. Adjust variables and see their impact on a dynamic graph. Accessible to all logged-in users for testing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Button asChild>
+                <Link href="/admin/backtest">Launch Backtest Tool <ExternalLink className="ml-2 h-4 w-4" /></Link>
+            </Button>
+        </CardContent>
+      </Card>
+      
+      {isUserAdmin && (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary"/>Admin Controls</CardTitle>
+                <CardDescription>
+                    Manually trigger platform-wide economic events.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                    Clicking the button below will find all "Confirmed" monthly or lease-to-own bookings and process one month's rent payment. Renter wallets will be debited, landowner wallets credited, and service fees collected.
+                </p>
+                <Button onClick={handleRunEconomicCycle} disabled={isProcessingCycle}>
+                    {isProcessingCycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Repeat className="mr-2 h-4 w-4"/>}
+                    Process Monthly Economic Cycle
+                </Button>
+            </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
