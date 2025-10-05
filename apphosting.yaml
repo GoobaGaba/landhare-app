@@ -1,3 +1,4 @@
+
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
@@ -41,3 +42,32 @@ runConfig:
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "YOUR_MEASUREMENT_ID_HERE"
     GEMINI_API_KEY: "YOUR_KEY_HERE"
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_SITE_URL: "https://landhare.com"
+
+# Settings for your App Hosting static web content.
+# https://firebase.google.com/docs/app-hosting/configure-static-content
+staticConfig:
+  # The command to build your app's static web content.
+  buildCommand: npm run build
+
+# Settings for your App Hosting server.
+# https://firebase.google.com/docs/app-hosting/configure-server
+serverConfig:
+  # The command to start your app's server.
+  startCommand: npm start
+  # The environment variables to set on your server.
+  environment:
+    NEXT_PUBLIC_FIREBASE_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "YOUR_DOMAIN_HERE"
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: "YOUR_PROJECT_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "YOUR_BUCKET_HERE"
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "YOUR_SENDER_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_APP_ID: "YOUR_APP_ID_HERE"
+    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: "YOUR_MEASUREMENT_ID_HERE"
+    GEMINI_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "YOUR_KEY_HERE"
+    NEXT_PUBLIC_SITE_URL: "https://landhare.com"
+
+# The service account to run your app with.
+# This value is supplied by Firebase when you for create a backend.
+serviceAccount: landshare-app-backend
