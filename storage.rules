@@ -1,35 +1,14 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
-  
-    // --- Listings Images ---
-    // Path: /listings/{userId}/{fileName}
-    // Anyone can read listing images.
-    // Only an authenticated user can write to their own designated folder.
-    // Images must be smaller than 5MB.
-    // Only image content types are allowed.
-    match /listings/{userId}/{fileName} {
+    // Allow public read access to all files in the 'listings' folder
+    match /listings/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      // Allow write only by authenticated users, to their own user-id subfolder
+      allow write: if request.auth != null && allPaths.split('/')[0] == request.auth.uid;
     }
 
-    // --- Lease Contracts (PDFs) ---
-    // Path: /leaseContracts/{bookingId}/{fileName}
-    // Only users involved in the booking can read the contract.
-    // This requires that the booking document is accessible to check participant IDs.
-    // For simplicity in this ruleset, we will lock it to authenticated users.
-    // A more robust rule would check the associated booking document.
-    match /leaseContracts/{bookingId}/{fileName} {
-       allow read: if request.auth != null;
-       allow write: if request.auth != null 
-                    && request.resource.contentType == 'application/pdf'
-                    && request.resource.size < 2 * 1024 * 1024;
-    }
-    
-    // Default deny all other paths
+    // Fallback to deny all other access
     match /{allPaths=**} {
       allow read, write: if false;
     }

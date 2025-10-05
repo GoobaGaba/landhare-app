@@ -1,14 +1,15 @@
-
 'use client';
 
-import type { User as FirebaseUserType, AuthError } from 'firebase/auth';
+import type { User as FirebaseUserType, AuthError, GoogleAuthProvider } from 'firebase/auth';
 import { 
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, 
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
-  updateProfile as updateFirebaseProfile
+  updateProfile as updateFirebaseProfile,
+  signInWithPopup,
+  GoogleAuthProvider as FirebaseGoogleAuthProvider,
 } from 'firebase/auth';
 import { auth as firebaseAuthInstance, isPrototypeMode } from '@/lib/firebase'; 
 import type { ReactNode} from 'react';
@@ -41,6 +42,7 @@ interface AuthContextType {
   subscriptionStatus: SubscriptionStatus;
   signUpWithEmailAndPassword: (credentials: Required<AuthCredentials>) => Promise<void>;
   signInWithEmailPassword: (credentials: Pick<Required<AuthCredentials>, 'email' | 'password'>) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   logoutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
@@ -151,6 +153,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    setAuthError(null);
+    if (isPrototypeMode) throw new Error("Cannot sign in in prototype mode.");
+    try {
+      const provider = new FirebaseGoogleAuthProvider();
+      await signInWithPopup(firebaseAuthInstance!, provider);
+    } catch (err) {
+      const firebaseErr = err as AuthError;
+      setAuthError(firebaseErr.message);
+      setLoading(false);
+      toast({ title: 'Google Sign-In Failed', description: firebaseErr.message, variant: 'destructive' });
+      throw firebaseErr;
+    }
+  };
+
   const logoutUser = async () => {
     setLoading(true);
     if (isPrototypeMode) {
@@ -203,6 +221,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
+      // If the name is being changed, update the core Firebase Auth profile as well.
+      if (data.name && data.name !== currentUser.displayName) {
+          await updateFirebaseProfile(currentUser, { displayName: data.name });
+      }
+
       const updatedProfile = await updateUserProfile(currentUser.uid, data);
       if (updatedProfile) {
         setCurrentUser(prev => prev ? ({ ...prev, appProfile: updatedProfile }) : null);
@@ -257,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     subscriptionStatus,
     signUpWithEmailAndPassword,
     signInWithEmailPassword,
+    signInWithGoogle,
     logoutUser,
     sendPasswordReset,
     refreshUserProfile,

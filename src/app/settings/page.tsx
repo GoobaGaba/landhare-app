@@ -21,3 +21,5 @@ export default function SettingsRedirectPage() {
     </div>
   );
 }
+
+    

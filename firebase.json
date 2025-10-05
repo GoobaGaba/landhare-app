@@ -1,8 +1,28 @@
+
 {
   "firestore": {
     "rules": "firestore.rules"
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "hosting": {
+    "site": "landshare-app",
+    "public": ".next",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "function": {
+          "functionId": "landshare-app-backend",
+          "region": "us-central1",
+          "pinTag": true
+        }
+      }
+    ]
   }
 }
