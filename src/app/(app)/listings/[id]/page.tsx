@@ -677,3 +677,5 @@ export default function ListingDetailPage() {
     </div>
   );
 }
+
+    
