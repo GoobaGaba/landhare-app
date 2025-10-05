@@ -18,14 +18,20 @@ const firebaseConfig: FirebaseOptions = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-let app: FirebaseApp;
+let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let analytics: Analytics | null = null;
 let firebaseInitializationError: string | null = null;
 
-const isPrototypeMode = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('YOUR_KEY_HERE');
+const isConfigIncomplete = !firebaseConfig.apiKey || 
+                           firebaseConfig.apiKey.includes('YOUR_KEY_HERE') ||
+                           !firebaseConfig.projectId ||
+                           firebaseConfig.projectId.includes('YOUR_PROJECT_ID_HERE');
+
+// isPrototypeMode is true if the config is incomplete.
+export const isPrototypeMode = isConfigIncomplete;
 
 try {
   if (isPrototypeMode) {
@@ -35,26 +41,31 @@ try {
   app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   
   if (typeof window !== 'undefined') {
+    // Use initializeAuth for the client-side with persistence.
     auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
     });
   } else {
+    // For server-side rendering (though most of our app is client-side)
     auth = getAuth(app);
   }
   
   db = getFirestore(app);
   storage = getStorage(app);
   
+  // Initialize Analytics only on the client side where it is supported
   if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
     isAnalyticsSupported().then((supported) => {
       if (supported) {
-        analytics = getAnalytics(app);
+        analytics = getAnalytics(app as FirebaseApp);
       }
     });
   }
 
 } catch (error: any) {
+  // We log this error to the console for developers to see.
   console.error("Firebase Initialization Status:", error.message);
+  // This variable can be used to show a banner in the UI.
   firebaseInitializationError = error.message;
 }
 
@@ -64,6 +75,5 @@ export {
   db, 
   storage, 
   analytics,
-  firebaseInitializationError,
-  isPrototypeMode
+  firebaseInitializationError
 };
