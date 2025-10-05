@@ -142,8 +142,8 @@ export default function ListingDetailPage() {
 
     if (!listing) {
       return {
-        mainImage: "https://placehold.co/1200x800.png",
-        otherImages: ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"],
+        mainImage: "https://placehold.co/1200x800.png?text=Image+Not+Found",
+        otherImages: ["https://placehold.co/600x400.png?text=+", "https://placehold.co/600x400.png?text=+"],
         displayAmount: "N/A",
         displayUnit: "",
         isBookmarked,
@@ -151,8 +151,8 @@ export default function ListingDetailPage() {
       };
     }
     
-    const mainImage = listing.images && listing.images.length > 0 ? listing.images[0] : "https://placehold.co/1200x800.png";
-    const otherImages = listing.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png") : ["https://placehold.co/600x400.png", "https://placehold.co/600x400.png"];
+    const mainImage = listing.images && listing.images.length > 0 && listing.images[0] ? listing.images[0] : "https://placehold.co/1200x800.png?text=Image+Not+Found";
+    const otherImages = listing.images ? listing.images.slice(1, 3).map(img => img || "https://placehold.co/600x400.png?text=+") : ["https://placehold.co/600x400.png?text=+", "https://placehold.co/600x400.png?text=+"];
 
     let displayAmount = (listing.price || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     let displayUnit = 'month';
