@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet, Shield } from "lucide-react";
+import { Home, ListChecks, MessageSquare, Settings, DollarSign, PlusCircle, Loader2, UserCircle, BarChart3, Bookmark, Crown, ReceiptText, Wallet, Shield, FlaskConical, ExternalLink } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import { useAuth } from "@/contexts/auth-context";
@@ -186,16 +186,19 @@ export default function DashboardPage() {
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-primary">
-              <Shield className="h-6 w-6"/>
-              Administrator Tools
+              <FlaskConical className="h-6 w-6"/>
+              Advanced Tools
             </CardTitle>
             <CardDescription>
-              Access platform-wide metrics, user data, and simulation controls. This panel is only visible to you.
+              Access platform-wide metrics and simulation controls.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
-              <Link href="/admin">Go to Admin Dashboard</Link>
+            <Button asChild className="mr-2">
+              <Link href="/admin">Platform Metrics</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/admin/backtest">Launch Backtest Tool <ExternalLink className="ml-2 h-4 w-4" /></Link>
             </Button>
           </CardContent>
         </Card>

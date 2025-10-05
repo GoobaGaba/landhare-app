@@ -35,7 +35,8 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!currentUser?.email || !ADMIN_EMAILS.includes(currentUser.email)) {
+    // Allow any logged-in user to see this page now
+    if (!currentUser) {
       setIsLoading(false);
       return;
     }
@@ -70,20 +71,20 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex justify-center items-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading Admin Dashboard...</p>
+        <p className="ml-2 text-muted-foreground">Loading Platform Metrics...</p>
       </div>
     );
   }
 
-  if (!currentUser?.email || !ADMIN_EMAILS.includes(currentUser.email)) {
+  if (!currentUser) {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive"><Shield className="h-6 w-6"/> Access Denied</CardTitle>
-          <CardDescription>You do not have permission to view this page.</CardDescription>
+          <CardDescription>You must be logged in to view this page.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">This area is restricted to platform administrators.</p>
+          <p className="text-muted-foreground">This area is for logged-in users.</p>
         </CardContent>
       </Card>
     );
@@ -92,7 +93,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold">Platform Metrics</h1>
       </div>
       <p className="text-muted-foreground">
         A top-level overview of the LandHare platform's simulated economy and user activity.

@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Shield } from 'lucide-react';
 import { BacktestSimulator } from '@/components/admin/backtest-simulator';
-import { ADMIN_EMAILS } from '@/lib/mock-data';
 
 export default function BacktestPage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -19,15 +18,16 @@ export default function BacktestPage() {
     );
   }
 
-  if (!currentUser?.email || !ADMIN_EMAILS.includes(currentUser.email)) {
+  // This page is now accessible to all logged-in users.
+  if (!currentUser) {
     return (
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-destructive"><Shield className="h-6 w-6"/> Access Denied</CardTitle>
-          <CardDescription>You do not have permission to view this tool.</CardDescription>
+          <CardDescription>You must be logged in to view this tool.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">The Backtest BETA is restricted to platform administrators.</p>
+          <p className="text-muted-foreground">The Backtest BETA is restricted to logged-in users.</p>
         </CardContent>
       </Card>
     );
