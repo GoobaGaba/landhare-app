@@ -61,7 +61,7 @@ jobs:
           NEXT_PUBLIC_SITE_URL: "https://landhare.com"
         run: npm run build
       - name: Deploy to Firebase
-        uses: firebase/firebase-tools@master
+        uses: w9jds/firebase-action@master
         with:
           args: deploy --only hosting
         env:
