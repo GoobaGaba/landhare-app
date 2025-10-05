@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -92,16 +93,17 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
     }
   };
   const displayPriceInfo = getPriceDisplay();
-  const fallbackImageSrc = "https://placehold.co/600x400.png";
+  const fallbackImageSrc = "https://placehold.co/600x400.png?text=Image+Not+Found";
+  const imageSrc = listing.images && listing.images[0] ? listing.images[0] : fallbackImageSrc;
   const isMockModeNoUser = firebaseInitializationError !== null && !currentUser?.appProfile;
 
   const cardContent = (
     <>
         <div className="relative w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0">
           <Image
-            src={listing.images[0] || fallbackImageSrc}
+            src={imageSrc}
             alt={listing.title}
-            data-ai-hint={listing.images[0]?.includes('placehold.co') ? "property placeholder" : "landscape nature"}
+            data-ai-hint={imageSrc.includes('placehold.co') ? "property placeholder" : "landscape nature"}
             fill
             sizes="(max-width: 640px) 100vw, 33vw"
             className="object-cover"
@@ -236,9 +238,9 @@ export function ListingCard({ listing, viewMode = 'grid', sizeVariant = 'default
       <CardHeader className="p-0 relative">
         <div className={cn("relative w-full", isCompact ? "h-32" : "h-48")}>
           <Image
-            src={listing.images[0] || fallbackImageSrc}
+            src={imageSrc}
             alt={listing.title}
-            data-ai-hint={listing.images[0]?.includes('placehold.co') ? "property placeholder" : "landscape nature"}
+            data-ai-hint={imageSrc.includes('placehold.co') ? "property placeholder" : "landscape nature"}
             fill
             sizes={isCompact ? "(max-width: 768px) 50vw, 256px" : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
             className="object-cover"
